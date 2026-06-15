@@ -43,7 +43,7 @@ export default function AdminDashboardPage() {
   const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
-  const saleTime = (s: Sale) => (s.saleDate instanceof Date ? s.saleDate.getTime() : Number(s.saleDate) || 0);
+  const saleTime = (s: Sale) => { const d = (s as any).saleDate; return typeof d?.getTime === "function" ? d.getTime() : Number(d) || 0; };
   const ytdSales = sales
     .filter((s) => saleTime(s) >= startOfYear)
     .reduce((sum, s) => sum + s.finalAmount, 0);
@@ -68,9 +68,8 @@ export default function AdminDashboardPage() {
 
   const last30 = getLast30Days();
   const safeDate = (d: unknown) => {
-    if (!d) return "";
     try { return new Date(d as any).toISOString().slice(0, 10); }
-    catch { console.error("Invalid saleDate:", d); return ""; }
+    catch { return ""; }
   };
   const salesTrend = last30.map((date) => ({
     date: date.slice(5),
