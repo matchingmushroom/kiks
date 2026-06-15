@@ -91,20 +91,20 @@ export default function AdminInventoryPage() {
           </div>
         </div>
 
-        <div className="flex gap-2 mb-6">
-          <button onClick={() => setTab("stock")}
-            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === "stock" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}>
-            <Package className="h-4 w-4" /> Stock
-          </button>
-          <button onClick={() => setTab("log")}
-            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              tab === "log" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
-            }`}>
-            <ClipboardList className="h-4 w-4" /> Audit Log
-          </button>
-        </div>
+            <div className="flex flex-wrap gap-2 mb-6">
+              <button onClick={() => setTab("stock")}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  tab === "stock" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}>
+                <ClipboardList className="h-4 w-4" /> Stock
+              </button>
+              <button onClick={() => setTab("log")}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  tab === "log" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+                }`}>
+                <Package className="h-4 w-4" /> Audit Log
+              </button>
+            </div>
 
         {tab === "stock" ? (
           <>
@@ -173,104 +173,72 @@ export default function AdminInventoryPage() {
               </div>
             )}
 
-            <div className="bg-white border border-border rounded-xl overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted text-left">
-                      <th className="px-4 py-3 font-medium text-muted-foreground">Product</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground">Category</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground">SKU</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground text-center">Stock</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground text-center">Status</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground w-24">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {filtered.map((p) => (
-                      <tr key={p.id} className="hover:bg-muted/50">
-                        <td className="px-4 py-3 font-medium text-secondary max-w-[200px] truncate">{p.name}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{categoryMap.get(p.categoryId) || "—"}</td>
-                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.sku || "—"}</td>
-                        <td className="px-4 py-3 text-center">
-                          <span className={`font-bold text-lg ${
-                            p.quantityInStock <= 0 ? "text-red-500" :
-                            p.quantityInStock <= 3 ? "text-amber-500" :
-                            "text-secondary"
-                          }`}>{p.quantityInStock}</span>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {p.quantityInStock <= 0 ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-red-600">
-                              <AlertTriangle className="h-3 w-3" /> Out of Stock
-                            </span>
-                          ) : p.quantityInStock <= 3 ? (
-                            <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-                              <AlertTriangle className="h-3 w-3" /> Low Stock
-                            </span>
-                          ) : (
-                            <span className="text-xs text-green-600">In Stock</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <button onClick={() => startAdjust(p)}
-                            className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-secondary transition-colors">
-                            Adjust
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+              {filtered.map((p) => (
+                <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-secondary text-sm truncate">{p.name}</p>
+                      <p className="text-xs text-muted-foreground">{categoryMap.get(p.categoryId) || "—"} · {p.sku || "—"}</p>
+                    </div>
+                    <button onClick={() => startAdjust(p)}
+                      className="text-xs px-2.5 py-1.5 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-secondary transition-colors shrink-0">
+                      Adjust
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`font-bold text-lg ${
+                      p.quantityInStock <= 0 ? "text-red-500" :
+                      p.quantityInStock <= 3 ? "text-amber-500" :
+                      "text-secondary"
+                    }`}>{p.quantityInStock}</span>
+                    {p.quantityInStock <= 0 ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-red-600">
+                        <AlertTriangle className="h-3 w-3" /> Out of Stock
+                      </span>
+                    ) : p.quantityInStock <= 3 ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                        <AlertTriangle className="h-3 w-3" /> Low Stock
+                      </span>
+                    ) : (
+                      <span className="text-xs text-green-600">In Stock</span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           </>
         ) : (
-          <div className="bg-white border border-border rounded-xl overflow-hidden">
+          <div className="space-y-3">
             {logs.length === 0 ? (
               <p className="text-muted-foreground text-center py-12">No inventory changes recorded yet.</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-muted text-left">
-                      <th className="px-4 py-3 font-medium text-muted-foreground">Date</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground">Product</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground">Type</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground text-center">Change</th>
-                      <th className="px-4 py-3 font-medium text-muted-foreground">Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {logs.map((log) => {
-                      const prod = products.find((p) => p.id === log.productId);
-                      return (
-                        <tr key={log.id} className="hover:bg-muted/50">
-                          <td className="px-4 py-3 text-xs text-muted-foreground">
-                            {formatDateTime(log.createdAt as unknown as number)}
-                          </td>
-                          <td className="px-4 py-3 font-medium text-secondary">{prod?.name || "Unknown"}</td>
-                          <td className="px-4 py-3">
-                            <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
-                              log.changeType === "add" ? "bg-green-50 text-green-700" :
-                              log.changeType === "remove" ? "bg-red-50 text-red-700" :
-                              "bg-blue-50 text-blue-700"
-                            }`}>{log.changeType}</span>
-                          </td>
-                          <td className={`px-4 py-3 text-center font-medium ${
-                            (log.quantityChange || 0) > 0 ? "text-green-600" : "text-red-600"
-                          }`}>
-                            {(log.quantityChange || 0) > 0 ? `+${log.quantityChange}` : log.quantityChange}
-                          </td>
-                          <td className="px-4 py-3 text-muted-foreground text-xs max-w-[200px] truncate">
-                            {log.reason || "—"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              logs.map((log) => {
+                const prod = products.find((p) => p.id === log.productId);
+                return (
+                  <div key={log.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-1.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-secondary text-sm truncate">{prod?.name || "Unknown"}</p>
+                        <p className="text-xs text-muted-foreground">{formatDateTime(log.createdAt)}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${
+                        log.changeType === "add" ? "bg-green-50 text-green-700" :
+                        log.changeType === "remove" ? "bg-red-50 text-red-700" :
+                        "bg-blue-50 text-blue-700"
+                      }`}>{log.changeType}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className={`font-medium ${
+                        (log.quantityChange || 0) > 0 ? "text-green-600" : "text-red-600"
+                      }`}>
+                        {(log.quantityChange || 0) > 0 ? `+${log.quantityChange}` : log.quantityChange}
+                      </span>
+                      <span className="text-muted-foreground">{log.reason || "—"}</span>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         )}

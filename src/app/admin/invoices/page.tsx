@@ -79,48 +79,33 @@ export default function AdminInvoicesPage() {
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-center py-12">No invoices found.</p>
         ) : (
-          <div className="bg-white border border-border rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted text-left">
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Number</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Customer</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Type</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Total</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Date</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground w-20">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filtered.map((inv) => (
-                    <tr key={inv.id} className="hover:bg-muted/50">
-                      <td className="px-4 py-3 font-medium text-secondary">{inv.invoiceNumber}</td>
-                      <td className="px-4 py-3 max-w-[150px] truncate">{inv.customer?.name || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
-                          inv.type === "invoice" ? "bg-purple-50 text-purple-700" : "bg-blue-50 text-blue-700"
-                        }`}>{inv.type}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize border ${STATUS_COLORS[inv.status] || ""}`}>
-                          {inv.status?.replace("_", " ")}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-medium">{formatCurrency(inv.totalAmount)}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{formatDate(inv.createdAt as unknown as number)}</td>
-                      <td className="px-4 py-3">
-                        <Link href={`/admin/invoices/${inv.id}`}
-                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                          <Eye className="h-3 w-3" /> View
-                        </Link>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="grid grid-cols-1 gap-3">
+            {filtered.map((inv) => (
+              <div key={inv.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-secondary text-sm">{inv.invoiceNumber}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
+                        inv.type === "invoice" ? "bg-purple-50 text-purple-700" : "bg-blue-50 text-blue-700"
+                      }`}>{inv.type}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">{inv.customer?.name || "—"}</p>
+                  </div>
+                  <Link href={`/admin/invoices/${inv.id}`}
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0">
+                    <Eye className="h-3 w-3" /> View
+                  </Link>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                  <span className="font-semibold text-secondary">{formatCurrency(inv.totalAmount)}</span>
+                  <span className={`px-2 py-0.5 rounded-full capitalize border ${STATUS_COLORS[inv.status] || ""}`}>
+                    {inv.status?.replace("_", " ")}
+                  </span>
+                  <span className="text-muted-foreground">{formatDate(inv.createdAt)}</span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

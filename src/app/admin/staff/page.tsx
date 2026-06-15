@@ -180,50 +180,34 @@ export default function AdminStaffPage() {
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-center py-12">No staff found.</p>
         ) : (
-          <div className="bg-white border border-border rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted text-left">
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Name</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Email</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Phone</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Role</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Joined</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground w-24">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filtered.map((u) => (
-                    <tr key={u.uid} className="hover:bg-muted/50">
-                      <td className="px-4 py-3 font-medium text-secondary">{u.displayName}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{u.phone || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize border ${ROLE_COLORS[u.role] || ""}`}>
-                          {u.role}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {formatDate(u.createdAt as unknown as number)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => openEdit(u)}
-                            className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </button>
-                          <button onClick={() => handleDelete(u.uid, u.displayName)}
-                            className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filtered.map((u) => (
+              <div key={u.uid} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-secondary text-sm truncate">{u.displayName}</p>
+                    <p className="text-xs text-muted-foreground">{u.email}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full capitalize border shrink-0 ${ROLE_COLORS[u.role] || ""}`}>
+                    {u.role}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{u.phone || "—"}</span>
+                  <span className="text-muted-foreground">Joined {formatDate(u.createdAt)}</span>
+                </div>
+                <div className="flex items-center gap-1 pt-1">
+                  <button onClick={() => openEdit(u)}
+                    className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </button>
+                  <button onClick={() => handleDelete(u.uid, u.displayName)}
+                    className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>

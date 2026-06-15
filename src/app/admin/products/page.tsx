@@ -329,74 +329,50 @@ export default function AdminProductsPage() {
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-center py-12">No products found.</p>
         ) : (
-          <div className="bg-white border border-border rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted text-left">
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Name</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Category</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Price</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Weight</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Stock</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Badge</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground w-24">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filtered.map((p) => {
-                    const catName = categories.find((c) => c.id === p.categoryId)?.name || "—";
-                    return (
-                      <tr key={p.id} className="hover:bg-muted/50">
-                        <td className="px-4 py-3 font-medium text-secondary max-w-[200px] truncate">{p.name}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{catName}</td>
-                        <td className="px-4 py-3">{formatCurrency(p.price)}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{p.weight}g</td>
-                        <td className="px-4 py-3">
-                          <span className={p.quantityInStock <= 3 ? "text-red-600 font-medium" : ""}>
-                            {p.quantityInStock}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {p.badge && p.badge !== "none" ? (
-                            <span className="text-xs bg-muted px-2 py-0.5 rounded">
-                              {{limited_stock:"Limited",out_of_stock:"OOS",price_dropped:"Price ↓",offer:"Offer"}[p.badge]}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => toggleField(p.id, "isActive", !p.isActive)}
-                              className={`p-1 rounded ${p.isActive ? "text-green-600" : "text-muted-foreground"}`}
-                              title={p.isActive ? "Active" : "Inactive"}>
-                              {p.isActive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                            </button>
-                            <button onClick={() => toggleField(p.id, "isFeatured", !p.isFeatured)}
-                              className={`p-1 rounded ${p.isFeatured ? "text-amber-500" : "text-muted-foreground"}`}
-                              title={p.isFeatured ? "Featured" : "Not featured"}>
-                              <Star className={`h-3.5 w-3.5 ${p.isFeatured ? "fill-amber-500" : ""}`} />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => openEdit(p)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </button>
-                            <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filtered.map((p) => {
+              const catName = categories.find((c) => c.id === p.categoryId)?.name || "—";
+              return (
+                <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-secondary text-sm truncate">{p.name}</p>
+                      <p className="text-xs text-muted-foreground">{catName}</p>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button onClick={() => toggleField(p.id, "isActive", !p.isActive)}
+                        className={`p-1.5 rounded ${p.isActive ? "text-green-600" : "text-muted-foreground"}`}
+                        title={p.isActive ? "Active" : "Inactive"}>
+                        {p.isActive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                      </button>
+                      <button onClick={() => toggleField(p.id, "isFeatured", !p.isFeatured)}
+                        className={`p-1.5 rounded ${p.isFeatured ? "text-amber-500" : "text-muted-foreground"}`}
+                        title={p.isFeatured ? "Featured" : "Not featured"}>
+                        <Star className={`h-3.5 w-3.5 ${p.isFeatured ? "fill-amber-500" : ""}`} />
+                      </button>
+                      <button onClick={() => openEdit(p)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <span className="font-semibold text-secondary">{formatCurrency(p.price)}</span>
+                    <span className="text-muted-foreground">{p.weight}g</span>
+                    <span className={p.quantityInStock <= 3 ? "text-red-600 font-medium" : "text-muted-foreground"}>
+                      Stock: {p.quantityInStock}
+                    </span>
+                    {p.badge && p.badge !== "none" && (
+                      <span className="bg-muted px-1.5 py-0.5 rounded">
+                        {{limited_stock:"Limited",out_of_stock:"OOS",price_dropped:"Price ↓",offer:"Offer"}[p.badge]}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

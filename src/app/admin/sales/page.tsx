@@ -376,42 +376,27 @@ function SalesContent() {
       {sales.length === 0 ? (
         <p className="text-muted-foreground text-center py-12">No sales recorded yet.</p>
       ) : (
-        <div className="bg-white border border-border rounded-xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-muted text-left">
-                  <th className="px-4 py-3 font-medium text-muted-foreground">Customer</th>
-                  <th className="px-4 py-3 font-medium text-muted-foreground">Items</th>
-                  <th className="px-4 py-3 font-medium text-muted-foreground">Total</th>
-                  <th className="px-4 py-3 font-medium text-muted-foreground">Payment</th>
-                  <th className="px-4 py-3 font-medium text-muted-foreground">Date</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {sales.map((s) => (
-                  <tr key={s.id} className="hover:bg-muted/50">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-secondary">{s.customer?.name}</p>
-                      <p className="text-xs text-muted-foreground">{s.customer?.phone}</p>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{s.items?.length || 0} items</td>
-                    <td className="px-4 py-3 font-medium">{formatCurrency(s.finalAmount)}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
-                        s.payment?.balanceDue > 0 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
-                      }`}>
-                        {s.payment?.balanceDue > 0 ? `Due ${formatCurrency(s.payment.balanceDue)}` : "Paid"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {formatDate(s.saleDate as unknown as number)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {sales.map((s) => (
+            <div key={s.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-secondary text-sm truncate">{s.customer?.name}</p>
+                  <p className="text-xs text-muted-foreground">{s.customer?.phone}</p>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${
+                  s.payment?.balanceDue > 0 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
+                }`}>
+                  {s.payment?.balanceDue > 0 ? `Due ${formatCurrency(s.payment.balanceDue)}` : "Paid"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-secondary">{formatCurrency(s.finalAmount)}</span>
+                <span className="text-muted-foreground">{formatDate(s.saleDate)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">{s.items?.length || 0} items</p>
+            </div>
+          ))}
         </div>
       )}
     </div>

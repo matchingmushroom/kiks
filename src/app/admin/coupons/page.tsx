@@ -263,99 +263,69 @@ export default function AdminCouponsPage() {
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-center py-12">No coupons found.</p>
         ) : (
-          <div className="bg-white border border-border rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted text-left">
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Code</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Discount</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Type</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Min Purchase</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Used / Limit</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Buyer</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Valid</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
-                    <th className="px-4 py-3 font-medium text-muted-foreground w-28">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {filtered.map((c) => {
-                    const now = Date.now();
-                    const validUntilMs = c.validUntil ? toDate(c.validUntil).getTime() : 0;
-                    const expired = validUntilMs > 0 && now > validUntilMs;
-                    return (
-                      <tr key={c.id} className="hover:bg-muted/50">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-medium text-secondary">{c.code}</span>
-                            <button onClick={() => copyCode(c.code)} className="p-1 text-muted-foreground hover:text-primary rounded" title="Copy">
-                              <Copy className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          {c.discountType === "percentage" ? `${c.discountValue}%` : formatCurrency(c.discountValue)}
-                          {c.discountType === "percentage" && c.maxDiscount > 0 && (
-                            <span className="text-xs text-muted-foreground"> (max {formatCurrency(c.maxDiscount)})</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          {c.couponType ? (
-                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{c.couponType}</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">General</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {c.minPurchaseAmount > 0 ? formatCurrency(c.minPurchaseAmount) : "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {c.usedCount || 0} / {c.usageLimit || "∞"}
-                        </td>
-                        <td className="px-4 py-3">
-                          {c.restrictedToPhones?.length ? (
-                            <span className="text-xs font-medium">{c.restrictedToPhones.join(", ")}</span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Anyone</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          {c.validFrom && <p>From: {formatDate(c.validFrom)}</p>}
-                          {c.validUntil && <p>To: {formatDate(c.validUntil)}</p>}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            expired ? "bg-red-50 text-red-700" :
-                            !c.isActive ? "bg-gray-100 text-muted-foreground" :
-                            "bg-green-50 text-green-700"
-                          }`}>
-                            {expired ? "Expired" : !c.isActive ? "Inactive" : "Active"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => openEdit(c)}
-                              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </button>
-                            <button onClick={() => toggleActive(c.id, c.isActive)}
-                              className="p-1.5 text-muted-foreground hover:text-amber-600 hover:bg-amber-50 rounded"
-                              title={c.isActive ? "Deactivate" : "Activate"}>
-                              <CheckCircle className={`h-3.5 w-3.5 ${c.isActive ? "" : "opacity-40"}`} />
-                            </button>
-                            <button onClick={() => handleDelete(c.id, c.code)}
-                              className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filtered.map((c) => {
+              const now = Date.now();
+              const validUntilMs = c.validUntil ? toDate(c.validUntil).getTime() : 0;
+              const expired = validUntilMs > 0 && now > validUntilMs;
+              return (
+                <div key={c.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="font-mono font-medium text-secondary text-sm truncate">{c.code}</span>
+                      <button onClick={() => copyCode(c.code)} className="p-1 text-muted-foreground hover:text-primary rounded" title="Copy">
+                        <Copy className="h-3 w-3" />
+                      </button>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                      expired ? "bg-red-50 text-red-700" :
+                      !c.isActive ? "bg-gray-100 text-muted-foreground" :
+                      "bg-green-50 text-green-700"
+                    }`}>
+                      {expired ? "Expired" : !c.isActive ? "Inactive" : "Active"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                    <span className="font-semibold text-secondary">
+                      {c.discountType === "percentage" ? `${c.discountValue}%` : formatCurrency(c.discountValue)}
+                    </span>
+                    {c.couponType ? (
+                      <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{c.couponType}</span>
+                    ) : (
+                      <span className="text-muted-foreground">General</span>
+                    )}
+                    <span className="text-muted-foreground">Used: {c.usedCount || 0}/{c.usageLimit || "∞"}</span>
+                    {c.minPurchaseAmount > 0 && <span className="text-muted-foreground">Min: {formatCurrency(c.minPurchaseAmount)}</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    {c.validFrom && <span>From: {formatDate(c.validFrom)}</span>}
+                    {c.validUntil && <span>To: {formatDate(c.validUntil)}</span>}
+                  </div>
+                  <div className="text-xs">
+                    {c.restrictedToPhones?.length ? (
+                      <span className="font-medium">{c.restrictedToPhones.join(", ")}</span>
+                    ) : (
+                      <span className="text-muted-foreground">Anyone</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 pt-1">
+                    <button onClick={() => openEdit(c)}
+                      className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => toggleActive(c.id, c.isActive)}
+                      className="p-1.5 text-muted-foreground hover:text-amber-600 hover:bg-amber-50 rounded"
+                      title={c.isActive ? "Deactivate" : "Activate"}>
+                      <CheckCircle className={`h-3.5 w-3.5 ${c.isActive ? "" : "opacity-40"}`} />
+                    </button>
+                    <button onClick={() => handleDelete(c.id, c.code)}
+                      className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

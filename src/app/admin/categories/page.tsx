@@ -143,60 +143,43 @@ export default function AdminCategoriesPage() {
         ) : categories.length === 0 ? (
           <p className="text-muted-foreground text-center py-12">No categories yet.</p>
         ) : (
-          <div className="bg-white border border-border rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-muted text-left">
-                  <th className="px-4 py-3 font-medium text-muted-foreground w-20">Order</th>
-                  <th className="px-4 py-3 font-medium text-muted-foreground">Name</th>
-                  <th className="px-4 py-3 font-medium text-muted-foreground">Description</th>
-                  <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
-                  <th className="px-4 py-3 font-medium text-muted-foreground w-24">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {categories.map((cat, i) => (
-                  <tr key={cat.id} className="hover:bg-muted/50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <span className="text-muted-foreground w-4 text-center">{cat.order}</span>
-                        <div className="flex flex-col">
-                          <button onClick={() => moveOrder(cat.id, cat.order - 1)}
-                            disabled={i === 0}
-                            className="p-0.5 text-muted-foreground hover:text-primary disabled:opacity-30">
-                            <ArrowUp className="h-3 w-3" />
-                          </button>
-                          <button onClick={() => moveOrder(cat.id, cat.order + 1)}
-                            disabled={i === categories.length - 1}
-                            className="p-0.5 text-muted-foreground hover:text-primary disabled:opacity-30">
-                            <ArrowDown className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-secondary">{cat.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground max-w-[300px] truncate">{cat.description}</td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${cat.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-muted-foreground"}`}>
-                        {cat.isActive ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => openEdit(cat)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={() => handleDelete(cat.id, cat.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {categories.map((cat, i) => (
+              <div key={cat.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-secondary text-sm truncate">{cat.name}</p>
+                    {cat.description && <p className="text-xs text-muted-foreground truncate">{cat.description}</p>}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${cat.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-muted-foreground"}`}>
+                    {cat.isActive ? "Active" : "Inactive"}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => moveOrder(cat.id, cat.order - 1)}
+                      disabled={i === 0}
+                      className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <span className="text-xs text-muted-foreground">Order {cat.order}</span>
+                    <button onClick={() => moveOrder(cat.id, cat.order + 1)}
+                      disabled={i === categories.length - 1}
+                      className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => openEdit(cat)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                      <Edit2 className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => handleDelete(cat.id, cat.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
