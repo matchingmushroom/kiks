@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Product } from "@/types";
+import { Product, ProductBadge } from "@/types";
 import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { ShoppingBag } from "lucide-react";
@@ -10,9 +10,20 @@ interface ProductCardProps {
   product: Product;
 }
 
+const BADGE_STYLES: Record<ProductBadge, { bg: string; label: string }> = {
+  none: { bg: "", label: "" },
+  limited_stock: { bg: "bg-orange-500", label: "Limited Stock" },
+  out_of_stock: { bg: "bg-red-500", label: "Out of Stock" },
+  price_dropped: { bg: "bg-emerald-600", label: "Price Dropped" },
+  offer: { bg: "bg-amber-500", label: "Offer" },
+};
+
 export default function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
+  const badge = product.badge || "none";
+  const style = BADGE_STYLES[badge];
+  const showBadge = badge !== "none";
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -48,7 +59,12 @@ export default function ProductCard({ product }: ProductCardProps) {
             No Image
           </div>
         )}
-        {product.quantityInStock <= 0 && (
+        {showBadge && (
+          <div className={`absolute top-2 left-2 ${style.bg} text-white text-xs px-2 py-1 rounded font-medium`}>
+            {style.label}
+          </div>
+        )}
+        {badge === "none" && product.quantityInStock <= 0 && (
           <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
             Out of Stock
           </div>
@@ -62,7 +78,20 @@ export default function ProductCard({ product }: ProductCardProps) {
           {product.purity} • {product.weight}g
         </p>
         <div className="flex items-center justify-between mt-2">
-          <p className="text-primary font-bold">Rs. {product.price.toLocaleString("ne-NP")}</p>
+          <div>
+            {badge === "price_dropped" || badge === "offer" ? (
+              <div className="flex items-baseline gap-2">
+                <span className="text-sm text-muted-foreground line-through">
+                  Rs. {(product.originalPrice || product.price).toLocaleString("ne-NP")}
+                </span>
+                <span className="text-primary font-bold">
+                  Rs. {product.price.toLocaleString("ne-NP")}
+                </span>
+              </div>
+            ) : (
+              <p className="text-primary font-bold">Rs. {product.price.toLocaleString("ne-NP")}</p>
+            )}
+          </div>
           {product.quantityInStock > 0 && (
             <button
               onClick={handleAddToCart}

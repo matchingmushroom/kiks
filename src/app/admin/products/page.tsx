@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
-import { Product, Category } from "@/types";
+import { Product, ProductBadge, Category } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import {
   addDoc,
@@ -24,6 +24,7 @@ const emptyProduct = {
   purity: "22K", metalType: "Gold", stoneType: "None",
   stoneWeight: 0, makingCharge: 0, warranty: "1 year",
   sku: "", quantityInStock: 1, isActive: true, isFeatured: false,
+  badge: "none" as ProductBadge, originalPrice: 0,
 };
 
 export default function AdminProductsPage() {
@@ -68,6 +69,7 @@ export default function AdminProductsPage() {
       stoneWeight: p.stoneWeight, makingCharge: p.makingCharge,
       warranty: p.warranty, sku: p.sku, quantityInStock: p.quantityInStock,
       isActive: p.isActive, isFeatured: p.isFeatured,
+      badge: p.badge || "none", originalPrice: p.originalPrice || 0,
     });
     setEditingId(p.id);
     setShowForm(true);
@@ -85,6 +87,8 @@ export default function AdminProductsPage() {
         stoneWeight: Number(form.stoneWeight),
         makingCharge: Number(form.makingCharge),
         quantityInStock: Number(form.quantityInStock),
+        originalPrice: Number(form.originalPrice) || 0,
+        badge: form.badge === "none" ? "" : form.badge,
         updatedAt: Timestamp.fromDate(new Date()),
       };
       if (editingId) {
@@ -270,6 +274,24 @@ export default function AdminProductsPage() {
                   Featured
                 </label>
               </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Badge</label>
+                <select value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value as ProductBadge })}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                  <option value="none">None</option>
+                  <option value="limited_stock">Limited Stock</option>
+                  <option value="out_of_stock">Out of Stock</option>
+                  <option value="price_dropped">Price Dropped</option>
+                  <option value="offer">Offer</option>
+                </select>
+              </div>
+              {(form.badge === "price_dropped" || form.badge === "offer") && (
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Original Price (NPR)</label>
+                  <input type="number" value={form.originalPrice} onChange={(e) => setForm({ ...form, originalPrice: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+              )}
               <div className="md:col-span-2 lg:col-span-3">
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
                 <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -317,6 +339,7 @@ export default function AdminProductsPage() {
                     <th className="px-4 py-3 font-medium text-muted-foreground">Price</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Weight</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Stock</th>
+                    <th className="px-4 py-3 font-medium text-muted-foreground">Badge</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground w-24">Actions</th>
                   </tr>
@@ -334,6 +357,15 @@ export default function AdminProductsPage() {
                           <span className={p.quantityInStock <= 3 ? "text-red-600 font-medium" : ""}>
                             {p.quantityInStock}
                           </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {p.badge && p.badge !== "none" ? (
+                            <span className="text-xs bg-muted px-2 py-0.5 rounded">
+                              {{limited_stock:"Limited",out_of_stock:"OOS",price_dropped:"Price ↓",offer:"Offer"}[p.badge]}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">

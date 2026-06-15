@@ -146,9 +146,26 @@ export default function ProductDetailPage() {
 
           <div>
             <h1 className="text-3xl font-bold text-secondary mb-2">{product.name}</h1>
-            <p className="text-3xl font-bold text-primary mb-6">
-              Rs. {product.price.toLocaleString("ne-NP")}
-            </p>
+            {product.badge === "price_dropped" || product.badge === "offer" ? (
+              <div className="flex items-baseline gap-3 mb-6">
+                <span className="text-2xl text-muted-foreground line-through">
+                  Rs. {(product.originalPrice || product.price).toLocaleString("ne-NP")}
+                </span>
+                <span className="text-3xl font-bold text-primary">
+                  Rs. {product.price.toLocaleString("ne-NP")}
+                </span>
+                {product.badge === "price_dropped" && (
+                  <span className="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded font-medium">Price Dropped</span>
+                )}
+                {product.badge === "offer" && (
+                  <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded font-medium">Offer</span>
+                )}
+              </div>
+            ) : (
+              <p className="text-3xl font-bold text-primary mb-6">
+                Rs. {product.price.toLocaleString("ne-NP")}
+              </p>
+            )}
 
             <p className="text-muted-foreground mb-6 leading-relaxed">
               {product.description || "No description available."}
@@ -163,7 +180,13 @@ export default function ProductDetailPage() {
               ))}
             </div>
 
-            <div className="flex items-center gap-2 mb-6">
+            <div className="flex items-center gap-2 mb-6 flex-wrap">
+              {product.badge === "limited_stock" && (
+                <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded font-medium">Limited Stock</span>
+              )}
+              {product.badge === "out_of_stock" && (
+                <span className="text-xs bg-red-500 text-white px-2 py-1 rounded font-medium">Out of Stock</span>
+              )}
               <span className={`inline-flex items-center gap-1 text-sm px-3 py-1 rounded-full ${
                 product.quantityInStock > 0
                   ? "bg-green-50 text-green-700"

@@ -18,6 +18,8 @@ export interface Category {
   isActive: boolean;
 }
 
+export type ProductBadge = "none" | "limited_stock" | "out_of_stock" | "price_dropped" | "offer";
+
 export interface Product {
   id: string;
   name: string;
@@ -27,6 +29,8 @@ export interface Product {
   images: string[];
   videoUrl: string;
   price: number;
+  originalPrice?: number;
+  badge?: ProductBadge;
   weight: number;
   purity: string;
   metalType: string;
