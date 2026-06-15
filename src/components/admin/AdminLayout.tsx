@@ -26,6 +26,7 @@ import {
   DollarSign,
   CreditCard,
   Wallet,
+  Sparkles,
 } from "lucide-react";
 
 interface NavItem {
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { label: "Sales", href: "/admin/sales", icon: <ShoppingCart className="h-4 w-4" />, permission: "manage_sales" },
   { label: "Invoices", href: "/admin/invoices", icon: <FileText className="h-4 w-4" />, permission: "manage_invoices" },
   { label: "Coupons", href: "/admin/coupons", icon: <Tags className="h-4 w-4" />, permission: "manage_coupons" },
+  { label: "Offers", href: "/admin/offers", icon: <Sparkles className="h-4 w-4" />, permission: "manage_offers" },
   { label: "Debtors", href: "/admin/debtors", icon: <Users className="h-4 w-4" />, permission: "manage_debtors" },
   { label: "Inventory", href: "/admin/inventory", icon: <BarChart3 className="h-4 w-4" />, permission: "manage_inventory" },
   { divider: true, section: "FINANCE" },

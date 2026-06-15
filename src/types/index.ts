@@ -301,3 +301,20 @@ export interface PaymentHistoryEntry {
   method: string;
   notes: string;
 }
+
+export interface Offer {
+  id: string;
+  title: string;
+  badgeType: "offer" | "price_dropped";
+  discountType: "percentage" | "fixed";
+  discountValue: number;
+  scope: "all" | "category" | "individual";
+  categoryId?: string;
+  productIds?: string[];
+  startDate: number;
+  endDate: number;
+  isActive: boolean;
+  createdBy: string;
+  createdAt: number;
+  updatedAt: number;
+}

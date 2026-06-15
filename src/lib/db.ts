@@ -35,6 +35,7 @@ const collections = {
   recurringExpenses: "recurring_expenses",
   accounts: "accounts",
   accountTransactions: "account_transactions",
+  offers: "offers",
 };
 
 function toTimestamp(date?: Date): Timestamp {
