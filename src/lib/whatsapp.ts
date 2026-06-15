@@ -1,12 +1,21 @@
 import { CartItem } from "@/types";
 
-export function generateWhatsAppLink(phone: string, items: CartItem[], total: number, customerName: string): string {
+export function generateWhatsAppLink(
+  phone: string,
+  items: CartItem[],
+  total: number,
+  customerName: string,
+  customerPhone: string,
+  customerAddress: string,
+): string {
   const lines = items.map(
     (item) =>
-      `• ${item.name} x${item.quantity} — Rs. ${(item.price * item.quantity).toLocaleString("ne-NP")}`
+      `• ${item.name} (ID: ${item.productId}) x${item.quantity} — Rs. ${(item.price * item.quantity).toLocaleString("ne-NP")}`
   );
   const message = [
     `*New Order from ${customerName}*`,
+    `Phone: ${customerPhone}`,
+    `Address: ${customerAddress}`,
     "",
     ...lines,
     "",

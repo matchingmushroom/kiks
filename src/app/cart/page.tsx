@@ -132,7 +132,9 @@ export default function CartPage() {
         settings.whatsappNumber || "977XXXXXXXXX",
         items,
         finalTotal,
-        customerName
+        customerName,
+        customerPhone,
+        customerAddress,
       );
       window.open(waLink, "_blank");
     } catch {
