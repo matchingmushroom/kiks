@@ -26,10 +26,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const docSnap = await getDoc(doc(db, "users", firebaseUser.uid));
-        if (docSnap.exists()) {
-          setProfile({ uid: docSnap.id, ...docSnap.data() } as AppUser);
-        } else {
+        try {
+          const docSnap = await getDoc(doc(db, "users", firebaseUser.uid));
+          if (docSnap.exists()) {
+            setProfile({ uid: docSnap.id, ...docSnap.data() } as AppUser);
+          } else {
+            setProfile(null);
+          }
+        } catch (err) {
+          console.error("Failed to load user profile:", err);
           setProfile(null);
         }
       } else {

@@ -13,6 +13,10 @@ const ERROR_MAP: Record<string, string> = {
   "auth/invalid-email": "Invalid email format.",
   "auth/user-disabled": "This account has been disabled.",
   "auth/too-many-requests": "Too many attempts. Please try again later.",
+  "auth/network-request-failed": "Network error. Check your internet connection.",
+  "auth/unauthorized-domain": "Domain not authorized for login.",
+  "auth/internal-error": "Internal error. Please try again.",
+  "auth/operation-not-allowed": "Email/password login is not enabled.",
 };
 
 export default function LoginPage() {
@@ -39,8 +43,10 @@ export default function LoginPage() {
       await login(email, password);
       router.push("/admin");
     } catch (err: unknown) {
-      const code = (err as { code?: string })?.code || "";
-      setError(ERROR_MAP[code] || "Login failed. Please check your credentials.");
+      const e = err as { code?: string; message?: string };
+      const code = e.code || "";
+      console.error("Login error:", code, e.message);
+      setError(ERROR_MAP[code] || `Login failed: ${code}`);
     } finally {
       setLoading(false);
     }
@@ -77,7 +83,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-                placeholder="admin@as-collection.com"
+                placeholder="admin@kiks.com.np"
                 required
                 autoFocus
               />
