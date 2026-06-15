@@ -43,7 +43,12 @@ export default function AdminDashboardPage() {
   const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
-  const saleTime = (s: Sale) => { const d = (s as any).saleDate; return typeof d?.getTime === "function" ? d.getTime() : Number(d) || 0; };
+  const saleTime = (s: Sale) => {
+    const d = (s as any).saleDate;
+    if (typeof d?.toMillis === "function") return d.toMillis();
+    if (typeof d?.getTime === "function") return d.getTime();
+    return Number(d) || 0;
+  };
   const ytdSales = sales
     .filter((s) => saleTime(s) >= startOfYear)
     .reduce((sum, s) => sum + s.finalAmount, 0);
@@ -69,7 +74,10 @@ export default function AdminDashboardPage() {
   const last30 = getLast30Days();
   const safeDate = (d: unknown) => {
     try {
-      const ms = typeof (d as any)?.getTime === "function" ? (d as any).getTime() : Number(d as any) || 0;
+      let ms = 0;
+      if (typeof (d as any)?.toMillis === "function") ms = (d as any).toMillis();
+      else if (typeof (d as any)?.getTime === "function") ms = (d as any).getTime();
+      else ms = Number(d as any) || 0;
       return new Date(ms).toISOString().slice(0, 10);
     } catch { return ""; }
   };
