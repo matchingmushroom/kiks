@@ -88,7 +88,7 @@ export default function AdminOrdersPage() {
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="font-semibold text-secondary text-sm">{formatCurrency(order.totalAmount)}</p>
-                    <p className="text-xs text-muted-foreground">{formatDateTime(order.createdAt as unknown as number)}</p>
+                    <p className="text-xs text-muted-foreground">{formatDateTime(order.createdAt)}</p>
                   </div>
                   <div className="flex-shrink-0">
                     {expandedId === order.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}

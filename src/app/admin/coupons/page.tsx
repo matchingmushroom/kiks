@@ -4,7 +4,7 @@ import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Coupon } from "@/types";
-import { formatCurrency, formatDate, generateCouponCode } from "@/lib/utils";
+import { formatCurrency, formatDate, generateCouponCode, toDate } from "@/lib/utils";
 import {
   addDoc, updateDoc, deleteDoc, doc, collection, Timestamp,
 } from "firebase/firestore";
@@ -53,8 +53,8 @@ export default function AdminCouponsPage() {
       discountValue: c.discountValue,
       minPurchaseAmount: c.minPurchaseAmount,
       maxDiscount: c.maxDiscount,
-      validFrom: c.validFrom ? new Date(c.validFrom).toISOString().slice(0, 16) : "",
-      validUntil: c.validUntil ? new Date(c.validUntil).toISOString().slice(0, 16) : "",
+      validFrom: c.validFrom ? toDate(c.validFrom).toISOString().slice(0, 16) : "",
+      validUntil: c.validUntil ? toDate(c.validUntil).toISOString().slice(0, 16) : "",
       usageLimit: c.usageLimit,
       isActive: c.isActive,
       issuedToName: c.issuedToCustomer?.name || "",

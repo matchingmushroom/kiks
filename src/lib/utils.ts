@@ -14,22 +14,29 @@ export function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-export function formatDate(timestamp: number): string {
+export function toDate(v: unknown): Date {
+  if (v && typeof (v as any).toDate === "function") return (v as any).toDate();
+  if (v && typeof (v as any).getTime === "function") return new Date((v as any).getTime());
+  if (typeof v === "number") return new Date(v);
+  return new Date(Number(v) || 0);
+}
+
+export function formatDate(timestamp: unknown): string {
   return new Intl.DateTimeFormat("ne-NP", {
     year: "numeric",
     month: "short",
     day: "2-digit",
-  }).format(new Date(timestamp));
+  }).format(toDate(timestamp));
 }
 
-export function formatDateTime(timestamp: number): string {
+export function formatDateTime(timestamp: unknown): string {
   return new Intl.DateTimeFormat("ne-NP", {
     year: "numeric",
     month: "short",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(timestamp));
+  }).format(toDate(timestamp));
 }
 
 export function generateOrderNumber(): string {
