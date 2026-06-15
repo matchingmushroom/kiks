@@ -22,6 +22,7 @@ const emptyForm = {
   validUntil: "",
   usageLimit: 100,
   isActive: true,
+  forConfirmedBuyers: false,
   restrictedToPhone: "",
   issuedToName: "",
   issuedToPhone: "",
@@ -58,6 +59,7 @@ export default function AdminCouponsPage() {
       validUntil: c.validUntil ? toDate(c.validUntil).toISOString().slice(0, 16) : "",
       usageLimit: c.usageLimit,
       isActive: c.isActive,
+      forConfirmedBuyers: c.forConfirmedBuyers || false,
       restrictedToPhone: c.restrictedToPhone || "",
       issuedToName: c.issuedToCustomer?.name || "",
       issuedToPhone: c.issuedToCustomer?.phone || "",
@@ -81,6 +83,7 @@ export default function AdminCouponsPage() {
         usageLimit: Number(form.usageLimit),
         usedCount: 0,
         isActive: form.isActive,
+        forConfirmedBuyers: form.forConfirmedBuyers,
         restrictedToPhone: form.restrictedToPhone || "",
         issuedToCustomer: { name: form.issuedToName, phone: form.issuedToPhone },
         updatedAt: Timestamp.fromDate(new Date()),
@@ -202,6 +205,11 @@ export default function AdminCouponsPage() {
                     onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
                     className="rounded border-border" /> Active
                 </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={form.forConfirmedBuyers}
+                    onChange={(e) => setForm({ ...form, forConfirmedBuyers: e.target.checked })}
+                    className="rounded border-border" /> For Confirmed Buyers
+                </label>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Issued To (Name)</label>
@@ -243,6 +251,7 @@ export default function AdminCouponsPage() {
                   <tr className="bg-muted text-left">
                     <th className="px-4 py-3 font-medium text-muted-foreground">Code</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Discount</th>
+                    <th className="px-4 py-3 font-medium text-muted-foreground">Type</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Min Purchase</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Used / Limit</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Buyer</th>
@@ -270,6 +279,13 @@ export default function AdminCouponsPage() {
                           {c.discountType === "percentage" ? `${c.discountValue}%` : formatCurrency(c.discountValue)}
                           {c.discountType === "percentage" && c.maxDiscount > 0 && (
                             <span className="text-xs text-muted-foreground"> (max {formatCurrency(c.maxDiscount)})</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          {c.forConfirmedBuyers ? (
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">Confirmed</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">General</span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">

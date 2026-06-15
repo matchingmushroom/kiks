@@ -4,13 +4,13 @@ import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
-import { Order } from "@/types";
+import { Order, Coupon } from "@/types";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { updateDoc, doc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Search, ChevronDown, ChevronUp, ExternalLink, MessageCircle } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, ExternalLink, MessageCircle, X } from "lucide-react";
 import Link from "next/link";
 
 const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"] as const;
@@ -26,10 +26,14 @@ export default function AdminOrdersPage() {
   const { data: orders, loading } = useFirestore<Order>("orders", {
     constraints: [orderBy("createdAt", "desc")],
   });
+  const { data: allCoupons } = useFirestore<Coupon>("coupons");
   const { settings } = useShopSettings();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [couponOrder, setCouponOrder] = useState<Order | null>(null);
+
+  const confirmedBuyerCoupons = allCoupons.filter((c) => c.forConfirmedBuyers && c.isActive);
 
   const filtered = orders.filter((o) => {
     const matchSearch = !search ||
@@ -44,7 +48,7 @@ export default function AdminOrdersPage() {
     await updateDoc(doc(db, "orders", id), { status, updatedAt: Timestamp.fromDate(new Date()) });
   };
 
-  const notifyCustomer = (order: Order, status: string) => {
+  const sendWhatsApp = (order: Order, status: string, coupon?: Coupon) => {
     if (!order.customer?.phone) return;
     const itemsText = (order.items || [])
       .map((i) => `• ${i.productName} x${i.quantity} — Rs. ${i.subtotal.toLocaleString("ne-NP")}`)
@@ -61,11 +65,11 @@ export default function AdminOrdersPage() {
     ];
 
     if (status === "delivered") {
-      const promo = prompt("Enter promo code for customer (optional):");
-      if (promo) {
-        const benefit = prompt("What does this promo code offer? (e.g. 10% off, Rs. 500 off):");
-        const benefitText = benefit ? ` — ${benefit.trim()}` : "";
-        lines.push(`Use promo code *${promo.trim().toUpperCase()}*${benefitText} on your next purchase!`);
+      if (coupon) {
+        const benefit = coupon.discountType === "percentage"
+          ? `${coupon.discountValue}% off`
+          : `Rs. ${coupon.discountValue.toLocaleString("ne-NP")} off`;
+        lines.push(`Use promo code *${coupon.code}* — ${benefit} on your next purchase!`);
         lines.push("");
       }
       lines.push("Thank you for shopping with KIKS Collections! We hope to see you again!");
@@ -75,6 +79,34 @@ export default function AdminOrdersPage() {
 
     const msg = encodeURIComponent(lines.join("\n"));
     window.open(`https://wa.me/${order.customer.phone}?text=${msg}`, "_blank");
+  };
+
+  const notifyDelivered = (order: Order) => {
+    if (!order.customer?.phone) return;
+    if (confirmedBuyerCoupons.length === 0) {
+      sendWhatsApp(order, "delivered");
+      return;
+    }
+    setCouponOrder(order);
+  };
+
+  const selectCoupon = async (coupon: Coupon | null) => {
+    if (!couponOrder) return;
+    if (coupon) {
+      await updateDoc(doc(db, "coupons", coupon.id), {
+        restrictedToPhone: couponOrder.customer?.phone || "",
+      });
+    }
+    sendWhatsApp(couponOrder, "delivered", coupon || undefined);
+    setCouponOrder(null);
+  };
+
+  const handleNotify = (order: Order, status: string) => {
+    if (status === "delivered") {
+      notifyDelivered(order);
+    } else {
+      sendWhatsApp(order, status);
+    }
   };
 
   return (
@@ -158,7 +190,7 @@ export default function AdminOrdersPage() {
                               </button>
                               {order.customer?.phone && (
                                 <button
-                                  onClick={() => notifyCustomer(order, s)}
+                                  onClick={() => handleNotify(order, s)}
                                   className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                                   title="Notify customer via WhatsApp"
                                 >
@@ -210,6 +242,43 @@ export default function AdminOrdersPage() {
           </div>
         )}
       </div>
+
+      {couponOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-secondary">Select Promo Coupon</h3>
+              <button onClick={() => setCouponOrder(null)} className="p-1 hover:bg-muted rounded">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Choose a coupon to offer {couponOrder.customer?.name} on delivery:
+            </p>
+            <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
+              <button
+                onClick={() => selectCoupon(null)}
+                className="w-full text-left px-3 py-2.5 border border-border rounded-lg text-sm hover:bg-muted transition-colors"
+              >
+                <span className="text-muted-foreground">No coupon — send plain message</span>
+              </button>
+              {confirmedBuyerCoupons.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => selectCoupon(c)}
+                  className="w-full text-left px-3 py-2.5 border border-border rounded-lg text-sm hover:bg-muted transition-colors"
+                >
+                  <span className="font-mono font-medium text-secondary">{c.code}</span>
+                  <span className="text-muted-foreground ml-2">
+                    — {c.discountType === "percentage" ? `${c.discountValue}% off` : formatCurrency(c.discountValue) + " off"}
+                    {c.minPurchaseAmount > 0 && ` (min ${formatCurrency(c.minPurchaseAmount)})`}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
