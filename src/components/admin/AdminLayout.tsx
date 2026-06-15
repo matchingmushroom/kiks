@@ -105,11 +105,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   });
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-gray-50 overflow-hidden">
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-fg transform transition-transform duration-200 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        } lg:translate-x-0 lg:static lg:z-auto`}
+        } lg:translate-x-0 lg:sticky lg:top-0 lg:h-screen lg:z-auto`}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-white/10">
           <Link href="/admin" className="flex items-center gap-2">
@@ -141,8 +141,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 bg-white border-b border-border flex items-center justify-between px-4 lg:px-6">
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        <header className="h-16 bg-white border-b border-border flex items-center justify-between px-4 lg:px-6 shrink-0">
           <button className="lg:hidden" onClick={() => setSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
           </button>

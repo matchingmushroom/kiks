@@ -5,6 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Sale, Product, Debtor, Order, Category } from "@/types";
 import { formatCurrency } from "@/lib/utils";
+import Link from "next/link";
 import {
   Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
   BarChart3, ShoppingCart, Clock,
@@ -133,15 +134,22 @@ export default function AdminDashboardPage() {
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-          {stats.map((stat) => (
-            <div key={stat.label} className="bg-white rounded-xl border border-border p-3 shadow-sm">
-              <div className={`inline-flex p-1.5 rounded-lg ${stat.color} mb-2`}>
-                <stat.icon className="h-3.5 w-3.5" />
-              </div>
-              <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-              <p className="text-sm font-bold text-secondary mt-0.5">{stat.value}</p>
-            </div>
-          ))}
+          {stats.map((stat) => {
+            const isLink = stat.label === "Low Stock Items" || stat.label === "Active Debtors";
+            const href = stat.label === "Low Stock Items" ? "/admin/inventory" : "/admin/debtors";
+            const Card = ({ children }: { children: React.ReactNode }) => isLink ? <Link href={href} className="block">{children}</Link> : <>{children}</>;
+            return (
+              <Card key={stat.label}>
+                <div className="bg-white rounded-xl border border-border p-3 shadow-sm hover:shadow-md transition-shadow">
+                  <div className={`inline-flex p-1.5 rounded-lg ${stat.color} mb-2`}>
+                    <stat.icon className="h-3.5 w-3.5" />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+                  <p className="text-sm font-bold text-secondary mt-0.5">{stat.value}</p>
+                </div>
+              </Card>
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -253,9 +261,10 @@ export default function AdminDashboardPage() {
             ) : (
               <div className="space-y-2">
                 {orders.slice(0, 5).map((order) => (
-                  <div key={order.id} className="flex items-center justify-between text-sm">
+                  <Link key={order.id} href="/admin/orders"
+                    className="flex items-center justify-between text-sm hover:bg-muted/50 -mx-2 px-2 py-1.5 rounded-lg transition-colors">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`w-1.5 h-1.5 rounded-full ${
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                         order.status === "pending" ? "bg-amber-400" :
                         order.status === "confirmed" ? "bg-blue-400" :
                         order.status === "delivered" ? "bg-green-400" : "bg-gray-400"
@@ -266,7 +275,7 @@ export default function AdminDashboardPage() {
                       <span className="text-muted-foreground capitalize">{order.status}</span>
                       <span className="font-medium">{formatCurrency(order.totalAmount)}</span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -282,13 +291,14 @@ export default function AdminDashboardPage() {
             ) : (
               <div className="space-y-2">
                 {activeDebtorsList.slice(0, 5).map((d) => (
-                  <div key={d.id} className="flex items-center justify-between text-sm">
+                  <Link key={d.id} href="/admin/debtors"
+                    className="flex items-center justify-between text-sm hover:bg-muted/50 -mx-2 px-2 py-1.5 rounded-lg transition-colors">
                     <div className="min-w-0 truncate">
                       <span className="truncate">{d.customerName}</span>
                       <span className="text-xs text-muted-foreground ml-2">{d.customerPhone}</span>
                     </div>
                     <span className="font-medium text-red-600 flex-shrink-0">{formatCurrency(d.balanceDue)}</span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
