@@ -22,6 +22,7 @@ const emptyForm = {
   validUntil: "",
   usageLimit: 100,
   isActive: true,
+  restrictedToPhone: "",
   issuedToName: "",
   issuedToPhone: "",
 };
@@ -57,6 +58,7 @@ export default function AdminCouponsPage() {
       validUntil: c.validUntil ? toDate(c.validUntil).toISOString().slice(0, 16) : "",
       usageLimit: c.usageLimit,
       isActive: c.isActive,
+      restrictedToPhone: c.restrictedToPhone || "",
       issuedToName: c.issuedToCustomer?.name || "",
       issuedToPhone: c.issuedToCustomer?.phone || "",
     });
@@ -79,6 +81,7 @@ export default function AdminCouponsPage() {
         usageLimit: Number(form.usageLimit),
         usedCount: 0,
         isActive: form.isActive,
+        restrictedToPhone: form.restrictedToPhone || "",
         issuedToCustomer: { name: form.issuedToName, phone: form.issuedToPhone },
         updatedAt: Timestamp.fromDate(new Date()),
       };
@@ -212,6 +215,12 @@ export default function AdminCouponsPage() {
                   onChange={(e) => setForm({ ...form, issuedToPhone: e.target.value })}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Restrict to Phone (leave empty for anyone)</label>
+                <input type="text" value={form.restrictedToPhone}
+                  onChange={(e) => setForm({ ...form, restrictedToPhone: e.target.value })}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
             </div>
             <div className="flex gap-3 mt-6">
               <Button onClick={handleSave} disabled={saving || !form.code} variant="accent">
@@ -236,6 +245,7 @@ export default function AdminCouponsPage() {
                     <th className="px-4 py-3 font-medium text-muted-foreground">Discount</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Min Purchase</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Used / Limit</th>
+                    <th className="px-4 py-3 font-medium text-muted-foreground">Buyer</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Valid</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground">Status</th>
                     <th className="px-4 py-3 font-medium text-muted-foreground w-28">Actions</th>
@@ -266,6 +276,13 @@ export default function AdminCouponsPage() {
                         </td>
                         <td className="px-4 py-3">
                           {c.usedCount || 0} / {c.usageLimit || "∞"}
+                        </td>
+                        <td className="px-4 py-3">
+                          {c.restrictedToPhone ? (
+                            <span className="text-xs font-medium">{c.restrictedToPhone}</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Anyone</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">
                           {c.validFrom && <p>From: {formatDate(c.validFrom)}</p>}

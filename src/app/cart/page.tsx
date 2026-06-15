@@ -74,6 +74,10 @@ export default function CartPage() {
         setCouponError(`Minimum purchase amount is Rs. ${coupon.minPurchaseAmount.toLocaleString("ne-NP")}`);
         return;
       }
+      if (coupon.restrictedToPhone && coupon.restrictedToPhone !== customerPhone) {
+        setCouponError("This coupon is only valid for a specific buyer");
+        return;
+      }
 
       setAppliedCoupon(coupon);
     } catch {
