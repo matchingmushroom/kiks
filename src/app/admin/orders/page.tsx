@@ -92,9 +92,21 @@ export default function AdminOrdersPage() {
 
   const selectCoupon = async (coupon: Coupon | null) => {
     if (!couponOrder) return;
-    if (coupon) {
+    const phone = couponOrder.customer?.phone;
+    if (coupon && phone) {
+      const existing = coupon.restrictedToPhones || [];
+      if (existing.includes(phone)) {
+        alert("This customer already has this coupon assigned.");
+        setCouponOrder(null);
+        return;
+      }
+      if (existing.length >= (coupon.usageLimit || Infinity)) {
+        alert("This coupon has reached its usage limit.");
+        setCouponOrder(null);
+        return;
+      }
       await updateDoc(doc(db, "coupons", coupon.id), {
-        restrictedToPhone: couponOrder.customer?.phone || "",
+        restrictedToPhones: [...existing, phone],
       });
     }
     sendWhatsApp(couponOrder, "delivered", coupon || undefined);

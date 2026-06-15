@@ -24,7 +24,7 @@ const emptyForm = {
   isActive: true,
   couponType: "General",
   customCouponType: "",
-  restrictedToPhone: "",
+  restrictedToPhones: "",
   issuedToName: "",
   issuedToPhone: "",
 };
@@ -66,7 +66,7 @@ export default function AdminCouponsPage() {
       isActive: c.isActive,
       couponType: c.couponType || "General",
       customCouponType: "",
-      restrictedToPhone: c.restrictedToPhone || "",
+      restrictedToPhones: (c.restrictedToPhones || []).join(", "),
       issuedToName: c.issuedToCustomer?.name || "",
       issuedToPhone: c.issuedToCustomer?.phone || "",
     });
@@ -90,7 +90,7 @@ export default function AdminCouponsPage() {
         usedCount: 0,
         isActive: form.isActive,
         couponType: form.couponType === "Other" ? form.customCouponType : form.couponType,
-        restrictedToPhone: form.restrictedToPhone || "",
+        restrictedToPhones: form.restrictedToPhones ? form.restrictedToPhones.split(",").map((s) => s.trim()).filter(Boolean) : [],
         issuedToCustomer: { name: form.issuedToName, phone: form.issuedToPhone },
         updatedAt: Timestamp.fromDate(new Date()),
       };
@@ -234,10 +234,11 @@ export default function AdminCouponsPage() {
                   onChange={(e) => setForm({ ...form, issuedToPhone: e.target.value })}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Restrict to Phone (leave empty for anyone)</label>
-                <input type="text" value={form.restrictedToPhone}
-                  onChange={(e) => setForm({ ...form, restrictedToPhone: e.target.value })}
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Restrict to Phones (comma-separated)</label>
+                <textarea value={form.restrictedToPhones}
+                  onChange={(e) => setForm({ ...form, restrictedToPhones: e.target.value })}
+                  rows={2}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div className="flex items-end">
@@ -313,8 +314,8 @@ export default function AdminCouponsPage() {
                           {c.usedCount || 0} / {c.usageLimit || "∞"}
                         </td>
                         <td className="px-4 py-3">
-                          {c.restrictedToPhone ? (
-                            <span className="text-xs font-medium">{c.restrictedToPhone}</span>
+                          {c.restrictedToPhones?.length ? (
+                            <span className="text-xs font-medium">{c.restrictedToPhones.join(", ")}</span>
                           ) : (
                             <span className="text-xs text-muted-foreground">Anyone</span>
                           )}

@@ -157,7 +157,7 @@ export interface Coupon {
   usedCount: number;
   isActive: boolean;
   couponType?: string;
-  restrictedToPhone?: string;
+  restrictedToPhones?: string[];
   issuedToCustomer: { name: string; phone: string };
   issuedForOrderId: string;
   createdAt: number;
