@@ -6,7 +6,7 @@ import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Debtor } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
-  updateDoc, doc, Timestamp, arrayUnion,
+  updateDoc, doc, Timestamp, arrayUnion, addDoc, collection,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -65,6 +65,20 @@ export default function AdminDebtorsPage() {
         paymentHistory: arrayUnion(entry),
         updatedAt: Timestamp.fromDate(new Date()),
       });
+
+      const accountId = paymentForm.method === "cash" ? "cash_in_hand" : "bank_account";
+      await addDoc(collection(db, "accountTransactions"), {
+        accountId,
+        type: "credit",
+        amount,
+        description: `Debtor payment from ${debtor.customerName}`,
+        date: Timestamp.fromDate(new Date()),
+        referenceType: "debtor_payment",
+        referenceId: debtor.id,
+        recordedBy: "",
+        createdAt: Timestamp.fromDate(new Date()),
+      });
+
       setPaymentForm(null);
     } catch (e) {
       console.error("Payment failed", e);
@@ -203,8 +217,8 @@ export default function AdminDebtorsPage() {
                                     onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
                                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                                     <option value="cash">Cash</option>
-                                    <option value="bank">Bank</option>
-                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="bank_transfer">Bank Transfer</option>
+                                    <option value="qr">QR Payment</option>
                                   </select>
                                 </div>
                                 <div className="flex-1 min-w-[120px]">

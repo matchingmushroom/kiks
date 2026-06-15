@@ -20,7 +20,7 @@ import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star } from "lucide-react"
 
 const emptyProduct = {
   name: "", description: "", design: "", categoryId: "",
-  images: [""], videoUrl: "", price: 0, weight: 0,
+  images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0,
   purity: "22K", metalType: "Gold", stoneType: "None",
   stoneWeight: 0, makingCharge: 0, warranty: "1 year",
   sku: "", quantityInStock: 1, isActive: true, isFeatured: false,
@@ -64,7 +64,8 @@ export default function AdminProductsPage() {
     setForm({
       name: p.name, description: p.description, design: p.design,
       categoryId: p.categoryId, images: p.images.length ? p.images : [""],
-      videoUrl: p.videoUrl, price: p.price, weight: p.weight,
+      videoUrl: p.videoUrl, price: p.price, costPrice: p.costPrice ?? Math.round(p.price * 0.5),
+      weight: p.weight,
       purity: p.purity, metalType: p.metalType, stoneType: p.stoneType,
       stoneWeight: p.stoneWeight, makingCharge: p.makingCharge,
       warranty: p.warranty, sku: p.sku, quantityInStock: p.quantityInStock,
@@ -83,6 +84,7 @@ export default function AdminProductsPage() {
         ...form,
         images: form.images.filter(Boolean),
         price: Number(form.price),
+        costPrice: Number(form.costPrice) || 0,
         weight: Number(form.weight),
         stoneWeight: Number(form.stoneWeight),
         makingCharge: Number(form.makingCharge),
@@ -193,6 +195,11 @@ export default function AdminProductsPage() {
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Price (NPR)</label>
                 <input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Cost Price (NPR)</label>
+                <input type="number" value={form.costPrice} onChange={(e) => setForm({ ...form, costPrice: Number(e.target.value) })}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>

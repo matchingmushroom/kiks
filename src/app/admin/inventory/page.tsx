@@ -223,10 +223,12 @@ export default function AdminInventoryPage() {
                         <p className="text-xs text-muted-foreground">{formatDateTime(log.createdAt)}</p>
                       </div>
                       <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${
-                        log.changeType === "add" ? "bg-green-50 text-green-700" :
+                        log.changeType === "add" || log.changeType === "purchase" ? "bg-green-50 text-green-700" :
                         log.changeType === "remove" ? "bg-red-50 text-red-700" :
+                        log.changeType === "sale" ? "bg-purple-50 text-purple-700" :
+                        log.changeType === "purchase_return" ? "bg-orange-50 text-orange-700" :
                         "bg-blue-50 text-blue-700"
-                      }`}>{log.changeType}</span>
+                      }`}>{log.changeType.replace("_", " ")}</span>
                     </div>
                     <div className="flex items-center justify-between text-xs">
                       <span className={`font-medium ${

@@ -23,13 +23,18 @@ import {
   Shield,
   Rocket,
   ArrowLeft,
+  DollarSign,
+  CreditCard,
+  Wallet,
 } from "lucide-react";
 
 interface NavItem {
-  label: string;
-  href: string;
-  icon: ReactNode;
+  label?: string;
+  href?: string;
+  icon?: ReactNode;
   permission?: string;
+  divider?: boolean;
+  section?: string;
 }
 
 const navItems: NavItem[] = [
@@ -42,6 +47,11 @@ const navItems: NavItem[] = [
   { label: "Coupons", href: "/admin/coupons", icon: <Tags className="h-4 w-4" />, permission: "manage_coupons" },
   { label: "Debtors", href: "/admin/debtors", icon: <Users className="h-4 w-4" />, permission: "manage_debtors" },
   { label: "Inventory", href: "/admin/inventory", icon: <BarChart3 className="h-4 w-4" />, permission: "manage_inventory" },
+  { divider: true, section: "FINANCE" },
+  { label: "Purchases", href: "/admin/purchases", icon: <DollarSign className="h-4 w-4" />, permission: "manage_purchases" },
+  { label: "Expenses", href: "/admin/expenses", icon: <CreditCard className="h-4 w-4" />, permission: "manage_expenses" },
+  { label: "Reports", href: "/admin/finance", icon: <Wallet className="h-4 w-4" />, permission: "view_reports" },
+  { divider: true },
   { label: "Homepage", href: "/admin/homepage", icon: <Home className="h-4 w-4" />, permission: "manage_homepage" },
   { label: "Staff", href: "/admin/staff", icon: <Shield className="h-4 w-4" />, permission: "manage_staff" },
   { label: "Backup", href: "/admin/backup", icon: <Receipt className="h-4 w-4" />, permission: "manage_backup" },
@@ -100,6 +110,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }
 
   const filteredItems = navItems.filter((item) => {
+    if (item.divider) return true;
     if (!item.permission) return true;
     return hasPermission(profile?.role, item.permission as never);
   });
@@ -121,11 +132,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </div>
         <nav className="p-3 space-y-1 overflow-y-auto h-[calc(100vh-4rem)]">
           {filteredItems.map((item) => {
+            if (item.divider) {
+              return (
+                <div key={item.section || `divider-${Math.random()}`} className="pt-3 pb-1">
+                  {item.section ? (
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-fg/40 px-3">{item.section}</p>
+                  ) : (
+                    <hr className="border-white/10" />
+                  )}
+                </div>
+              );
+            }
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={item.href!}
                 className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                   isActive
                     ? "bg-sidebar-active text-white font-medium"

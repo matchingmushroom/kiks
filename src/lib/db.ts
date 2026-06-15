@@ -30,6 +30,11 @@ const collections = {
   inventoryLogs: "inventory_logs",
   settings: "shop_settings",
   counters: "counters",
+  purchases: "purchases",
+  expenses: "expenses",
+  recurringExpenses: "recurring_expenses",
+  accounts: "accounts",
+  accountTransactions: "account_transactions",
 };
 
 function toTimestamp(date?: Date): Timestamp {

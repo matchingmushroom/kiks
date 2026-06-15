@@ -8,7 +8,7 @@ import { Sale, Product, Order } from "@/types";
 import { formatCurrency, formatDate, generateCouponCode } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
-  addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc,
+  addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, query, limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Plus, Search, X, Save, CheckCircle } from "lucide-react";
@@ -156,6 +156,29 @@ function SalesContent() {
           const currentStock = prodSnap.data().quantityInStock || 0;
           await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - item.quantity) });
         }
+        await addDoc(collection(db, "inventoryLogs"), {
+          productId: item.productId,
+          changeType: "sale",
+          quantityChange: -item.quantity,
+          reason: `Sale to ${form.customerName}`,
+          performedBy: "",
+          createdAt: Timestamp.fromDate(new Date()),
+        });
+      }
+
+      if (form.receivedAmount > 0 && form.paymentMethod !== "credit") {
+        const accountId = form.paymentMethod === "cash" ? "cash_in_hand" : "bank_account";
+        await addDoc(collection(db, "accountTransactions"), {
+          accountId,
+          type: "credit",
+          amount: form.receivedAmount,
+          description: `Sale to ${form.customerName}`,
+          date: Timestamp.fromDate(new Date()),
+          referenceType: "sale",
+          referenceId: saleRef.id,
+          recordedBy: "",
+          createdAt: Timestamp.fromDate(new Date()),
+        });
       }
 
       if (form.balanceDue > 0) {
@@ -317,15 +340,29 @@ function SalesContent() {
               <div>
                 <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Payment</h3>
                 <div className="space-y-2">
-                  <select value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+                  <select value={form.paymentMethod}
+                    onChange={(e) => {
+                      const method = e.target.value;
+                      if (method === "credit") {
+                        const calc = recalc(form.items, form.discountAmount, 0);
+                        setForm({ ...form, paymentMethod: method, receivedAmount: 0, ...calc });
+                      } else {
+                        setForm({ ...form, paymentMethod: method });
+                      }
+                    }}
                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                     <option value="cash">Cash</option>
-                    <option value="bank">Bank Transfer</option>
-                    <option value="whatsapp">WhatsApp Payment</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="qr">QR Payment</option>
+                    <option value="credit">Credit Sales</option>
                   </select>
                   <input type="number" placeholder="Amount Received" value={form.receivedAmount || ""}
                     onChange={(e) => updateReceived(Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    disabled={form.paymentMethod === "credit"}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed" />
+                  {form.paymentMethod === "credit" && (
+                    <p className="text-xs text-amber-600">Full amount will be on credit / debtor account</p>
+                  )}
                 </div>
               </div>
             </div>

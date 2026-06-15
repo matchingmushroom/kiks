@@ -31,6 +31,7 @@ export interface Product {
   price: number;
   originalPrice?: number;
   badge?: ProductBadge;
+  costPrice?: number;
   weight: number;
   purity: string;
   metalType: string;
@@ -183,10 +184,94 @@ export interface Debtor {
 export interface InventoryLog {
   id: string;
   productId: string;
-  changeType: "add" | "remove" | "adjust";
+  changeType: "add" | "remove" | "adjust" | "sale" | "purchase" | "purchase_return";
   quantityChange: number;
   reason: string;
   performedBy: string;
+  createdAt: number;
+}
+
+export interface PurchaseItem {
+  productId: string;
+  productName: string;
+  sku: string;
+  quantity: number;
+  unitCost: number;
+  subtotal: number;
+}
+
+export interface Purchase {
+  id: string;
+  supplierName: string;
+  supplierPhone?: string;
+  purchaseDate: number;
+  items: PurchaseItem[];
+  totalAmount: number;
+  paymentStatus: "paid" | "unpaid" | "partially_paid";
+  paymentMethod?: string;
+  paidAmount?: number;
+  notes?: string;
+  recordedBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type ExpenseHead =
+  | "Rent" | "Salary" | "Electricity" | "Water" | "Internet"
+  | "Marketing" | "Travel" | "Maintenance" | "Packaging"
+  | "Bank Charges" | "Taxes" | "Miscellaneous" | "Other";
+
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  head: ExpenseHead | string;
+  customHead?: string;
+  description?: string;
+  date: number;
+  paymentMethod: "cash" | "bank" | "other";
+  receiptUrl?: string;
+  recordedBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface RecurringExpenseTemplate {
+  id: string;
+  title: string;
+  amount: number;
+  head: ExpenseHead | string;
+  customHead?: string;
+  frequency: "weekly" | "monthly" | "yearly";
+  nextDueDate: number;
+  description?: string;
+  paymentMethod: "cash" | "bank" | "other";
+  isActive: boolean;
+  recordedBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Account {
+  id: string;
+  name: string;
+  type: "cash" | "bank";
+  openingBalance: number;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AccountTransaction {
+  id: string;
+  accountId: string;
+  type: "credit" | "debit";
+  amount: number;
+  description: string;
+  date: number;
+  referenceType: "sale" | "expense" | "purchase" | "purchase_return" | "manual" | "transfer" | "debtor_payment";
+  referenceId?: string;
+  recordedBy: string;
   createdAt: number;
 }
 

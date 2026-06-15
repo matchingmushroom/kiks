@@ -1,0 +1,410 @@
+"use client";
+
+import { useState } from "react";
+import AdminLayout from "@/components/admin/AdminLayout";
+import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { Purchase, PurchaseItem as PurchaseItemType, Product } from "@/types";
+import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import {
+  Plus, Search, X, Save, Trash2, Undo2,
+} from "lucide-react";
+
+const emptyForm = {
+  supplierName: "", supplierPhone: "",
+  items: [] as PurchaseItemType[],
+  totalAmount: 0,
+  paymentStatus: "unpaid" as "paid" | "unpaid" | "partially_paid",
+  paymentMethod: "", paidAmount: 0, notes: "",
+};
+
+export default function AdminPurchasesPage() {
+  const { data: purchases, loading } = useFirestore<Purchase>("purchases", {
+    constraints: [orderBy("purchaseDate", "desc")],
+  });
+  const { data: products } = useFirestore<Product>("products", {
+    constraints: [orderBy("name", "asc")],
+  });
+
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [productSearch, setProductSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [returnModal, setReturnModal] = useState<Purchase | null>(null);
+  const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
+
+  const filteredProducts = products.filter((p) =>
+    p.name.toLowerCase().includes(productSearch.toLowerCase())
+  );
+
+  const addItem = (product: Product) => {
+    const existing = form.items.find((i) => i.productId === product.id);
+    if (existing) {
+      const items = form.items.map((i) =>
+        i.productId === product.id
+          ? { ...i, quantity: i.quantity + 1, subtotal: (i.quantity + 1) * i.unitCost }
+          : i
+      );
+      const total = items.reduce((s, i) => s + i.subtotal, 0);
+      setForm({ ...form, items, totalAmount: total });
+      return;
+    }
+    const costPrice = product.costPrice || Math.round(product.price * 0.5);
+    const newItem: PurchaseItemType = {
+      productId: product.id,
+      productName: product.name,
+      sku: product.sku || "",
+      quantity: 1,
+      unitCost: costPrice,
+      subtotal: costPrice,
+    };
+    const items = [...form.items, newItem];
+    const total = items.reduce((s, i) => s + i.subtotal, 0);
+    setForm({ ...form, items, totalAmount: total });
+    setProductSearch("");
+  };
+
+  const updateItem = (index: number, field: keyof PurchaseItemType, value: number) => {
+    const items = form.items.map((item, i) => {
+      if (i !== index) return item;
+      const updated = { ...item, [field]: value };
+      if (field === "quantity" || field === "unitCost") {
+        updated.subtotal =
+          (field === "quantity" ? value : item.quantity) *
+          (field === "unitCost" ? value : item.unitCost);
+      }
+      return updated;
+    });
+    const total = items.reduce((s, i) => s + i.subtotal, 0);
+    setForm({ ...form, items, totalAmount: total });
+  };
+
+  const removeItem = (index: number) => {
+    const items = form.items.filter((_, i) => i !== index);
+    const total = items.reduce((s, i) => s + i.subtotal, 0);
+    setForm({ ...form, items, totalAmount: total });
+  };
+
+  const handleSave = async () => {
+    if (!form.supplierName || form.items.length === 0) return;
+    setSaving(true);
+    try {
+      const purchaseData = {
+        supplierName: form.supplierName,
+        supplierPhone: form.supplierPhone,
+        purchaseDate: Timestamp.fromDate(new Date()),
+        items: form.items,
+        totalAmount: form.totalAmount,
+        paymentStatus: form.paymentStatus,
+        paymentMethod: form.paymentMethod,
+        paidAmount: form.paidAmount,
+        notes: form.notes,
+        recordedBy: "",
+        createdAt: Timestamp.fromDate(new Date()),
+        updatedAt: Timestamp.fromDate(new Date()),
+      };
+
+      if (editingId) {
+        await updateDoc(doc(db, "purchases", editingId), purchaseData);
+      } else {
+        const ref = await addDoc(collection(db, "purchases"), purchaseData);
+        for (const item of form.items) {
+          const prodRef = doc(db, "products", item.productId);
+          const prodSnap = await getDoc(prodRef);
+          if (prodSnap.exists()) {
+            const p = prodSnap.data() as Product;
+            const oldStock = p.quantityInStock || 0;
+            const oldCost = p.costPrice || 0;
+            const newStock = oldStock + item.quantity;
+            const newCost = newStock > 0
+              ? Math.round(((oldCost * oldStock + item.unitCost * item.quantity) / newStock) * 100) / 100
+              : item.unitCost;
+            await updateDoc(prodRef, {
+              quantityInStock: newStock,
+              costPrice: newCost,
+            });
+          }
+          await addDoc(collection(db, "inventoryLogs"), {
+            productId: item.productId,
+            changeType: "purchase",
+            quantityChange: item.quantity,
+            reason: `Purchase from ${form.supplierName}`,
+            performedBy: "",
+            createdAt: Timestamp.fromDate(new Date()),
+          });
+        }
+        if (form.paidAmount && form.paidAmount > 0 && form.paymentMethod) {
+          const accountId = form.paymentMethod === "cash" ? "cash_in_hand" : "bank_account";
+          await addDoc(collection(db, "accountTransactions"), {
+            accountId,
+            type: "debit",
+            amount: form.paidAmount,
+            description: `Purchase from ${form.supplierName}`,
+            date: Timestamp.fromDate(new Date()),
+            referenceType: "purchase",
+            referenceId: ref.id,
+            recordedBy: "",
+            createdAt: Timestamp.fromDate(new Date()),
+          });
+        }
+      }
+
+      setForm(emptyForm);
+      setEditingId(null);
+      setShowForm(false);
+    } catch (e) {
+      console.error("Purchase save failed", e);
+    }
+    setSaving(false);
+  };
+
+  const openReturn = (p: Purchase) => {
+    setReturnModal(p);
+    setReturnItems(p.items.map((i) => ({ productId: i.productId, qty: 0 })));
+  };
+
+  const handleReturn = async () => {
+    if (!returnModal) return;
+    setSaving(true);
+    try {
+      for (const ri of returnItems) {
+        if (ri.qty <= 0) continue;
+        const item = returnModal.items.find((i) => i.productId === ri.productId);
+        if (!item) continue;
+        const prodRef = doc(db, "products", item.productId);
+        const prodSnap = await getDoc(prodRef);
+        if (prodSnap.exists()) {
+          const currentStock = prodSnap.data().quantityInStock || 0;
+          await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - ri.qty) });
+        }
+        await addDoc(collection(db, "inventoryLogs"), {
+          productId: item.productId,
+          changeType: "purchase_return",
+          quantityChange: -ri.qty,
+          reason: `Return from purchase #${returnModal.id}`,
+          performedBy: "",
+          createdAt: Timestamp.fromDate(new Date()),
+        });
+      }
+      setReturnModal(null);
+    } catch (e) {
+      console.error("Return failed", e);
+    }
+    setSaving(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteDoc(doc(db, "purchases", id));
+  };
+
+  return (
+    <AdminLayout>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-secondary">Purchases</h1>
+            <p className="text-sm text-muted-foreground">{purchases.length} total</p>
+          </div>
+          <Button onClick={() => { setShowForm(true); setForm(emptyForm); setEditingId(null); }} variant="accent">
+            <Plus className="h-4 w-4" /> New Purchase
+          </Button>
+        </div>
+
+        {showForm && (
+          <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-secondary">
+                {editingId ? "Edit Purchase" : "New Purchase"}
+              </h2>
+              <button onClick={() => setShowForm(false)} className="p-1 hover:bg-muted rounded">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Supplier Name *</label>
+                  <input type="text" value={form.supplierName}
+                    onChange={(e) => setForm({ ...form, supplierName: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Supplier Phone</label>
+                  <input type="text" value={form.supplierPhone}
+                    onChange={(e) => setForm({ ...form, supplierPhone: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Items</h3>
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input type="text" placeholder="Search products to add..." value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  {productSearch && filteredProducts.length > 0 && (
+                    <div className="absolute z-10 top-full mt-1 left-0 right-0 bg-white border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {filteredProducts.slice(0, 10).map((p) => (
+                        <button key={p.id} onClick={() => addItem(p)}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center justify-between">
+                          <span>{p.name}</span>
+                          <span className="text-muted-foreground text-xs">
+                            Cost: {formatCurrency(p.costPrice || 0)} | Stock: {p.quantityInStock}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {form.items.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">No items added yet.</p>
+                ) : (
+                  <div className="border border-border rounded-lg divide-y divide-border">
+                    {form.items.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-2 text-sm">
+                        <span className="flex-1 min-w-0 truncate">{item.productName}</span>
+                        <input type="number" value={item.quantity} min={1}
+                          onChange={(e) => updateItem(i, "quantity", Number(e.target.value))}
+                          className="w-16 px-2 py-1 border border-border rounded text-xs text-center" />
+                        <input type="number" value={item.unitCost}
+                          onChange={(e) => updateItem(i, "unitCost", Number(e.target.value))}
+                          className="w-20 px-2 py-1 border border-border rounded text-xs text-right" placeholder="Cost" />
+                        <span className="w-20 text-right font-medium text-xs">{formatCurrency(item.subtotal)}</span>
+                        <button onClick={() => removeItem(i)} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Payment Status</label>
+                  <select value={form.paymentStatus}
+                    onChange={(e) => setForm({ ...form, paymentStatus: e.target.value as "paid" | "unpaid" | "partially_paid" })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value="unpaid">Unpaid</option>
+                    <option value="paid">Paid</option>
+                    <option value="partially_paid">Partially Paid</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Payment Method</label>
+                  <select value={form.paymentMethod}
+                    onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value="">Select</option>
+                    <option value="cash">Cash</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="qr">QR Payment</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Paid Amount</label>
+                  <input type="number" value={form.paidAmount || ""}
+                    onChange={(e) => setForm({ ...form, paidAmount: Number(e.target.value) })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
+                <input type="text" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t border-border">
+                <p className="text-base font-bold text-secondary">Total: {formatCurrency(form.totalAmount)}</p>
+                <div className="flex gap-3">
+                  <Button onClick={() => setShowForm(false)} variant="outline">Cancel</Button>
+                  <Button onClick={handleSave} disabled={saving || !form.supplierName || form.items.length === 0} variant="accent">
+                    <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Purchase"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loading ? (
+          <p className="text-muted-foreground text-center py-12">Loading...</p>
+        ) : purchases.length === 0 ? (
+          <p className="text-muted-foreground text-center py-12">No purchases yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {purchases.map((p) => (
+              <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-secondary text-sm truncate">{p.supplierName}</p>
+                    {p.supplierPhone && <p className="text-xs text-muted-foreground">{p.supplierPhone}</p>}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${
+                    p.paymentStatus === "paid" ? "bg-green-50 text-green-700" :
+                    p.paymentStatus === "partially_paid" ? "bg-amber-50 text-amber-700" :
+                    "bg-red-50 text-red-700"
+                  }`}>
+                    {p.paymentStatus.replace("_", " ")}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-secondary">{formatCurrency(p.totalAmount)}</span>
+                  <span className="text-muted-foreground">{formatDate(p.purchaseDate)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{p.items?.length || 0} items</p>
+                <div className="flex gap-2 pt-1">
+                  <Button onClick={() => openReturn(p)} size="sm" variant="outline" className="text-xs">
+                    <Undo2 className="h-3 w-3" /> Return
+                  </Button>
+                  <Button onClick={() => handleDelete(p.id)} size="sm" variant="outline" className="text-xs text-red-500">
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {returnModal && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto">
+              <h2 className="text-lg font-semibold text-secondary mb-4">Purchase Return</h2>
+              <p className="text-sm text-muted-foreground mb-4">Supplier: {returnModal.supplierName}</p>
+              <div className="space-y-3">
+                {returnModal.items.map((item, i) => (
+                  <div key={i} className="flex items-center gap-3 text-sm">
+                    <span className="flex-1">{item.productName}</span>
+                    <span className="text-muted-foreground text-xs">Purchased: {item.quantity}</span>
+                    <input type="number" min={0} max={item.quantity} placeholder="Qty to return"
+                      value={returnItems[i]?.qty || ""}
+                      onChange={(e) => {
+                        const updated = [...returnItems];
+                        updated[i] = { ...updated[i], qty: Number(e.target.value) };
+                        setReturnItems(updated);
+                      }}
+                      className="w-20 px-2 py-1 border border-border rounded text-xs text-center" />
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 pt-4 border-t border-border mt-4">
+                <Button onClick={handleReturn} disabled={saving || returnItems.every((r) => r.qty <= 0)} variant="accent">
+                  <Undo2 className="h-4 w-4" /> Process Return
+                </Button>
+                <Button onClick={() => setReturnModal(null)} variant="outline">Cancel</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </AdminLayout>
+  );
+}

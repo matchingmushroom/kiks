@@ -13,7 +13,9 @@ type Permission =
   | "manage_staff"
   | "manage_homepage"
   | "manage_settings"
-  | "manage_backup";
+  | "manage_backup"
+  | "manage_purchases"
+  | "manage_expenses";
 
 const rolePermissions: Record<UserRole, Permission[]> = {
   admin: [
@@ -30,6 +32,8 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "manage_homepage",
     "manage_settings",
     "manage_backup",
+    "manage_purchases",
+    "manage_expenses",
   ],
   manager: [
     "manage_products",
@@ -44,6 +48,8 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "manage_homepage",
     "manage_settings",
     "manage_backup",
+    "manage_purchases",
+    "manage_expenses",
   ],
   staff: [
     "manage_orders",
@@ -55,6 +61,8 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "manage_debtors",
     "view_reports",
     "manage_backup",
+    "manage_purchases",
+    "manage_expenses",
   ],
 };
 
@@ -80,6 +88,9 @@ export function canAccessRoute(role: UserRole | undefined, route: string): boole
     settings: ["manage_settings"],
     backup: ["manage_backup"],
     staff: ["manage_staff"],
+    purchases: ["manage_purchases"],
+    expenses: ["manage_expenses"],
+    finance: ["view_reports"],
   };
 
   const routeName = route.split("/").filter(Boolean)[1] || "dashboard";
