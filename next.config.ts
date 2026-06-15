@@ -5,7 +5,8 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  basePath: "",
+  basePath: process.env.PAGE_URL ? new URL(process.env.PAGE_URL).pathname.replace(/\/$/, "") : "",
+  trailingSlash: true,
 };
 
 export default nextConfig;
