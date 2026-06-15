@@ -200,7 +200,7 @@ export default function AdminOrdersPage() {
                               >
                                 {s}
                               </button>
-                              {order.customer?.phone && (
+                              {order.customer?.phone && s === order.status && (
                                 <button
                                   onClick={() => handleNotify(order, s)}
                                   className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
