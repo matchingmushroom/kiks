@@ -1,5 +1,5 @@
 export function generateStaticParams() {
-  return [{ id: "demo-inv-001" }];
+  return [{ id: "demo-inv-001" }, { id: "inv-001" }];
 }
 
 export default function InvoiceLayout({ children }: { children: React.ReactNode }) {
