@@ -33,7 +33,7 @@ export default function AdminOrdersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [couponOrder, setCouponOrder] = useState<Order | null>(null);
 
-  const confirmedBuyerCoupons = allCoupons.filter((c) => c.forConfirmedBuyers && c.isActive);
+  const confirmedBuyerCoupons = allCoupons.filter((c) => c.couponType === "For Confirmed Buyers" && c.isActive);
 
   const filtered = orders.filter((o) => {
     const matchSearch = !search ||

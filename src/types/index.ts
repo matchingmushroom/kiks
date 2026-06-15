@@ -156,7 +156,7 @@ export interface Coupon {
   usageLimit: number;
   usedCount: number;
   isActive: boolean;
-  forConfirmedBuyers?: boolean;
+  couponType?: string;
   restrictedToPhone?: string;
   issuedToCustomer: { name: string; phone: string };
   issuedForOrderId: string;

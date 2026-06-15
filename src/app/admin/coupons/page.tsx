@@ -22,7 +22,8 @@ const emptyForm = {
   validUntil: "",
   usageLimit: 100,
   isActive: true,
-  forConfirmedBuyers: false,
+  couponType: "General",
+  customCouponType: "",
   restrictedToPhone: "",
   issuedToName: "",
   issuedToPhone: "",
@@ -42,6 +43,10 @@ export default function AdminCouponsPage() {
     !search || c.code.toLowerCase().includes(search.toLowerCase())
   );
 
+  const presetTypes = ["General", "For Confirmed Buyers", "Tiktok10", "Facebook10"];
+  const existingTypes = [...new Set(coupons.map((c) => c.couponType).filter(Boolean))] as string[];
+  const allTypes = [...new Set([...presetTypes, ...existingTypes])];
+
   const openAdd = () => {
     setForm({ ...emptyForm, code: generateCouponCode() });
     setEditingId(null);
@@ -59,7 +64,8 @@ export default function AdminCouponsPage() {
       validUntil: c.validUntil ? toDate(c.validUntil).toISOString().slice(0, 16) : "",
       usageLimit: c.usageLimit,
       isActive: c.isActive,
-      forConfirmedBuyers: c.forConfirmedBuyers || false,
+      couponType: c.couponType || "General",
+      customCouponType: "",
       restrictedToPhone: c.restrictedToPhone || "",
       issuedToName: c.issuedToCustomer?.name || "",
       issuedToPhone: c.issuedToCustomer?.phone || "",
@@ -83,7 +89,7 @@ export default function AdminCouponsPage() {
         usageLimit: Number(form.usageLimit),
         usedCount: 0,
         isActive: form.isActive,
-        forConfirmedBuyers: form.forConfirmedBuyers,
+        couponType: form.couponType === "Other" ? form.customCouponType : form.couponType,
         restrictedToPhone: form.restrictedToPhone || "",
         issuedToCustomer: { name: form.issuedToName, phone: form.issuedToPhone },
         updatedAt: Timestamp.fromDate(new Date()),
@@ -199,17 +205,22 @@ export default function AdminCouponsPage() {
                   onChange={(e) => setForm({ ...form, validUntil: e.target.value })}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
-              <div className="flex items-end gap-4">
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={form.isActive}
-                    onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                    className="rounded border-border" /> Active
-                </label>
-                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                  <input type="checkbox" checked={form.forConfirmedBuyers}
-                    onChange={(e) => setForm({ ...form, forConfirmedBuyers: e.target.checked })}
-                    className="rounded border-border" /> For Confirmed Buyers
-                </label>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Type of Coupon</label>
+                <select value={form.couponType}
+                  onChange={(e) => setForm({ ...form, couponType: e.target.value, customCouponType: "" })}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  {allTypes.map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                  <option value="Other">Other (add new)</option>
+                </select>
+                {form.couponType === "Other" && (
+                  <input type="text" value={form.customCouponType} placeholder="Enter new coupon type..."
+                    onChange={(e) => setForm({ ...form, customCouponType: e.target.value })}
+                    className="w-full mt-2 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Issued To (Name)</label>
@@ -228,6 +239,13 @@ export default function AdminCouponsPage() {
                 <input type="text" value={form.restrictedToPhone}
                   onChange={(e) => setForm({ ...form, restrictedToPhone: e.target.value })}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div className="flex items-end">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={form.isActive}
+                    onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                    className="rounded border-border" /> Active
+                </label>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
@@ -282,8 +300,8 @@ export default function AdminCouponsPage() {
                           )}
                         </td>
                         <td className="px-4 py-3">
-                          {c.forConfirmedBuyers ? (
-                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">Confirmed</span>
+                          {c.couponType ? (
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{c.couponType}</span>
                           ) : (
                             <span className="text-xs text-muted-foreground">General</span>
                           )}
