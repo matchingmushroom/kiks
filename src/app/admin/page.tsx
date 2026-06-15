@@ -43,11 +43,12 @@ export default function AdminDashboardPage() {
   const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
 
+  const saleTime = (s: Sale) => (s.saleDate instanceof Date ? s.saleDate.getTime() : Number(s.saleDate) || 0);
   const ytdSales = sales
-    .filter((s) => s.saleDate >= startOfYear)
+    .filter((s) => saleTime(s) >= startOfYear)
     .reduce((sum, s) => sum + s.finalAmount, 0);
   const mtdSales = sales
-    .filter((s) => s.saleDate >= startOfMonth)
+    .filter((s) => saleTime(s) >= startOfMonth)
     .reduce((sum, s) => sum + s.finalAmount, 0);
   const totalSales = sales.reduce((sum, s) => sum + s.finalAmount, 0);
   const totalDebt = debtors
@@ -66,10 +67,15 @@ export default function AdminDashboardPage() {
   ];
 
   const last30 = getLast30Days();
+  const safeDate = (d: unknown) => {
+    if (!d) return "";
+    try { return new Date(d as any).toISOString().slice(0, 10); }
+    catch { console.error("Invalid saleDate:", d); return ""; }
+  };
   const salesTrend = last30.map((date) => ({
     date: date.slice(5),
     sales: sales
-      .filter((s) => new Date(s.saleDate).toISOString().slice(0, 10) === date)
+      .filter((s) => safeDate(s.saleDate) === date)
       .reduce((sum, s) => sum + s.finalAmount, 0),
   }));
 
