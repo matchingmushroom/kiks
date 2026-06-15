@@ -1,0 +1,285 @@
+"use client";
+
+import { useAuth } from "@/contexts/AuthContext";
+import AdminLayout from "@/components/admin/AdminLayout";
+import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { Sale, Product, Debtor, Order, Category } from "@/types";
+import { formatCurrency } from "@/lib/utils";
+import {
+  Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
+  BarChart3, ShoppingCart, Clock,
+} from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart as RPieChart, Pie, Cell,
+  BarChart, Bar,
+} from "recharts";
+
+const COLORS = ["#b8860b", "#d4a853", "#1a1a2e", "#e2a63b", "#f5d78e", "#8b6914", "#c49a3a"];
+
+function getLast30Days() {
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push(d.toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+export default function AdminDashboardPage() {
+  const { profile } = useAuth();
+  const { data: sales } = useFirestore<Sale>("sales");
+  const { data: products } = useFirestore<Product>("products");
+  const { data: orders } = useFirestore<Order>("orders", {
+    constraints: [orderBy("createdAt", "desc")],
+  });
+  const { data: categories } = useFirestore<Category>("categories");
+  const { data: debtors } = useFirestore<Debtor>("debtors", {
+    constraints: [orderBy("balanceDue", "desc")],
+  });
+
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+  const ytdSales = sales
+    .filter((s) => s.saleDate >= startOfYear)
+    .reduce((sum, s) => sum + s.finalAmount, 0);
+  const mtdSales = sales
+    .filter((s) => s.saleDate >= startOfMonth)
+    .reduce((sum, s) => sum + s.finalAmount, 0);
+  const totalSales = sales.reduce((sum, s) => sum + s.finalAmount, 0);
+  const totalDebt = debtors
+    .filter((d) => d.status === "active")
+    .reduce((sum, d) => sum + d.balanceDue, 0);
+  const lowStockItems = products.filter((p) => p.quantityInStock > 0 && p.quantityInStock <= 3);
+  const activeDebtorsList = debtors.filter((d) => d.status === "active");
+
+  const stats = [
+    { label: "YTD Sales", value: formatCurrency(ytdSales), icon: TrendingUp, color: "text-green-600 bg-green-50" },
+    { label: "MTD Sales", value: formatCurrency(mtdSales), icon: Wallet, color: "text-blue-600 bg-blue-50" },
+    { label: "Total Sales", value: formatCurrency(totalSales), icon: Package, color: "text-purple-600 bg-purple-50" },
+    { label: "Debtors Balance", value: formatCurrency(totalDebt), icon: Users, color: "text-red-600 bg-red-50" },
+    { label: "Low Stock Items", value: lowStockItems.length.toString(), icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
+    { label: "Active Debtors", value: activeDebtorsList.length.toString(), icon: Users, color: "text-orange-600 bg-orange-50" },
+  ];
+
+  const last30 = getLast30Days();
+  const salesTrend = last30.map((date) => ({
+    date: date.slice(5),
+    sales: sales
+      .filter((s) => new Date(s.saleDate).toISOString().slice(0, 10) === date)
+      .reduce((sum, s) => sum + s.finalAmount, 0),
+  }));
+
+  const productMap = new Map(products.map((p) => [p.id, p]));
+  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+  const catRevenue = new Map<string, number>();
+  sales.forEach((s) => {
+    (s.items || []).forEach((item) => {
+      const prod = productMap.get(item.productId);
+      const catName = prod ? categoryMap.get(prod.categoryId) || "Uncategorized" : "Uncategorized";
+      catRevenue.set(catName, (catRevenue.get(catName) || 0) + (item.subtotal || 0));
+    });
+  });
+  const categoryData = Array.from(catRevenue.entries()).map(([name, value]) => ({ name, value }));
+
+  const catStock = new Map<string, number>();
+  products.forEach((p) => {
+    if (p.isActive) {
+      const catName = categoryMap.get(p.categoryId) || "Uncategorized";
+      catStock.set(catName, (catStock.get(catName) || 0) + p.quantityInStock);
+    }
+  });
+  const inventoryData = Array.from(catStock.entries()).map(([name, stock]) => ({ name, stock }));
+
+  const productSales = new Map<string, { qty: number; revenue: number }>();
+  sales.forEach((s) => {
+    (s.items || []).forEach((item) => {
+      const prev = productSales.get(item.productName) || { qty: 0, revenue: 0 };
+      productSales.set(item.productName, {
+        qty: prev.qty + item.quantity,
+        revenue: prev.revenue + (item.subtotal || 0),
+      });
+    });
+  });
+  const topProducts = Array.from(productSales.entries())
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
+
+  return (
+    <AdminLayout>
+      <div className="p-6">
+        <h1 className="text-2xl font-bold text-secondary mb-1">Dashboard</h1>
+        <p className="text-muted-foreground mb-6">
+          Welcome back, {profile?.displayName || "User"}
+        </p>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
+          {stats.map((stat) => (
+            <div key={stat.label} className="bg-white rounded-xl border border-border p-3 shadow-sm">
+              <div className={`inline-flex p-1.5 rounded-lg ${stat.color} mb-2`}>
+                <stat.icon className="h-3.5 w-3.5" />
+              </div>
+              <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+              <p className="text-sm font-bold text-secondary mt-0.5">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold text-secondary">Sales Trend (30 days)</h2>
+            </div>
+            {sales.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-8 text-center">No sales data yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={salesTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip formatter={(v: number) => [`Rs. ${v.toLocaleString("ne-NP")}`, "Sales"]} />
+                  <Line type="monotone" dataKey="sales" stroke="#b8860b" strokeWidth={2} dot={{ r: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <PieChart className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold text-secondary">Sales by Category</h2>
+            </div>
+            {categoryData.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-8 text-center">No data yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <RPieChart>
+                  <Pie
+                    data={categoryData}
+                    cx="50%" cy="50%"
+                    innerRadius={55}
+                    outerRadius={85}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {categoryData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v: number) => `Rs. ${v.toLocaleString("ne-NP")}`} />
+                </RPieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold text-secondary">Inventory by Category</h2>
+            </div>
+            {inventoryData.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-8 text-center">No products yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={inventoryData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis type="number" tick={{ fontSize: 10 }} />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10 }} width={80} />
+                  <Tooltip formatter={(v: number) => [v, "In Stock"]} />
+                  <Bar dataKey="stock" fill="#b8860b" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <ShoppingCart className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold text-secondary">Top Selling Products</h2>
+            </div>
+            {topProducts.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-8 text-center">No sales yet</p>
+            ) : (
+              <div className="space-y-2">
+                {topProducts.map((p, i) => (
+                  <div key={p.name} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs text-muted-foreground w-4">{i + 1}.</span>
+                      <span className="truncate">{p.name}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                      <span className="text-muted-foreground">x{p.qty}</span>
+                      <span className="font-medium text-secondary">{formatCurrency(p.revenue)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Clock className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold text-secondary">Recent Orders</h2>
+            </div>
+            {orders.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-8 text-center">No orders yet</p>
+            ) : (
+              <div className="space-y-2">
+                {orders.slice(0, 5).map((order) => (
+                  <div key={order.id} className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        order.status === "pending" ? "bg-amber-400" :
+                        order.status === "confirmed" ? "bg-blue-400" :
+                        order.status === "delivered" ? "bg-green-400" : "bg-gray-400"
+                      }`} />
+                      <span className="truncate">{order.customer?.name || "Unknown"}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                      <span className="text-muted-foreground capitalize">{order.status}</span>
+                      <span className="font-medium">{formatCurrency(order.totalAmount)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="h-4 w-4 text-red-500" />
+              <h2 className="text-sm font-semibold text-secondary">Overdue Debtors</h2>
+            </div>
+            {activeDebtorsList.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-8 text-center">No outstanding debts</p>
+            ) : (
+              <div className="space-y-2">
+                {activeDebtorsList.slice(0, 5).map((d) => (
+                  <div key={d.id} className="flex items-center justify-between text-sm">
+                    <div className="min-w-0 truncate">
+                      <span className="truncate">{d.customerName}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{d.customerPhone}</span>
+                    </div>
+                    <span className="font-medium text-red-600 flex-shrink-0">{formatCurrency(d.balanceDue)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </AdminLayout>
+  );
+}

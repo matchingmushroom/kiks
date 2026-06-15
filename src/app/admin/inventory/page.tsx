@@ -1,0 +1,280 @@
+"use client";
+
+import { useState } from "react";
+import AdminLayout from "@/components/admin/AdminLayout";
+import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { Product, InventoryLog, Category } from "@/types";
+import { formatCurrency, formatDateTime } from "@/lib/utils";
+import {
+  addDoc, collection, updateDoc, doc, Timestamp,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package } from "lucide-react";
+
+export default function AdminInventoryPage() {
+  const { data: products } = useFirestore<Product>("products", {
+    constraints: [orderBy("name", "asc")],
+  });
+  const { data: logs } = useFirestore<InventoryLog>("inventoryLogs", {
+    constraints: [orderBy("createdAt", "desc")],
+  });
+  const { data: categories } = useFirestore<Category>("categories");
+
+  const [search, setSearch] = useState("");
+  const [stockFilter, setStockFilter] = useState("");
+  const [adjusting, setAdjusting] = useState<{ productId: string; name: string; currentStock: number } | null>(null);
+  const [adjustType, setAdjustType] = useState<"add" | "remove" | "set">("add");
+  const [adjustQty, setAdjustQty] = useState(1);
+  const [adjustReason, setAdjustReason] = useState("");
+  const [tab, setTab] = useState<"stock" | "log">("stock");
+  const [saving, setSaving] = useState(false);
+
+  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
+
+  const filtered = products.filter((p) => {
+    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
+    if (stockFilter === "low") return matchSearch && p.quantityInStock > 0 && p.quantityInStock <= 3;
+    if (stockFilter === "out") return matchSearch && p.quantityInStock <= 0;
+    if (stockFilter === "active") return matchSearch && p.isActive;
+    return matchSearch;
+  });
+
+  const totalStock = products.reduce((s, p) => s + (p.isActive ? p.quantityInStock : 0), 0);
+  const lowStockCount = products.filter((p) => p.isActive && p.quantityInStock > 0 && p.quantityInStock <= 3).length;
+  const outOfStockCount = products.filter((p) => p.isActive && p.quantityInStock <= 0).length;
+
+  const startAdjust = (p: Product) => {
+    setAdjusting({ productId: p.id, name: p.name, currentStock: p.quantityInStock });
+    setAdjustQty(1);
+    setAdjustType("add");
+    setAdjustReason("");
+  };
+
+  const handleAdjust = async () => {
+    if (!adjusting || adjustQty <= 0) return;
+    setSaving(true);
+    try {
+      const productRef = doc(db, "products", adjusting.productId);
+      let newQty = adjusting.currentStock;
+      if (adjustType === "add") newQty += adjustQty;
+      else if (adjustType === "remove") newQty = Math.max(0, newQty - adjustQty);
+      else newQty = adjustQty;
+
+      await updateDoc(productRef, { quantityInStock: newQty, updatedAt: Timestamp.fromDate(new Date()) });
+
+      await addDoc(collection(db, "inventoryLogs"), {
+        productId: adjusting.productId,
+        changeType: adjustType,
+        quantityChange: adjustType === "set" ? newQty - adjusting.currentStock : (adjustType === "add" ? adjustQty : -adjustQty),
+        reason: adjustReason,
+        performedBy: "",
+        createdAt: Timestamp.fromDate(new Date()),
+      });
+
+      setAdjusting(null);
+    } catch (e) {
+      console.error("Adjust failed", e);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <AdminLayout>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-secondary">Inventory</h1>
+            <p className="text-sm text-muted-foreground">
+              {totalStock} total items · {lowStockCount} low stock · {outOfStockCount} out of stock
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mb-6">
+          <button onClick={() => setTab("stock")}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === "stock" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}>
+            <Package className="h-4 w-4" /> Stock
+          </button>
+          <button onClick={() => setTab("log")}
+            className={`flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              tab === "log" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}>
+            <ClipboardList className="h-4 w-4" /> Audit Log
+          </button>
+        </div>
+
+        {tab === "stock" ? (
+          <>
+            <div className="flex flex-wrap gap-3 mb-6">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input type="text" placeholder="Search products..." value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}
+                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                <option value="">All Products</option>
+                <option value="active">Active</option>
+                <option value="low">Low Stock (≤3)</option>
+                <option value="out">Out of Stock</option>
+              </select>
+            </div>
+
+            {/* Adjust Stock Form */}
+            {adjusting && (
+              <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-secondary">
+                    Adjust Stock: {adjusting.name}
+                  </h2>
+                  <button onClick={() => setAdjusting(null)} className="p-1 hover:bg-muted rounded">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Current stock: <span className="font-medium text-secondary">{adjusting.currentStock}</span>
+                </p>
+                <div className="flex flex-wrap gap-3 mb-4">
+                  {(["add", "remove", "set"] as const).map((t) => (
+                    <button key={t}
+                      onClick={() => setAdjustType(t)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium capitalize transition-colors ${
+                        adjustType === t
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}>
+                      {t === "add" ? "Add" : t === "remove" ? "Remove" : "Set Exact"}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <div className="w-32">
+                    <label className="block text-xs text-muted-foreground mb-1">Quantity</label>
+                    <input type="number" value={adjustQty} min={1}
+                      onChange={(e) => setAdjustQty(Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-xs text-muted-foreground mb-1">Reason</label>
+                    <input type="text" placeholder="e.g., New shipment, damaged item, return" value={adjustReason}
+                      onChange={(e) => setAdjustReason(e.target.value)}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <Button onClick={handleAdjust} disabled={saving || adjustQty <= 0} variant="accent">
+                      <Save className="h-4 w-4" /> {saving ? "..." : "Update"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-white border border-border rounded-xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted text-left">
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Product</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Category</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">SKU</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground text-center">Stock</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground text-center">Status</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground w-24">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filtered.map((p) => (
+                      <tr key={p.id} className="hover:bg-muted/50">
+                        <td className="px-4 py-3 font-medium text-secondary max-w-[200px] truncate">{p.name}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{categoryMap.get(p.categoryId) || "—"}</td>
+                        <td className="px-4 py-3 text-muted-foreground font-mono text-xs">{p.sku || "—"}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`font-bold text-lg ${
+                            p.quantityInStock <= 0 ? "text-red-500" :
+                            p.quantityInStock <= 3 ? "text-amber-500" :
+                            "text-secondary"
+                          }`}>{p.quantityInStock}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {p.quantityInStock <= 0 ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-red-600">
+                              <AlertTriangle className="h-3 w-3" /> Out of Stock
+                            </span>
+                          ) : p.quantityInStock <= 3 ? (
+                            <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                              <AlertTriangle className="h-3 w-3" /> Low Stock
+                            </span>
+                          ) : (
+                            <span className="text-xs text-green-600">In Stock</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button onClick={() => startAdjust(p)}
+                            className="text-xs px-2 py-1 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-secondary transition-colors">
+                            Adjust
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="bg-white border border-border rounded-xl overflow-hidden">
+            {logs.length === 0 ? (
+              <p className="text-muted-foreground text-center py-12">No inventory changes recorded yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted text-left">
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Date</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Product</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Type</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground text-center">Change</th>
+                      <th className="px-4 py-3 font-medium text-muted-foreground">Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {logs.map((log) => {
+                      const prod = products.find((p) => p.id === log.productId);
+                      return (
+                        <tr key={log.id} className="hover:bg-muted/50">
+                          <td className="px-4 py-3 text-xs text-muted-foreground">
+                            {formatDateTime(log.createdAt as unknown as number)}
+                          </td>
+                          <td className="px-4 py-3 font-medium text-secondary">{prod?.name || "Unknown"}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
+                              log.changeType === "add" ? "bg-green-50 text-green-700" :
+                              log.changeType === "remove" ? "bg-red-50 text-red-700" :
+                              "bg-blue-50 text-blue-700"
+                            }`}>{log.changeType}</span>
+                          </td>
+                          <td className={`px-4 py-3 text-center font-medium ${
+                            (log.quantityChange || 0) > 0 ? "text-green-600" : "text-red-600"
+                          }`}>
+                            {(log.quantityChange || 0) > 0 ? `+${log.quantityChange}` : log.quantityChange}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground text-xs max-w-[200px] truncate">
+                            {log.reason || "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </AdminLayout>
+  );
+}
