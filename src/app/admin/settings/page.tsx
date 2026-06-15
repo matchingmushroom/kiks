@@ -76,7 +76,7 @@ export default function SettingsPage() {
         <h1 className="text-2xl font-bold text-secondary mb-6">Shop Settings</h1>
 
         <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-6">
-          <div className="flex items-center gap-6 pb-6 border-b border-border">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 pb-6 border-b border-border">
             <div className="w-20 h-20 bg-muted rounded-xl overflow-hidden flex-shrink-0 border border-border">
               {form.logoUrl ? (
                 <img src={form.logoUrl} alt="Logo" className="w-full h-full object-contain" />

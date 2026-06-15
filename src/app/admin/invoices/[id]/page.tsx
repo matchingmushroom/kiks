@@ -164,7 +164,7 @@ export default function InvoiceDetailPage() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button onClick={() => window.print()} className="flex items-center gap-1 px-3 py-2 border border-border rounded-lg text-sm hover:bg-muted">
               <Printer className="h-4 w-4" /> Print
             </button>
@@ -205,13 +205,13 @@ export default function InvoiceDetailPage() {
       <div className="max-w-4xl mx-auto px-6 pb-12 no-print">
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
           <div className="p-8" id="invoice-template">
-            <div className="flex items-start justify-between mb-8 pb-6 border-b border-border">
+            <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-8 pb-6 border-b border-border">
               <div>
                 <img src={logoUrl} alt={shopName} className="h-12 mb-2" />
                 <h2 className="text-xl font-bold text-secondary">{shopName}</h2>
                 <p className="text-sm text-muted-foreground">{shopTagline}</p>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right">
                 <h1 className="text-3xl font-bold text-primary mb-1">
                   {invoice.type === "invoice" ? "INVOICE" : "ESTIMATE"}
                 </h1>
@@ -240,7 +240,25 @@ export default function InvoiceDetailPage() {
               </div>
             </div>
 
-            <table className="w-full text-sm mb-8">
+            {/* Mobile card layout */}
+            <div className="grid grid-cols-1 gap-3 sm:hidden mb-6">
+              {invoice.items.map((item, i) => (
+                <div key={i} className="bg-muted/30 rounded-lg p-3 space-y-1.5 text-sm">
+                  <div className="font-medium text-secondary">{item.productName}</div>
+                  <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+                    <span>Wt: <strong>{item.weight}g</strong></span>
+                    <span>Purity: <strong>{item.purity}</strong></span>
+                    <span>Qty: <strong>{item.quantity}</strong></span>
+                    <span>Rate: <strong>{formatCurrency(item.unitPrice)}</strong></span>
+                  </div>
+                  <div className="text-right text-sm font-semibold text-secondary pt-1 border-t border-border/50">
+                    {formatCurrency(item.subtotal)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Desktop table */}
+            <table className="hidden sm:table w-full text-sm mb-8">
               <thead>
                 <tr className="bg-muted text-left">
                   <th className="px-3 py-2 text-xs text-muted-foreground font-medium">Description</th>
