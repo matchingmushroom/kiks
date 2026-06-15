@@ -21,7 +21,7 @@ export default function AdminDebtorsPage() {
     constraints: [orderBy("createdAt", "desc")],
   });
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("active");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [paymentForm, setPaymentForm] = useState<{ amount: string; method: string; notes: string } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -93,8 +93,8 @@ export default function AdminDebtorsPage() {
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-            <option value="">All Status</option>
             <option value="active">Active</option>
+            <option value="">All Status</option>
             <option value="cleared">Cleared</option>
           </select>
         </div>
