@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Order } from "@/types";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { updateDoc, doc, Timestamp } from "firebase/firestore";
@@ -25,6 +26,7 @@ export default function AdminOrdersPage() {
   const { data: orders, loading } = useFirestore<Order>("orders", {
     constraints: [orderBy("createdAt", "desc")],
   });
+  const { settings } = useShopSettings();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -40,6 +42,24 @@ export default function AdminOrdersPage() {
 
   const updateStatus = async (id: string, status: string) => {
     await updateDoc(doc(db, "orders", id), { status, updatedAt: Timestamp.fromDate(new Date()) });
+
+    const order = orders.find((o) => o.id === id);
+    if (order?.customer?.phone && settings.whatsappNumber) {
+      const itemsText = (order.items || [])
+        .map((i) => `• ${i.productName} x${i.quantity} — Rs. ${i.subtotal.toLocaleString("ne-NP")}`)
+        .join("\n");
+      const msg = encodeURIComponent([
+        `*Order ${order.orderNumber} — ${status.toUpperCase()}*`,
+        `Hi ${order.customer.name}, your order status has been updated to *${status}*.`,
+        "",
+        itemsText,
+        "",
+        `*Total: Rs. ${order.totalAmount.toLocaleString("ne-NP")}*`,
+        "",
+        "Thank you for choosing KIKS Collections!",
+      ].join("\n"));
+      window.open(`https://wa.me/${order.customer.phone}?text=${msg}`, "_blank");
+    }
   };
 
   return (
