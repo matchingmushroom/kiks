@@ -68,8 +68,10 @@ export default function AdminDashboardPage() {
 
   const last30 = getLast30Days();
   const safeDate = (d: unknown) => {
-    try { return new Date(d as any).toISOString().slice(0, 10); }
-    catch { return ""; }
+    try {
+      const ms = typeof (d as any)?.getTime === "function" ? (d as any).getTime() : Number(d as any) || 0;
+      return new Date(ms).toISOString().slice(0, 10);
+    } catch { return ""; }
   };
   const salesTrend = last30.map((date) => ({
     date: date.slice(5),
