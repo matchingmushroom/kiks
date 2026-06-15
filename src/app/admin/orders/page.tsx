@@ -63,7 +63,9 @@ export default function AdminOrdersPage() {
     if (status === "delivered") {
       const promo = prompt("Enter promo code for customer (optional):");
       if (promo) {
-        lines.push(`Use promo code *${promo.trim().toUpperCase()}* on your next purchase!`);
+        const benefit = prompt("What does this promo code offer? (e.g. 10% off, Rs. 500 off):");
+        const benefitText = benefit ? ` — ${benefit.trim()}` : "";
+        lines.push(`Use promo code *${promo.trim().toUpperCase()}*${benefitText} on your next purchase!`);
         lines.push("");
       }
       lines.push("Thank you for shopping with KIKS Collections! We hope to see you again!");
