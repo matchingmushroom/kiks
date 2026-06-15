@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useFirestore, where, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, where } from "@/hooks/useFirestore";
 import { Product, Category } from "@/types";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopHeader from "@/components/shop/ShopHeader";
@@ -20,9 +20,9 @@ export default function CategoryProductsPage() {
     constraints: [
       where("isActive", "==", true),
       where("categoryId", "==", categoryId),
-      orderBy("createdAt", "desc"),
     ],
   });
+  const sorted = [...products].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -32,18 +32,18 @@ export default function CategoryProductsPage() {
           {category?.name || categoryId}
         </h1>
         <p className="text-muted-foreground mb-8">
-          {products.length} product{products.length !== 1 ? "s" : ""} found
+          {sorted.length} product{sorted.length !== 1 ? "s" : ""} found
         </p>
 
         {loading ? (
           <div className="text-center py-16 text-muted-foreground">Loading products...</div>
-        ) : products.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-muted-foreground">No products found in this category.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map((product) => (
+            {sorted.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>

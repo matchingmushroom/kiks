@@ -26,7 +26,7 @@ const COLLECTIONS = [
   { id: "debtors", label: "Debtors" },
   { id: "coupons", label: "Coupons" },
   { id: "inventory_logs", label: "Inventory Logs" },
-  { id: "homepage_sections", label: "Homepage Sections" },
+  { id: "sections", label: "Homepage Sections" },
   { id: "shop_settings", label: "Shop Settings" },
 ];
 

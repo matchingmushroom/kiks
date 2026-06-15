@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useFirestore, where, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, where } from "@/hooks/useFirestore";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { HomeSection, Product as ProductType, Category } from "@/types";
 import ProductCard from "@/components/shop/ProductCard";
@@ -43,10 +43,11 @@ function HeroSection({ section }: { section: HomeSection }) {
 
 function CategoryGridSection() {
   const { data: categories, loading } = useFirestore<Category>("categories", {
-    constraints: [where("isActive", "==", true), orderBy("order", "asc")],
+    constraints: [where("isActive", "==", true)],
   });
 
   if (loading || categories.length === 0) return null;
+  const sorted = [...categories].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
 
   return (
     <section className="py-16 bg-muted">
@@ -54,7 +55,7 @@ function CategoryGridSection() {
         <h2 className="text-3xl font-bold text-secondary mb-4">Our Collection</h2>
         <p className="text-muted-foreground mb-12">Browse our curated categories</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((cat) => (
+          {sorted.map((cat) => (
             <Link
               key={cat.id}
               href={`/products/${cat.id}`}
@@ -77,11 +78,11 @@ function FeaturedProductsSection() {
     constraints: [
       where("isActive", "==", true),
       where("isFeatured", "==", true),
-      orderBy("createdAt", "desc"),
     ],
   });
 
   if (loading || products.length === 0) return null;
+  const sorted = [...products].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 
   return (
     <section className="py-16 bg-white">
@@ -91,7 +92,7 @@ function FeaturedProductsSection() {
           <p className="text-muted-foreground mt-2">Our most popular pieces</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {products.slice(0, 8).map((product) => (
+          {sorted.slice(0, 8).map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
@@ -102,12 +103,13 @@ function FeaturedProductsSection() {
 
 function NewArrivalsSection() {
   const { data: products, loading } = useFirestore<ProductType>("products", {
-    constraints: [where("isActive", "==", true), orderBy("createdAt", "desc")],
+    constraints: [where("isActive", "==", true)],
   });
 
   if (loading || products.length === 0) return null;
 
-  const newProducts = products.slice(0, 4);
+  const sorted = [...products].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+  const newProducts = sorted.slice(0, 4);
 
   return (
     <section className="py-16 bg-muted">
@@ -155,17 +157,19 @@ function SectionRenderer({ section }: { section: HomeSection }) {
 
 function HomeContent() {
   const { data: sections, loading } = useFirestore<HomeSection>("sections", {
-    constraints: [where("isVisible", "==", true), orderBy("order", "asc")],
+    constraints: [where("isVisible", "==", true)],
   });
 
   if (loading) {
     return <LoadingSpinner />;
   }
 
+  const sorted = [...sections].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+
   return (
     <main>
-      {sections.length > 0 ? (
-        sections.map((section) => (
+      {sorted.length > 0 ? (
+        sorted.map((section) => (
           <SectionRenderer key={section.id} section={section} />
         ))
       ) : (
