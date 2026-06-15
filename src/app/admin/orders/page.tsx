@@ -49,7 +49,8 @@ export default function AdminOrdersPage() {
     const itemsText = (order.items || [])
       .map((i) => `• ${i.productName} x${i.quantity} — Rs. ${i.subtotal.toLocaleString("ne-NP")}`)
       .join("\n");
-    const msg = encodeURIComponent([
+
+    const lines = [
       `*Order ${order.orderNumber} — ${status.toUpperCase()}*`,
       `Hi ${order.customer.name}, your order status has been updated to *${status}*.`,
       "",
@@ -57,8 +58,20 @@ export default function AdminOrdersPage() {
       "",
       `*Total: Rs. ${order.totalAmount.toLocaleString("ne-NP")}*`,
       "",
-      "Thank you for choosing KIKS Collections!",
-    ].join("\n"));
+    ];
+
+    if (status === "delivered") {
+      const promo = prompt("Enter promo code for customer (optional):");
+      if (promo) {
+        lines.push(`Use promo code *${promo.trim().toUpperCase()}* on your next purchase!`);
+        lines.push("");
+      }
+      lines.push("Thank you for shopping with KIKS Collections! We hope to see you again!");
+    } else {
+      lines.push("Thank you for choosing KIKS Collections!");
+    }
+
+    const msg = encodeURIComponent(lines.join("\n"));
     window.open(`https://wa.me/${order.customer.phone}?text=${msg}`, "_blank");
   };
 
