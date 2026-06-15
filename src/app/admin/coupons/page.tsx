@@ -254,7 +254,8 @@ export default function AdminCouponsPage() {
                 <tbody className="divide-y divide-border">
                   {filtered.map((c) => {
                     const now = Date.now();
-                    const expired = c.validUntil && now > c.validUntil;
+                    const validUntilMs = c.validUntil ? toDate(c.validUntil).getTime() : 0;
+                    const expired = validUntilMs > 0 && now > validUntilMs;
                     return (
                       <tr key={c.id} className="hover:bg-muted/50">
                         <td className="px-4 py-3">
