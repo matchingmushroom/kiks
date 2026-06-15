@@ -10,7 +10,7 @@ import { updateDoc, doc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Search, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, ExternalLink, MessageCircle } from "lucide-react";
 import Link from "next/link";
 
 const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"] as const;
@@ -42,24 +42,24 @@ export default function AdminOrdersPage() {
 
   const updateStatus = async (id: string, status: string) => {
     await updateDoc(doc(db, "orders", id), { status, updatedAt: Timestamp.fromDate(new Date()) });
+  };
 
-    const order = orders.find((o) => o.id === id);
-    if (order?.customer?.phone && settings.whatsappNumber) {
-      const itemsText = (order.items || [])
-        .map((i) => `• ${i.productName} x${i.quantity} — Rs. ${i.subtotal.toLocaleString("ne-NP")}`)
-        .join("\n");
-      const msg = encodeURIComponent([
-        `*Order ${order.orderNumber} — ${status.toUpperCase()}*`,
-        `Hi ${order.customer.name}, your order status has been updated to *${status}*.`,
-        "",
-        itemsText,
-        "",
-        `*Total: Rs. ${order.totalAmount.toLocaleString("ne-NP")}*`,
-        "",
-        "Thank you for choosing KIKS Collections!",
-      ].join("\n"));
-      window.open(`https://wa.me/${order.customer.phone}?text=${msg}`, "_blank");
-    }
+  const notifyCustomer = (order: Order, status: string) => {
+    if (!order.customer?.phone) return;
+    const itemsText = (order.items || [])
+      .map((i) => `• ${i.productName} x${i.quantity} — Rs. ${i.subtotal.toLocaleString("ne-NP")}`)
+      .join("\n");
+    const msg = encodeURIComponent([
+      `*Order ${order.orderNumber} — ${status.toUpperCase()}*`,
+      `Hi ${order.customer.name}, your order status has been updated to *${status}*.`,
+      "",
+      itemsText,
+      "",
+      `*Total: Rs. ${order.totalAmount.toLocaleString("ne-NP")}*`,
+      "",
+      "Thank you for choosing KIKS Collections!",
+    ].join("\n"));
+    window.open(`https://wa.me/${order.customer.phone}?text=${msg}`, "_blank");
   };
 
   return (
@@ -130,17 +130,27 @@ export default function AdminOrdersPage() {
                         <h3 className="text-xs font-medium text-muted-foreground mb-2">UPDATE STATUS</h3>
                         <div className="flex flex-wrap gap-2">
                           {STATUSES.map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => updateStatus(order.id, s)}
-                              className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors ${
-                                order.status === s
-                                  ? `${STATUS_COLORS[s]} border-current font-medium`
-                                  : "border-border text-muted-foreground hover:bg-muted"
-                              }`}
-                            >
-                              {s}
-                            </button>
+                            <div key={s} className="flex items-center gap-0.5">
+                              <button
+                                onClick={() => updateStatus(order.id, s)}
+                                className={`text-xs px-3 py-1.5 rounded-lg border capitalize transition-colors ${
+                                  order.status === s
+                                    ? `${STATUS_COLORS[s]} border-current font-medium`
+                                    : "border-border text-muted-foreground hover:bg-muted"
+                                }`}
+                              >
+                                {s}
+                              </button>
+                              {order.customer?.phone && (
+                                <button
+                                  onClick={() => notifyCustomer(order, s)}
+                                  className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                  title="Notify customer via WhatsApp"
+                                >
+                                  <MessageCircle className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
                           ))}
                         </div>
                       </div>
