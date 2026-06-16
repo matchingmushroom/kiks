@@ -20,7 +20,14 @@ A. General Info
 10.	Product Details : [Free Text]
 
 
+hide "In Stock (20)" display from public homepage
 
+dummy product data showed jewellery image, but today showing random image. refer yesterday code used to fetch image for dummay data and use same images.
+
+
+while seeding dummy data, it should create products of all categories and type.
+
+Default value in "Category" field's dropdown option list in 'Add Product' section is currently "Jewel Sets", but it should be  default to 'Select' like in other field 'Material Type'
 
 Bug Fixes
 

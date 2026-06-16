@@ -65,12 +65,6 @@ export default function AdminProductsPage() {
   const [uploading, setUploading] = useState(false);
   const [seeding, setSeeding] = useState(false);
 
-  useEffect(() => {
-    if (categories.length > 0 && !form.categoryId) {
-      setForm((f) => ({ ...f, categoryId: categories[0].id }));
-    }
-  }, [categories, form.categoryId]);
-
   const filtered = products.filter((p) => {
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = !catFilter || p.categoryId === catFilter;
@@ -78,7 +72,7 @@ export default function AdminProductsPage() {
   });
 
   const openAdd = () => {
-    setForm({ ...emptyProduct, categoryId: categories[0]?.id || "" });
+    setForm({ ...emptyProduct });
     setEditingId(null);
     setShowForm(true);
   };
