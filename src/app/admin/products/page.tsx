@@ -168,7 +168,7 @@ export default function AdminProductsPage() {
     if (!confirm(`Add 50 dummy products across ${categories.length} categories (${categories.map(c => c.name).join(", ")})?`)) return;
     setSeeding(true);
     try {
-      const dummyProducts = generateDummyProducts(categories.map(c => c.id));
+      const dummyProducts = generateDummyProducts(categories.map(c => ({ id: c.id, name: c.name })));
       for (const p of dummyProducts) {
         await addDoc(collection(db, "products"), p);
       }

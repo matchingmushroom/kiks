@@ -663,10 +663,19 @@ const products: Omit<DummyProduct, "categoryId">[] = [
   },
 ];
 
-export function generateDummyProducts(categoryIds: string[]): DummyProduct[] {
-  if (!categoryIds.length) return [];
-  return products.map((p, i) => ({
-    ...p,
-    categoryId: categoryIds[i % categoryIds.length],
-  }));
+function normalizeName(name: string): string {
+  let n = name.toLowerCase().replace(/\s+/g, "");
+  if (n.endsWith("ies")) n = n.slice(0, -3) + "y";
+  else if (n.endsWith("ves")) n = n.slice(0, -3) + "f";
+  else if (n.endsWith("s") && !n.endsWith("ss")) n = n.slice(0, -1);
+  return n;
+}
+
+export function generateDummyProducts(categories: { id: string; name: string }[]): DummyProduct[] {
+  if (!categories.length) return [];
+  return products.map((p) => {
+    const pType = normalizeName(p.productType);
+    const match = categories.find((c) => normalizeName(c.name) === pType);
+    return { ...p, categoryId: match ? match.id : categories[0].id };
+  });
 }
