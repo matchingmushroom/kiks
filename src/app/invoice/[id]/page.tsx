@@ -75,7 +75,6 @@ export default function PublicInvoicePage() {
     items: invoice.items.map((i) => ({
       productName: i.productName,
       weight: i.weight,
-      purity: i.purity,
       quantity: i.quantity,
       unitPrice: i.unitPrice,
       subtotal: i.subtotal,
@@ -152,7 +151,6 @@ export default function PublicInvoicePage() {
                 <tr className="bg-muted text-left">
                   <th className="px-3 py-2 text-xs text-muted-foreground font-medium">Description</th>
                   <th className="px-3 py-2 text-xs text-muted-foreground font-medium text-center">Wt(g)</th>
-                  <th className="px-3 py-2 text-xs text-muted-foreground font-medium text-center">Purity</th>
                   <th className="px-3 py-2 text-xs text-muted-foreground font-medium text-center">Qty</th>
                   <th className="px-3 py-2 text-xs text-muted-foreground font-medium text-right">Rate</th>
                   <th className="px-3 py-2 text-xs text-muted-foreground font-medium text-right">Amount</th>
@@ -163,7 +161,6 @@ export default function PublicInvoicePage() {
                   <tr key={i}>
                     <td className="px-3 py-2.5 text-sm">{item.productName}</td>
                     <td className="px-3 py-2.5 text-sm text-center">{item.weight}g</td>
-                    <td className="px-3 py-2.5 text-sm text-center">{item.purity}</td>
                     <td className="px-3 py-2.5 text-sm text-center">{item.quantity}</td>
                     <td className="px-3 py-2.5 text-sm text-right">{formatCurrency(item.unitPrice)}</td>
                     <td className="px-3 py-2.5 text-sm text-right font-medium">{formatCurrency(item.subtotal)}</td>

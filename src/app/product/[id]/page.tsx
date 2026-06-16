@@ -45,7 +45,6 @@ export default function ProductDetailPage() {
       image: product.images?.[0] || "",
       price: product.price,
       weight: product.weight,
-      purity: product.purity,
       makingCharge: product.makingCharge,
       quantity: 1,
     });
@@ -79,7 +78,6 @@ export default function ProductDetailPage() {
   }
 
   const specs = [
-    { label: "Purity", value: product.purity },
     { label: "Warranty", value: product.warranty || "No warranty" },
     { label: "Design Code", value: product.design || "—" },
     { label: "SKU", value: product.sku || "—" },

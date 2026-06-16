@@ -34,7 +34,6 @@ export default function ProductCard({ product }: ProductCardProps) {
       image: product.images?.[0] || "",
       price: product.price,
       weight: product.weight,
-      purity: product.purity,
       makingCharge: product.makingCharge,
       quantity: 1,
     });
@@ -74,9 +73,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         <h3 className="font-semibold text-secondary group-hover:text-primary transition-colors truncate">
           {product.name}
         </h3>
-        <p className="text-sm text-muted-foreground">
-          {product.purity} • {product.weight}g
-        </p>
+        <p className="text-sm text-muted-foreground">{product.weight}g</p>
         <div className="flex items-center justify-between mt-2">
           <div>
             {badge === "price_dropped" || badge === "offer" ? (

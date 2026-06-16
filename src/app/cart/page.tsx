@@ -200,7 +200,7 @@ export default function CartPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-secondary truncate">{item.name}</h3>
-                  <p className="text-sm text-muted-foreground">{item.purity} • {item.weight}g</p>
+                  <p className="text-sm text-muted-foreground">{item.weight}g</p>
                   <p className="text-primary font-bold mt-1">Rs. {item.price.toLocaleString("ne-NP")}</p>
                 </div>
                 <div className="flex items-center gap-2">

@@ -222,7 +222,7 @@ export default function AdminOrdersPage() {
                           <div key={i} className="flex items-center justify-between px-3 py-2 text-sm">
                             <div className="flex-1 min-w-0">
                               <p className="truncate">{item.productName}</p>
-                              <p className="text-xs text-muted-foreground">{item.purity} • {item.weight}g</p>
+                              <p className="text-xs text-muted-foreground">{item.weight}g</p>
                             </div>
                             <div className="flex items-center gap-4 flex-shrink-0 text-xs">
                               <span className="text-muted-foreground">x{item.quantity}</span>

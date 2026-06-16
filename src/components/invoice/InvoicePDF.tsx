@@ -24,9 +24,8 @@ const styles = StyleSheet.create({
   tableHeaderCell: { fontSize: 8, color: "#666", fontWeight: "bold" },
   tableRow: { flexDirection: "row", padding: "6 8", borderBottom: "1 solid #eee" },
   tableCell: { fontSize: 9 },
-  colDesc: { width: "30%" },
+  colDesc: { width: "40%" },
   colWt: { width: "10%", textAlign: "center" },
-  colPur: { width: "10%", textAlign: "center" },
   colQty: { width: "10%", textAlign: "center" },
   colRate: { width: "15%", textAlign: "right" },
   colAmt: { width: "15%", textAlign: "right" },
@@ -44,7 +43,7 @@ const styles = StyleSheet.create({
 interface InvoiceItem {
   productName: string;
   weight: number;
-  purity: string;
+  purity?: string;
   quantity: number;
   unitPrice: number;
   subtotal: number;
@@ -108,7 +107,6 @@ export default function InvoicePDF(data: InvoicePDFProps) {
           <View style={styles.tableHeader}>
             <Text style={[styles.tableHeaderCell, styles.colDesc]}>Description</Text>
             <Text style={[styles.tableHeaderCell, styles.colWt]}>Wt(g)</Text>
-            <Text style={[styles.tableHeaderCell, styles.colPur]}>Purity</Text>
             <Text style={[styles.tableHeaderCell, styles.colQty]}>Qty</Text>
             <Text style={[styles.tableHeaderCell, styles.colRate]}>Rate</Text>
             <Text style={[styles.tableHeaderCell, styles.colAmt]}>Amount</Text>
@@ -117,7 +115,6 @@ export default function InvoicePDF(data: InvoicePDFProps) {
             <View key={i} style={styles.tableRow}>
               <Text style={[styles.tableCell, styles.colDesc]}>{item.productName}</Text>
               <Text style={[styles.tableCell, styles.colWt]}>{item.weight}g</Text>
-              <Text style={[styles.tableCell, styles.colPur]}>{item.purity}</Text>
               <Text style={[styles.tableCell, styles.colQty]}>{item.quantity}</Text>
               <Text style={[styles.tableCell, styles.colRate]}>Rs.{item.unitPrice.toLocaleString("ne-NP")}</Text>
               <Text style={[styles.tableCell, styles.colAmt]}>Rs.{item.subtotal.toLocaleString("ne-NP")}</Text>

@@ -16,7 +16,7 @@ interface LineItem {
   productName: string;
   description: string;
   weight: number;
-  purity: string;
+  purity?: string;
   quantity: number;
   unitPrice: number;
   makingCharge: number;
@@ -68,7 +68,6 @@ export default function NewInvoicePage() {
       productName: p.name,
       description: p.description,
       weight: p.weight,
-      purity: p.purity,
       quantity: 1,
       unitPrice: p.price,
       makingCharge: p.makingCharge,
@@ -208,7 +207,6 @@ export default function NewInvoicePage() {
                 <div className="hidden md:flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/50 font-medium">
                   <span className="flex-1">Product</span>
                   <span className="w-12 text-center">Wt</span>
-                  <span className="w-12 text-center">Purity</span>
                   <span className="w-16 text-center">Qty</span>
                   <span className="w-24 text-right">Rate</span>
                   <span className="w-24 text-right">Subtotal</span>
@@ -220,10 +218,6 @@ export default function NewInvoicePage() {
                     <input type="number" step="0.1" value={item.weight}
                       onChange={(e) => updateItem(i, "weight", Number(e.target.value))}
                       className="w-12 px-1 py-1 border border-border rounded text-xs text-center" />
-                    <select value={item.purity} onChange={(e) => updateItem(i, "purity", e.target.value)}
-                      className="w-14 px-1 py-1 border border-border rounded text-xs">
-                      {["24K","22K","18K","14K","92.5%"].map((p) => (<option key={p} value={p}>{p}</option>))}
-                    </select>
                     <input type="number" value={item.quantity} min={1}
                       onChange={(e) => updateItem(i, "quantity", Number(e.target.value))}
                       className="w-14 px-1 py-1 border border-border rounded text-xs text-center" />

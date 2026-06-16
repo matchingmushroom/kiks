@@ -16,7 +16,7 @@ interface SampleProduct {
   quantityInStock: number; isActive: boolean; isFeatured: boolean;
   brand: string; modelNo: string; baseMaterial: string;
   plating: string; color: string; productType: string;
-  idealFor: string; netQuantity: number; brandColor: string;
+  idealFor: string; netQuantity: number; occasion: string;
   createdAt: unknown; updatedAt: unknown;
 }
 
@@ -100,7 +100,7 @@ export function generateSampleProducts(categoryId: string): SampleProduct[] {
       productType: type,
       idealFor: forWhom,
       netQuantity: randInt(1, 5),
-      brandColor: col,
+      occasion: "",
       createdAt: now,
       updatedAt: now,
     });

@@ -20,7 +20,7 @@ interface LineItem {
   quantity: number;
   unitPrice: number;
   weight: number;
-  purity: string;
+  purity?: string;
   makingCharge: number;
   subtotal: number;
 }
@@ -88,7 +88,6 @@ function SalesContent() {
       quantity: 1,
       unitPrice: product.price,
       weight: product.weight,
-      purity: product.purity,
       makingCharge: product.makingCharge,
       subtotal: product.price,
     };

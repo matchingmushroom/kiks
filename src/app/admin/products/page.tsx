@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { db, storage } from "@/lib/firebase";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { generateDummyProducts } from "@/lib/dummyProducts";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Globe, Loader2, AlertTriangle, Upload } from "lucide-react";
@@ -26,16 +27,17 @@ const COLOR_OPTIONS = ["", "Gold", "Silver", "Multicolor", "White", "Pink", "Gre
 const PRODUCT_TYPES = ["", "Jewel Set", "Necklace", "Earrings", "Bracelet", "Ring", "Mangalsutra Set", "Pendant Set", "Chain", "Bangles", "Nosepin", "Anklet", "Brooch", "Hair Accessory", "Cufflinks"];
 const IDEAL_FOR_OPTIONS = ["", "Women", "Men", "Girls", "Boys", "Unisex", "Women & Girls", "Men & Boys"];
 const NET_QTY_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
+const OCCASION_OPTIONS = ["", "Party", "Wedding", "Engagement", "Everyday", "Gift", "Workwear", "Dailywear"];
 
 const emptyProduct = {
   name: "", description: "", design: "", categoryId: "",
   images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0,
-  purity: "22K", metalType: "Gold", stoneType: "None",
+  metalType: "Gold", stoneType: "None",
   stoneWeight: 0, makingCharge: 0, warranty: "1 year",
   sku: "", quantityInStock: 1, isActive: true, isFeatured: false,
   badge: "none" as ProductBadge, originalPrice: 0,
   brand: "", modelNo: "", baseMaterial: "", plating: "",
-  color: "", productType: "", idealFor: "", netQuantity: 1, brandColor: "",
+  color: "", productType: "", idealFor: "", netQuantity: 1, occasion: "",
 };
 
 export default function AdminProductsPage() {
@@ -61,6 +63,7 @@ export default function AdminProductsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   useEffect(() => {
     if (categories.length > 0 && !form.categoryId) {
@@ -86,14 +89,14 @@ export default function AdminProductsPage() {
       categoryId: p.categoryId, images: p.images.length ? p.images : [""],
       videoUrl: p.videoUrl, price: p.price, costPrice: p.costPrice ?? Math.round(p.price * 0.5),
       weight: p.weight,
-      purity: p.purity, metalType: p.metalType, stoneType: p.stoneType,
+      metalType: p.metalType, stoneType: p.stoneType,
       stoneWeight: p.stoneWeight, makingCharge: p.makingCharge,
       warranty: p.warranty, sku: p.sku, quantityInStock: p.quantityInStock,
       isActive: p.isActive, isFeatured: p.isFeatured,
       badge: p.badge || "none", originalPrice: p.originalPrice || 0,
       brand: p.brand || "", modelNo: p.modelNo || "", baseMaterial: p.baseMaterial || "",
       plating: p.plating || "", color: p.color || "", productType: p.productType || "",
-      idealFor: p.idealFor || "", netQuantity: p.netQuantity || 1, brandColor: p.brandColor || "",
+      idealFor: p.idealFor || "", netQuantity: p.netQuantity || 1, occasion: p.occasion || "",
     });
     setEditingId(p.id);
     setShowForm(true);
@@ -158,6 +161,23 @@ export default function AdminProductsPage() {
       alert("Failed to delete all products.");
     }
     setDeletingAll(false);
+  };
+
+  const handleSeed = async () => {
+    if (!categories.length) { alert("No categories found. Create a category first."); return; }
+    if (!confirm(`Add 50 dummy products to the category "${categories[0].name}"?`)) return;
+    setSeeding(true);
+    try {
+      const dummyProducts = generateDummyProducts(categories[0].id);
+      for (const p of dummyProducts) {
+        await addDoc(collection(db, "products"), p);
+      }
+      alert(`Added ${dummyProducts.length} dummy products successfully.`);
+    } catch (e) {
+      console.error("Seed failed", e);
+      alert("Failed to seed products.");
+    }
+    setSeeding(false);
   };
 
   const toggleField = async (id: string, field: "isActive" | "isFeatured", value: boolean) => {
@@ -262,6 +282,10 @@ export default function AdminProductsPage() {
             <Button onClick={() => { setShowImport(true); setFlipkartUrl(""); }} variant="outline">
               <Globe className="h-4 w-4" /> Import
             </Button>
+            <Button onClick={handleSeed} disabled={seeding || !categories.length} variant="outline">
+              {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {seeding ? "Seeding..." : "Seed 50"}
+            </Button>
             {products.length > 0 && (
               <Button onClick={() => { setShowDeleteConfirm(true); setDeleteConfirm(""); }} variant="outline" className="text-red-500 border-red-200 hover:bg-red-50">
                 <Trash2 className="h-4 w-4" /> Delete All
@@ -333,7 +357,7 @@ export default function AdminProductsPage() {
             value={catFilter} onChange={(e) => setCatFilter(e.target.value)}
             className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <option value="">All Categories</option>
+            <option value="">Default</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
@@ -419,10 +443,10 @@ export default function AdminProductsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Brand Color</label>
-                    <select value={form.brandColor} onChange={(e) => setForm({ ...form, brandColor: e.target.value })}
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Occasion</label>
+                    <select value={form.occasion} onChange={(e) => setForm({ ...form, occasion: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                      {COLOR_OPTIONS.map((c) => (<option key={c} value={c}>{c || "Select"}</option>))}
+                      {OCCASION_OPTIONS.map((c) => (<option key={c} value={c}>{c || "Select"}</option>))}
                     </select>
                   </div>
                 </div>
@@ -487,15 +511,6 @@ export default function AdminProductsPage() {
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">Additional Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Purity</label>
-                    <select value={form.purity} onChange={(e) => setForm({ ...form, purity: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                      {["24K", "22K", "18K", "14K", "10K", "95% Silver", "92.5% Silver", "90% Silver"].map((p) => (
-                        <option key={p} value={p}>{p}</option>
-                      ))}
-                    </select>
-                  </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Warranty</label>
                     <input type="text" value={form.warranty} onChange={(e) => setForm({ ...form, warranty: e.target.value })}

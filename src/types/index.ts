@@ -33,7 +33,7 @@ export interface Product {
   badge?: ProductBadge;
   costPrice?: number;
   weight: number;
-  purity: string;
+  purity?: string;
   metalType: string;
   stoneType: string;
   stoneWeight: number;
@@ -51,7 +51,7 @@ export interface Product {
   productType: string;
   idealFor: string;
   netQuantity: number;
-  brandColor: string;
+  occasion: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -62,7 +62,7 @@ export interface CartItem {
   image: string;
   price: number;
   weight: number;
-  purity: string;
+  purity?: string;
   makingCharge: number;
   quantity: number;
 }
@@ -74,7 +74,7 @@ export interface OrderItem {
   quantity: number;
   price: number;
   weight: number;
-  purity: string;
+  purity?: string;
   makingCharge: number;
   subtotal: number;
 }
@@ -99,7 +99,7 @@ export interface SaleItem {
   quantity: number;
   unitPrice: number;
   weight: number;
-  purity: string;
+  purity?: string;
   makingCharge: number;
   subtotal: number;
 }
@@ -127,7 +127,7 @@ export interface InvoiceItem {
   productName: string;
   description: string;
   weight: number;
-  purity: string;
+  purity?: string;
   quantity: number;
   unitPrice: number;
   makingCharge: number;
