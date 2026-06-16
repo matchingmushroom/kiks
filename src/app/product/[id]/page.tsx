@@ -17,17 +17,16 @@ export default function ProductDetailPage() {
   const { addItem } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     const fetchProduct = async () => {
-      const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        controller.abort();
         if (!cancelled) {
-          console.error("Product fetch timed out after 15s");
+          setError("Request timed out — Firestore not reachable from this domain");
           setLoading(false);
         }
       }, 15000);
@@ -41,9 +40,10 @@ export default function ProductDetailPage() {
           }
           setLoading(false);
         }
-      } catch (e) {
+      } catch (e: any) {
         if (!cancelled) {
-          console.error("Product fetch error:", e);
+          const msg = e?.message || e?.code || String(e);
+          setError(msg);
           setLoading(false);
         }
       }
@@ -74,6 +74,22 @@ export default function ProductDetailPage() {
         <ShopHeader />
         <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center text-muted-foreground">
           Loading product details...
+        </main>
+        <ShopFooter />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col">
+        <ShopHeader />
+        <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-lg mx-auto">
+            <p className="text-red-800 font-medium mb-2">Failed to load product</p>
+            <pre className="text-sm text-red-600 whitespace-pre-wrap">{error}</pre>
+            <Link href="/products" className="inline-block mt-4 text-primary hover:underline font-medium">Browse all products</Link>
+          </div>
         </main>
         <ShopFooter />
       </div>
