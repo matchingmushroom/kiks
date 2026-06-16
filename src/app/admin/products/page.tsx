@@ -466,13 +466,8 @@ export default function AdminProductsPage() {
               </div>
 
               <div>
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">Material Details</h3>
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">Additional Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Weight (g)</label>
-                    <input type="number" step="0.1" value={form.weight} onChange={(e) => setForm({ ...form, weight: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Purity</label>
                     <select value={form.purity} onChange={(e) => setForm({ ...form, purity: e.target.value })}
@@ -481,34 +476,6 @@ export default function AdminProductsPage() {
                         <option key={p} value={p}>{p}</option>
                       ))}
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Metal Type</label>
-                    <select value={form.metalType} onChange={(e) => setForm({ ...form, metalType: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                      {["Gold", "Silver", "Platinum", "Rose Gold", "White Gold"].map((m) => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Stone Type</label>
-                    <select value={form.stoneType} onChange={(e) => setForm({ ...form, stoneType: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                      {["None", "Diamond", "Ruby", "Emerald", "Sapphire", "Pearl", "Cubic Zirconia"].map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Stone Weight (ct)</label>
-                    <input type="number" step="0.01" value={form.stoneWeight} onChange={(e) => setForm({ ...form, stoneWeight: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Making Charge (NPR)</label>
-                    <input type="number" value={form.makingCharge} onChange={(e) => setForm({ ...form, makingCharge: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Warranty</label>

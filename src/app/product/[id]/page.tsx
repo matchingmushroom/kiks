@@ -79,11 +79,7 @@ export default function ProductDetailPage() {
   }
 
   const specs = [
-    { label: "Weight", value: `${product.weight}g` },
     { label: "Purity", value: product.purity },
-    { label: "Metal Type", value: product.metalType },
-    { label: "Stone Type", value: product.stoneType || "None" },
-    { label: "Making Charge", value: `Rs. ${(product.makingCharge || 0).toLocaleString("ne-NP")}` },
     { label: "Warranty", value: product.warranty || "No warranty" },
     { label: "Design Code", value: product.design || "—" },
     { label: "SKU", value: product.sku || "—" },
