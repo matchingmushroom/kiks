@@ -5,6 +5,7 @@ import { Product, ProductBadge } from "@/types";
 import { useState } from "react";
 import { useCart } from "@/contexts/CartContext";
 import { ShoppingBag } from "lucide-react";
+import { formatNumber } from "@/lib/utils";
 
 interface ProductCardProps {
   product: Product;
@@ -85,14 +86,14 @@ export default function ProductCard({ product }: ProductCardProps) {
             {badge === "price_dropped" || badge === "offer" ? (
               <div className="flex items-baseline gap-2">
                 <span className="text-sm text-muted-foreground line-through">
-                  Rs. {(product.originalPrice || product.price).toLocaleString("ne-NP")}
+                    Rs. {formatNumber(product.originalPrice || product.price)}
                 </span>
                 <span className="text-primary font-bold">
-                  Rs. {product.price.toLocaleString("ne-NP")}
+                  Rs. {formatNumber(product.price)}
                 </span>
               </div>
             ) : (
-              <p className="text-primary font-bold">Rs. {product.price.toLocaleString("ne-NP")}</p>
+              <p className="text-primary font-bold">Rs. {formatNumber(product.price)}</p>
             )}
           </div>
           {product.quantityInStock > 0 && (

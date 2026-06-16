@@ -5,7 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Order, Coupon } from "@/types";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDateTime, formatNumber } from "@/lib/utils";
 import { updateDoc, doc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -51,7 +51,7 @@ export default function AdminOrdersPage() {
   const sendWhatsApp = (order: Order, status: string, coupon?: Coupon) => {
     if (!order.customer?.phone) return;
     const itemsText = (order.items || [])
-      .map((i) => `• ${i.productName} x${i.quantity} — Rs. ${i.subtotal.toLocaleString("ne-NP")}`)
+      .map((i) => `• ${i.productName} x${i.quantity} — Rs. ${formatNumber(i.subtotal)}`)
       .join("\n");
 
     const lines = [
@@ -60,7 +60,7 @@ export default function AdminOrdersPage() {
       "",
       itemsText,
       "",
-      `*Total: Rs. ${order.totalAmount.toLocaleString("ne-NP")}*`,
+      `*Total: Rs. ${formatNumber(order.totalAmount)}*`,
       "",
     ];
 
@@ -68,7 +68,7 @@ export default function AdminOrdersPage() {
       if (coupon) {
         const benefit = coupon.discountType === "percentage"
           ? `${coupon.discountValue}% off`
-          : `Rs. ${coupon.discountValue.toLocaleString("ne-NP")} off`;
+          : `Rs. ${formatNumber(coupon.discountValue)} off`;
         lines.push(`Use promo code *${coupon.code}* — ${benefit} on your next purchase!`);
         lines.push("");
       }

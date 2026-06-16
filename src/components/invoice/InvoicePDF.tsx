@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
-import { amountInWords } from "@/lib/utils";
+import { amountInWords, formatNumber } from "@/lib/utils";
 
 Font.register({
   family: "Helvetica",
@@ -116,8 +116,8 @@ export default function InvoicePDF(data: InvoicePDFProps) {
               <Text style={[styles.tableCell, styles.colDesc]}>{item.productName}</Text>
               <Text style={[styles.tableCell, styles.colWt]}>{item.weight}g</Text>
               <Text style={[styles.tableCell, styles.colQty]}>{item.quantity}</Text>
-              <Text style={[styles.tableCell, styles.colRate]}>Rs.{item.unitPrice.toLocaleString("ne-NP")}</Text>
-              <Text style={[styles.tableCell, styles.colAmt]}>Rs.{item.subtotal.toLocaleString("ne-NP")}</Text>
+              <Text style={[styles.tableCell, styles.colRate]}>Rs.{formatNumber(item.unitPrice)}</Text>
+              <Text style={[styles.tableCell, styles.colAmt]}>Rs.{formatNumber(item.subtotal)}</Text>
             </View>
           ))}
         </View>
@@ -125,28 +125,28 @@ export default function InvoicePDF(data: InvoicePDFProps) {
         <View style={styles.totals}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>Rs.{data.subtotal.toLocaleString("ne-NP")}</Text>
+            <Text style={styles.totalValue}>Rs.{formatNumber(data.subtotal)}</Text>
           </View>
           {data.discountAmount > 0 && (
             <View style={styles.totalRow}>
               <Text style={[styles.totalLabel, { color: "red" }]}>Discount</Text>
-              <Text style={[styles.totalValue, { color: "red" }]}>-Rs.{data.discountAmount.toLocaleString("ne-NP")}</Text>
+              <Text style={[styles.totalValue, { color: "red" }]}>-Rs.{formatNumber(data.discountAmount)}</Text>
             </View>
           )}
           <View style={styles.totalRow}>
             <Text style={[styles.totalLabel, styles.grandTotal]}>Total</Text>
-            <Text style={[styles.totalValue, styles.grandTotal]}>Rs.{data.totalAmount.toLocaleString("ne-NP")}</Text>
+            <Text style={[styles.totalValue, styles.grandTotal]}>Rs.{formatNumber(data.totalAmount)}</Text>
           </View>
           {data.type === "invoice" && (data.cashReceived ?? 0) > 0 && (
             <View style={styles.totalRow}>
               <Text style={[styles.totalLabel, { color: "green" }]}>Cash Received</Text>
-              <Text style={[styles.totalValue, { color: "green" }]}>Rs.{(data.cashReceived ?? 0).toLocaleString("ne-NP")}</Text>
+              <Text style={[styles.totalValue, { color: "green" }]}>Rs.{formatNumber(data.cashReceived ?? 0)}</Text>
             </View>
           )}
           {data.type === "invoice" && (data.balanceDue ?? 0) > 0 && (
             <View style={styles.totalRow}>
               <Text style={[styles.totalLabel, { color: "red" }]}>Balance Due</Text>
-              <Text style={[styles.totalValue, { color: "red" }]}>Rs.{(data.balanceDue ?? 0).toLocaleString("ne-NP")}</Text>
+              <Text style={[styles.totalValue, { color: "red" }]}>Rs.{formatNumber(data.balanceDue ?? 0)}</Text>
             </View>
           )}
         </View>

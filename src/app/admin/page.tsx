@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Sale, Product, Debtor, Order, Category } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatNumber } from "@/lib/utils";
 import Link from "next/link";
 import {
   Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
@@ -166,7 +166,7 @@ export default function AdminDashboardPage() {
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
                   <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={(v: number) => [`Rs. ${v.toLocaleString("ne-NP")}`, "Sales"]} />
+                  <Tooltip formatter={(v: number) => [`Rs. ${formatNumber(v)}`, "Sales"]} />
                   <Line type="monotone" dataKey="sales" stroke="#b8860b" strokeWidth={2} dot={{ r: 2 }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -196,7 +196,7 @@ export default function AdminDashboardPage() {
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(v: number) => `Rs. ${v.toLocaleString("ne-NP")}`} />
+                  <Tooltip formatter={(v: number) => `Rs. ${formatNumber(v)}`} />
                 </RPieChart>
               </ResponsiveContainer>
             )}

@@ -7,7 +7,7 @@ import { db } from "@/lib/firebase";
 import { useCart } from "@/contexts/CartContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { generateWhatsAppLink } from "@/lib/whatsapp";
-import { generateOrderNumber } from "@/lib/utils";
+import { generateOrderNumber, formatNumber } from "@/lib/utils";
 import { Coupon } from "@/types";
 import { Trash2, Minus, Plus, Tag, CheckCircle, XCircle } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
@@ -71,7 +71,7 @@ export default function CartPage() {
         return;
       }
       if (totalAmount < coupon.minPurchaseAmount) {
-        setCouponError(`Minimum purchase amount is Rs. ${coupon.minPurchaseAmount.toLocaleString("ne-NP")}`);
+        setCouponError(`Minimum purchase amount is Rs. ${formatNumber(coupon.minPurchaseAmount)}`);
         return;
       }
       if ((coupon.restrictedToPhones?.length || 0) > 0 && !(coupon.restrictedToPhones || []).includes(customerPhone)) {
@@ -201,7 +201,7 @@ export default function CartPage() {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-secondary truncate">{item.name}</h3>
                   <p className="text-sm text-muted-foreground">{item.weight}g</p>
-                  <p className="text-primary font-bold mt-1">Rs. {item.price.toLocaleString("ne-NP")}</p>
+                  <p className="text-primary font-bold mt-1">Rs. {formatNumber(item.price)}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -219,7 +219,7 @@ export default function CartPage() {
                   </button>
                 </div>
                 <p className="font-semibold text-secondary w-24 text-right">
-                  Rs. {(item.price * item.quantity).toLocaleString("ne-NP")}
+                  Rs. {formatNumber(item.price * item.quantity)}
                 </p>
                 <button
                   onClick={() => removeItem(item.productId)}
@@ -233,19 +233,19 @@ export default function CartPage() {
             <div className="bg-muted rounded-xl p-6 space-y-4">
               <div className="flex justify-between text-sm text-muted-foreground">
                 <span>Subtotal ({items.length} item{items.length > 1 ? "s" : ""})</span>
-                <span>Rs. {totalAmount.toLocaleString("ne-NP")}</span>
+                <span>Rs. {formatNumber(totalAmount)}</span>
               </div>
 
               {appliedCoupon && (
                 <div className="flex justify-between text-sm text-green-600">
                   <span>Discount ({appliedCoupon.code})</span>
-                  <span>- Rs. {discount.toLocaleString("ne-NP")}</span>
+                  <span>- Rs. {formatNumber(discount)}</span>
                 </div>
               )}
 
               <div className="flex justify-between text-lg font-bold text-secondary pt-2 border-t border-border">
                 <span>Total</span>
-                <span>Rs. {finalTotal.toLocaleString("ne-NP")}</span>
+                <span>Rs. {formatNumber(finalTotal)}</span>
               </div>
 
               <div className="flex gap-2">

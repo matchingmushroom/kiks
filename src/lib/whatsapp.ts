@@ -1,4 +1,5 @@
 import { CartItem } from "@/types";
+import { formatNumber } from "@/lib/utils";
 
 export function generateWhatsAppLink(
   phone: string,
@@ -10,7 +11,7 @@ export function generateWhatsAppLink(
 ): string {
   const lines = items.map(
     (item) =>
-      `• ${item.name} (ID: ${item.productId}) x${item.quantity} — Rs. ${(item.price * item.quantity).toLocaleString("ne-NP")}`
+      `• ${item.name} (ID: ${item.productId}) x${item.quantity} — Rs. ${formatNumber(item.price * item.quantity)}`
   );
   const message = [
     `*New Order from ${customerName}*`,
@@ -19,7 +20,7 @@ export function generateWhatsAppLink(
     "",
     ...lines,
     "",
-    `*Total: Rs. ${total.toLocaleString("ne-NP")}*`,
+    `*Total: Rs. ${formatNumber(total)}*`,
     "",
     "Thank you!",
   ].join("\n");
