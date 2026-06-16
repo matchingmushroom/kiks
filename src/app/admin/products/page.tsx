@@ -387,6 +387,7 @@ export default function AdminProductsPage() {
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Category</label>
                     <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                      <option value="">Select</option>
                       {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}
                     </select>
                   </div>
