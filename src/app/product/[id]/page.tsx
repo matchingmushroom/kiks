@@ -33,10 +33,9 @@ function sanitize(data: Record<string, unknown>): Record<string, unknown> {
 }
 
 function fixImageUrl(url: string): string {
-  const match = url.match(/unsplash\.com\/photos\/([^/]+)/);
+  const match = url.match(/images\.unsplash\.com\/photo-([^?]+)/);
   if (match) {
-    const photoId = match[1].split("?")[0];
-    return `https://images.unsplash.com/photo-${photoId}?w=400&h=400&fit=crop&auto=format`;
+    return `https://unsplash.com/photos/${match[1]}/download?w=400`;
   }
   return url;
 }
