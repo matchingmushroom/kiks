@@ -63,12 +63,8 @@ export function generateSampleProducts(categoryId: string): SampleProduct[] {
     const forWhom = pick(idealFor);
     const desc = pick(descriptions);
     const price = randInt(89, 999);
-    const original = randInt(price + 100, price + 2000);
     const stock = randInt(0, 50);
     const now = Timestamp.fromDate(new Date());
-
-    const badges = ["", "", "", "limited_stock", "price_dropped", "offer"];
-    const badgeVal = stock === 0 ? "out_of_stock" : stock <= 3 ? "limited_stock" : pick(badges);
 
     products.push({
       name: `${brand} ${base} ${plate} ${col} ${type}`,
@@ -78,8 +74,7 @@ export function generateSampleProducts(categoryId: string): SampleProduct[] {
       images: [img(i, 1), img(i, 2), img(i, 3), img(i, 4)],
       videoUrl: "",
       price,
-      originalPrice: badgeVal === "price_dropped" || badgeVal === "offer" ? original : 0,
-      badge: badgeVal,
+      badge: "none",
       costPrice: Math.round(price * 0.5),
       weight: parseFloat((Math.random() * 20 + 2).toFixed(1)),
       purity: pick(["24K", "22K", "18K", "14K", "92.5% Silver"]),
