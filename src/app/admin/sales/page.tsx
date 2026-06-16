@@ -11,7 +11,7 @@ import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, query, limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, Search, X, Save, CheckCircle } from "lucide-react";
+import { Plus, Search, X, Save, CheckCircle, LayoutGrid, List } from "lucide-react";
 
 interface LineItem {
   productId: string;
@@ -50,6 +50,7 @@ function SalesContent() {
   const [productSearch, setProductSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedSale, setSavedSale] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   useEffect(() => {
     if (orderId) {
@@ -244,6 +245,10 @@ function SalesContent() {
         <Button onClick={() => { setShowForm(true); setForm(emptyForm); }} variant="accent">
           <Plus className="h-4 w-4" /> Record Sale
         </Button>
+        <button onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+          className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
+          {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+        </button>
       </div>
 
       {savedSale && (
@@ -412,7 +417,7 @@ function SalesContent() {
 
       {sales.length === 0 ? (
         <p className="text-muted-foreground text-center py-12">No sales recorded yet.</p>
-      ) : (
+      ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {sales.map((s) => (
             <div key={s.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
@@ -434,6 +439,37 @@ function SalesContent() {
               <p className="text-xs text-muted-foreground">{s.items?.length || 0} items</p>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted text-left">
+                <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Customer</th>
+                <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Phone</th>
+                <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Amount</th>
+                <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Status</th>
+                <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {sales.map((s) => (
+                <tr key={s.id} className="hover:bg-muted/30">
+                  <td className="px-4 py-2.5 text-sm font-medium text-secondary">{s.customer?.name}</td>
+                  <td className="px-4 py-2.5 text-sm text-muted-foreground">{s.customer?.phone}</td>
+                  <td className="px-4 py-2.5 text-sm text-right">{formatCurrency(s.finalAmount)}</td>
+                  <td className="px-4 py-2.5 text-sm text-right">
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      s.payment?.balanceDue > 0 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
+                    }`}>
+                      {s.payment?.balanceDue > 0 ? "Due" : "Paid"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(s.saleDate)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

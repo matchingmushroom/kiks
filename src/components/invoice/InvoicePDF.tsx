@@ -1,4 +1,5 @@
-import { Document, Page, Text, View, StyleSheet, Font, Image } from "@react-pdf/renderer";
+import { Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
+import { amountInWords } from "@/lib/utils";
 
 Font.register({
   family: "Helvetica",
@@ -10,7 +11,6 @@ Font.register({
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: "Helvetica" },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, paddingBottom: 20, borderBottom: "1 solid #ccc" },
-  logo: { width: 60, height: 30 },
   shopName: { fontSize: 18, fontWeight: "bold" },
   titleBox: { alignItems: "flex-end" },
   title: { fontSize: 24, fontWeight: "bold", color: "#b8860b" },
@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", marginBottom: 20 },
   col: { flex: 1 },
   label: { color: "#666", marginBottom: 2, fontSize: 8 },
-  value: { fontSize: 10, marginBottom: 8 },
+  value: { fontSize: 10, marginBottom: 4 },
   table: { marginTop: 10, marginBottom: 20 },
   tableHeader: { flexDirection: "row", backgroundColor: "#f5f5f5", padding: "6 8", borderBottom: "1 solid #ccc" },
   tableHeaderCell: { fontSize: 8, color: "#666", fontWeight: "bold" },
@@ -35,6 +35,7 @@ const styles = StyleSheet.create({
   totalLabel: { flex: 1, textAlign: "right", paddingRight: 20, fontSize: 10 },
   totalValue: { width: 100, textAlign: "right", fontSize: 10 },
   grandTotal: { fontWeight: "bold", fontSize: 12, color: "#b8860b" },
+  amountWords: { marginTop: 8, fontSize: 9, color: "#666", fontStyle: "italic", textAlign: "right" },
   footer: { position: "absolute", bottom: 40, left: 40, right: 40, borderTop: "1 solid #ccc", paddingTop: 10, fontSize: 8, color: "#666", textAlign: "center" },
   warranty: { marginTop: 20, padding: 10, backgroundColor: "#f9f9f9", fontSize: 9 },
   terms: { marginTop: 10, fontSize: 9, color: "#666" },
@@ -60,6 +61,8 @@ interface InvoicePDFProps {
   subtotal: number;
   discountAmount: number;
   totalAmount: number;
+  cashReceived?: number;
+  balanceDue?: number;
   warranty: { period: string; terms: string };
   notes: string;
   termsAndConditions: string;
@@ -137,7 +140,21 @@ export default function InvoicePDF(data: InvoicePDFProps) {
             <Text style={[styles.totalLabel, styles.grandTotal]}>Total</Text>
             <Text style={[styles.totalValue, styles.grandTotal]}>Rs.{data.totalAmount.toLocaleString("ne-NP")}</Text>
           </View>
+          {data.type === "invoice" && (data.cashReceived ?? 0) > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={[styles.totalLabel, { color: "green" }]}>Cash Received</Text>
+              <Text style={[styles.totalValue, { color: "green" }]}>Rs.{(data.cashReceived ?? 0).toLocaleString("ne-NP")}</Text>
+            </View>
+          )}
+          {data.type === "invoice" && (data.balanceDue ?? 0) > 0 && (
+            <View style={styles.totalRow}>
+              <Text style={[styles.totalLabel, { color: "red" }]}>Balance Due</Text>
+              <Text style={[styles.totalValue, { color: "red" }]}>Rs.{(data.balanceDue ?? 0).toLocaleString("ne-NP")}</Text>
+            </View>
+          )}
         </View>
+
+        <Text style={styles.amountWords}>Amount in words: {amountInWords(data.totalAmount)}</Text>
 
         {data.warranty.period && (
           <View style={styles.warranty}>

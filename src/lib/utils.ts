@@ -61,3 +61,29 @@ export function truncate(str: string, len: number): string {
   if (str.length <= len) return str;
   return str.slice(0, len) + "...";
 }
+
+const ones = ["", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+  "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"];
+const tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
+
+function convertBelowThousand(n: number): string {
+  if (n === 0) return "";
+  let s = "";
+  if (n >= 100) { s += ones[Math.floor(n / 100)] + " Hundred "; n %= 100; }
+  if (n >= 20) { s += tens[Math.floor(n / 10)] + " "; n %= 10; }
+  if (n > 0) { s += ones[n] + " "; }
+  return s.trim();
+}
+
+export function amountInWords(amount: number): string {
+  if (amount === 0) return "Zero";
+  let num = Math.floor(amount);
+  const fraction = Math.round((amount - num) * 100);
+  let result = "";
+  if (num >= 10000000) { result += convertBelowThousand(Math.floor(num / 10000000)) + " Crore "; num %= 10000000; }
+  if (num >= 100000) { result += convertBelowThousand(Math.floor(num / 100000)) + " Lakh "; num %= 100000; }
+  if (num >= 1000) { result += convertBelowThousand(Math.floor(num / 1000)) + " Thousand "; num %= 1000; }
+  result += convertBelowThousand(num);
+  if (fraction > 0) result += ` and ${fraction}/100`;
+  return result.trim() + " Only";
+}

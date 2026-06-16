@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Invoice } from "@/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, amountInWords } from "@/lib/utils";
 import { Printer, Download } from "lucide-react";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import InvoicePDF from "@/components/invoice/InvoicePDF";
@@ -16,6 +16,7 @@ export default function PublicInvoicePage() {
   const [loading, setLoading] = useState(true);
   const [shopName, setShopName] = useState("KIKS Collections");
   const [shopTagline, setShopTagline] = useState("Exquisite Jewellery");
+  const [shopAddress, setShopAddress] = useState("");
   const [logoUrl, setLogoUrl] = useState("/logo.svg");
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function PublicInvoicePage() {
           const s = settingsSnap.data();
           setShopName(s.shopName || "KIKS Collections");
           setShopTagline(s.tagline || "Exquisite Jewellery");
+          setShopAddress(s.address || "");
           setLogoUrl(s.logoUrl || "/logo.svg");
         }
       } catch {
@@ -81,6 +83,8 @@ export default function PublicInvoicePage() {
     subtotal: invoice.subtotal,
     discountAmount: invoice.discountAmount,
     totalAmount: invoice.totalAmount,
+    cashReceived: invoice.cashReceived,
+    balanceDue: invoice.balanceDue,
     warranty: invoice.warranty,
     notes: invoice.notes,
     termsAndConditions: invoice.termsAndConditions,
@@ -112,6 +116,7 @@ export default function PublicInvoicePage() {
                 <img src={logoUrl} alt={shopName} className="h-12 mb-2" />
                 <h2 className="text-xl font-bold text-secondary">{shopName}</h2>
                 <p className="text-sm text-muted-foreground">{shopTagline}</p>
+                {shopAddress && <p className="text-sm text-muted-foreground">{shopAddress}</p>}
               </div>
               <div className="text-right">
                 <h1 className="text-3xl font-bold text-primary mb-1">
@@ -167,8 +172,8 @@ export default function PublicInvoicePage() {
               </tbody>
             </table>
 
-            <div className="flex justify-end mb-8">
-              <div className="w-64 space-y-1 text-sm">
+            <div className="flex justify-end mb-4">
+              <div className="w-72 space-y-1 text-sm">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Subtotal</span>
                   <span>{formatCurrency(invoice.subtotal)}</span>
@@ -179,11 +184,27 @@ export default function PublicInvoicePage() {
                     <span>-{formatCurrency(invoice.discountAmount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-lg font-bold text-secondary pt-2 border-t border-border">
+                <div className="flex justify-between font-bold text-secondary pt-2 border-t border-border">
                   <span>Total</span>
                   <span>{formatCurrency(invoice.totalAmount)}</span>
                 </div>
+                {invoice.type === "invoice" && (invoice.cashReceived ?? 0) > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Cash Received</span>
+                    <span>{formatCurrency(invoice.cashReceived ?? 0)}</span>
+                  </div>
+                )}
+                {invoice.type === "invoice" && (invoice.balanceDue ?? 0) > 0 && (
+                  <div className="flex justify-between text-red-600 font-medium">
+                    <span>Balance Due</span>
+                    <span>{formatCurrency(invoice.balanceDue ?? 0)}</span>
+                  </div>
+                )}
               </div>
+            </div>
+
+            <div className="text-sm text-muted-foreground mb-6 italic">
+              Amount in words: {amountInWords(invoice.totalAmount)}
             </div>
 
             {invoice.warranty?.period && (
@@ -209,6 +230,7 @@ export default function PublicInvoicePage() {
 
             <div className="border-t border-border pt-6 text-center text-xs text-muted-foreground">
               <p>Thank you for your business! • {shopName}</p>
+              {shopAddress && <p>{shopAddress}</p>}
             </div>
           </div>
         </div>

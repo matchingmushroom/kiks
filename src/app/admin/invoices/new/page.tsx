@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
@@ -43,8 +43,12 @@ export default function NewInvoicePage() {
   const [validUntil, setValidUntil] = useState("");
   const [saving, setSaving] = useState(false);
 
+  const [paymentStatus, setPaymentStatus] = useState<"full" | "partial">("full");
+  const [cashReceived, setCashReceived] = useState(0);
+
   const subtotal = items.reduce((s, i) => s + i.subtotal, 0);
   const total = Math.max(0, subtotal - discountAmount);
+  const balanceDue = paymentStatus === "partial" ? Math.max(0, total - cashReceived) : 0;
 
   const filteredProducts = products.filter((p) =>
     p.isActive && p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -113,6 +117,9 @@ export default function NewInvoicePage() {
         subtotal,
         discountAmount,
         totalAmount: total,
+        paymentStatus: type === "invoice" ? paymentStatus : undefined,
+        cashReceived: type === "invoice" && paymentStatus === "partial" ? cashReceived : 0,
+        balanceDue: type === "invoice" && paymentStatus === "partial" ? balanceDue : 0,
         warranty: { period: warrantyPeriod, terms: warrantyTerms },
         notes,
         termsAndConditions: terms,
@@ -268,6 +275,42 @@ export default function NewInvoicePage() {
             </div>
           </div>
 
+          {type === "invoice" && (
+            <div className="border border-border rounded-lg p-4 space-y-4">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase">Payment</h3>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="paymentStatus" value="full" checked={paymentStatus === "full"}
+                    onChange={() => { setPaymentStatus("full"); setCashReceived(0); }}
+                    className="rounded-full border-border" />
+                  Full Payment
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="paymentStatus" value="partial" checked={paymentStatus === "partial"}
+                    onChange={() => setPaymentStatus("partial")}
+                    className="rounded-full border-border" />
+                  Partial Payment
+                </label>
+              </div>
+              {paymentStatus === "partial" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Cash Received (NPR)</label>
+                    <input type="number" value={cashReceived || ""}
+                      onChange={(e) => setCashReceived(Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-muted-foreground mb-1">Balance Due</label>
+                    <div className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-muted/50 text-red-600 font-medium">
+                      {formatCurrency(balanceDue)}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
@@ -286,6 +329,12 @@ export default function NewInvoicePage() {
               <p className="text-muted-foreground">Subtotal: <span className="text-secondary font-medium">{formatCurrency(subtotal)}</span></p>
               {discountAmount > 0 && <p className="text-muted-foreground">Discount: <span className="text-red-500">-{formatCurrency(discountAmount)}</span></p>}
               <p className="text-lg font-bold text-secondary">Total: {formatCurrency(total)}</p>
+              {paymentStatus === "partial" && cashReceived > 0 && (
+                <>
+                  <p className="text-muted-foreground">Cash Received: <span className="text-green-600 font-medium">{formatCurrency(cashReceived)}</span></p>
+                  <p className="text-red-600 font-medium">Balance Due: {formatCurrency(balanceDue)}</p>
+                </>
+              )}
             </div>
             <div className="flex gap-3">
               <Button onClick={() => router.push("/admin/invoices")} variant="outline">Cancel</Button>

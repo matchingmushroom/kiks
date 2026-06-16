@@ -43,6 +43,15 @@ export interface Product {
   quantityInStock: number;
   isActive: boolean;
   isFeatured: boolean;
+  brand: string;
+  modelNo: string;
+  baseMaterial: string;
+  plating: string;
+  color: string;
+  productType: string;
+  idealFor: string;
+  netQuantity: number;
+  brandColor: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -135,6 +144,9 @@ export interface Invoice {
   subtotal: number;
   discountAmount: number;
   totalAmount: number;
+  paymentStatus?: "full" | "partial";
+  cashReceived?: number;
+  balanceDue?: number;
   warranty: { period: string; terms: string };
   notes: string;
   termsAndConditions: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Expense, ExpenseHead, RecurringExpenseTemplate } from "@/types";
@@ -45,6 +45,12 @@ export default function AdminExpensesPage() {
     constraints: [orderBy("date", "desc")],
   });
   const { data: templates } = useFirestore<RecurringExpenseTemplate>("recurringExpenses");
+
+  // Merge hardcoded heads with unique custom heads from existing expenses
+  const allHeads = useMemo(() => {
+    const customHeads = [...new Set(expenses.map((e) => e.head).filter((h) => !EXPENSE_HEADS.includes(h as ExpenseHead) && h))];
+    return [...EXPENSE_HEADS, ...customHeads.sort()] as string[];
+  }, [expenses]);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -111,7 +117,7 @@ export default function AdminExpensesPage() {
         const expenseRef = await addDoc(collection(db, "expenses"), {
           ...data, createdAt: Timestamp.fromDate(new Date()),
         });
-        const accountId = form.paymentMethod === "cash" ? "cash_in_hand" : "bank_account";
+        const accountId = form.paymentMethod === "bank" ? "bank_account" : "cash_in_hand";
         await addDoc(collection(db, "accountTransactions"), {
           accountId,
           type: "debit",
@@ -156,7 +162,7 @@ export default function AdminExpensesPage() {
           createdAt: now,
           updatedAt: now,
         });
-        const accountId = t.paymentMethod === "cash" ? "cash_in_hand" : "bank_account";
+        const accountId = t.paymentMethod === "bank" ? "bank_account" : "cash_in_hand";
         await addDoc(collection(db, "accountTransactions"), {
           accountId,
           type: "debit",
@@ -275,7 +281,7 @@ export default function AdminExpensesPage() {
               <select value={headFilter} onChange={(e) => setHeadFilter(e.target.value)}
                 className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                 <option value="">All Heads</option>
-                {EXPENSE_HEADS.map((h) => <option key={h} value={h}>{h}</option>)}
+                {allHeads.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
             </div>
 
@@ -303,7 +309,7 @@ export default function AdminExpensesPage() {
                     <select value={form.head} onChange={(e) => setForm({ ...form, head: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                       <option value="">Select head</option>
-                      {EXPENSE_HEADS.map((h) => <option key={h} value={h}>{h}</option>)}
+                      {allHeads.map((h) => <option key={h} value={h}>{h}</option>)}
                     </select>
                     {form.head === "Other" && (
                       <input type="text" placeholder="Custom head name" value={form.customHead}
@@ -421,7 +427,7 @@ export default function AdminExpensesPage() {
                       onChange={(e) => setRecurringForm({ ...recurringForm, head: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                       <option value="">Select head</option>
-                      {EXPENSE_HEADS.map((h) => <option key={h} value={h}>{h}</option>)}
+                      {allHeads.map((h) => <option key={h} value={h}>{h}</option>)}
                     </select>
                     {recurringForm.head === "Other" && (
                       <input type="text" placeholder="Custom head name" value={recurringForm.customHead}

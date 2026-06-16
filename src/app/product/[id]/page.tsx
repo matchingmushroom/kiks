@@ -9,7 +9,7 @@ import { useCart } from "@/contexts/CartContext";
 import { Product } from "@/types";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
-import { ShoppingBag, Check, ChevronLeft } from "lucide-react";
+import { ShoppingBag, Check, ChevronLeft, ChevronRight } from "lucide-react";
 
 export default function ProductDetailPage() {
   const params = useParams();
@@ -102,13 +102,27 @@ export default function ProductDetailPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
           <div>
-            <div className="aspect-square bg-muted rounded-xl overflow-hidden mb-3">
+            <div className="relative aspect-square bg-muted rounded-xl overflow-hidden mb-3 group">
               {product.images?.[selectedImage] ? (
-                <img
-                  src={product.images[selectedImage]}
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
+                <>
+                  <img
+                    src={product.images[selectedImage]}
+                    alt={product.name}
+                    className="w-full h-full object-cover"
+                  />
+                  {product.images.length > 1 && (
+                    <>
+                      <button onClick={() => setSelectedImage((selectedImage - 1 + product.images.length) % product.images.length)}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ChevronLeft className="h-5 w-5" />
+                      </button>
+                      <button onClick={() => setSelectedImage((selectedImage + 1) % product.images.length)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ChevronRight className="h-5 w-5" />
+                      </button>
+                    </>
+                  )}
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                   No Image

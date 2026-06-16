@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
-import { Purchase, PurchaseItem as PurchaseItemType, Product } from "@/types";
+import { Purchase, PurchaseItem as PurchaseItemType, Product, Category } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
-  addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc,
+  addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc, setDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
-  Plus, Search, X, Save, Trash2, Undo2,
+  Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List,
 } from "lucide-react";
 
 const emptyForm = {
@@ -29,14 +29,24 @@ export default function AdminPurchasesPage() {
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc")],
   });
+  const { data: categories } = useFirestore<Category>("categories", {
+    constraints: [orderBy("order", "asc")],
+  });
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [productSearch, setProductSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [returnModal, setReturnModal] = useState<Purchase | null>(null);
   const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
+
+  // Inline product creation
+  const [showNewProduct, setShowNewProduct] = useState(false);
+  const [newProductForm, setNewProductForm] = useState({ name: "", costPrice: 0, categoryId: "" });
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -88,6 +98,56 @@ export default function AdminPurchasesPage() {
     const items = form.items.filter((_, i) => i !== index);
     const total = items.reduce((s, i) => s + i.subtotal, 0);
     setForm({ ...form, items, totalAmount: total });
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    const catRef = await addDoc(collection(db, "categories"), {
+      name: newCategoryName.trim(),
+      description: "",
+      image: "",
+      order: categories.length,
+      isActive: true,
+    });
+    setNewProductForm({ ...newProductForm, categoryId: catRef.id });
+    setNewCategoryName("");
+    setShowNewCategory(false);
+  };
+
+  const handleCreateProduct = async () => {
+    if (!newProductForm.name || !newProductForm.categoryId) return;
+    const prodRef = await addDoc(collection(db, "products"), {
+      name: newProductForm.name,
+      description: "", design: "", categoryId: newProductForm.categoryId,
+      images: [""], videoUrl: "",
+      price: newProductForm.costPrice, costPrice: newProductForm.costPrice,
+      weight: 0, purity: "", metalType: "", stoneType: "None",
+      stoneWeight: 0, makingCharge: 0, warranty: "", sku: "",
+      quantityInStock: 0, isActive: true, isFeatured: false,
+      badge: "", brand: "", modelNo: "", baseMaterial: "",
+      plating: "", color: "", productType: "", idealFor: "",
+      netQuantity: 1, brandColor: "",
+      createdAt: Timestamp.fromDate(new Date()),
+      updatedAt: Timestamp.fromDate(new Date()),
+    });
+    // Refetch won't happen until useFirestore updates, so manually add
+    const newProduct: Product = {
+      id: prodRef.id, name: newProductForm.name, description: "",
+      design: "", categoryId: newProductForm.categoryId,
+      images: [""], videoUrl: "", price: newProductForm.costPrice,
+      costPrice: newProductForm.costPrice, weight: 0, purity: "",
+      metalType: "", stoneType: "None", stoneWeight: 0,
+      makingCharge: 0, warranty: "", sku: "", quantityInStock: 0,
+      isActive: true, isFeatured: false, badge: "none",
+      originalPrice: 0, brand: "", modelNo: "", baseMaterial: "",
+      plating: "", color: "", productType: "", idealFor: "",
+      netQuantity: 1, brandColor: "",
+      createdAt: Date.now(), updatedAt: Date.now(),
+    };
+    addItem(newProduct);
+    setProductSearch("");
+    setShowNewProduct(false);
+    setNewProductForm({ name: "", costPrice: 0, categoryId: "" });
   };
 
   const handleSave = async () => {
@@ -210,9 +270,15 @@ export default function AdminPurchasesPage() {
             <h1 className="text-2xl font-bold text-secondary">Purchases</h1>
             <p className="text-sm text-muted-foreground">{purchases.length} total</p>
           </div>
-          <Button onClick={() => { setShowForm(true); setForm(emptyForm); setEditingId(null); }} variant="accent">
-            <Plus className="h-4 w-4" /> New Purchase
-          </Button>
+          <div className="flex gap-2">
+            <button onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+              className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
+              {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+            </button>
+            <Button onClick={() => { setShowForm(true); setForm(emptyForm); setEditingId(null); }} variant="accent">
+              <Plus className="h-4 w-4" /> New Purchase
+            </Button>
+          </div>
         </div>
 
         {showForm && (
@@ -262,6 +328,15 @@ export default function AdminPurchasesPage() {
                       ))}
                     </div>
                   )}
+                  {productSearch && filteredProducts.length === 0 && (
+                    <div className="absolute z-10 top-full mt-1 left-0 right-0 bg-white border border-border rounded-lg shadow-lg p-3">
+                      <p className="text-sm text-muted-foreground mb-2">No products matching "{productSearch}"</p>
+                      <Button onClick={() => { setNewProductForm({ ...newProductForm, name: productSearch }); setShowNewProduct(true); setProductSearch(""); }}
+                        size="sm" variant="accent">
+                        <PackagePlus className="h-3.5 w-3.5" /> Create "{productSearch}"
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 {form.items.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">No items added yet.</p>
@@ -282,6 +357,62 @@ export default function AdminPurchasesPage() {
                         </button>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {showNewProduct && (
+                  <div className="bg-muted/50 border border-border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-medium text-secondary">New Product</h4>
+                      <button onClick={() => setShowNewProduct(false)} className="p-1 hover:bg-muted rounded">
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Name *</label>
+                        <input type="text" value={newProductForm.name}
+                          onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
+                          className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Cost Price (NPR)</label>
+                        <input type="number" value={newProductForm.costPrice || ""}
+                          onChange={(e) => setNewProductForm({ ...newProductForm, costPrice: Number(e.target.value) })}
+                          className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Category *</label>
+                        <div className="flex gap-2">
+                          <select value={newProductForm.categoryId}
+                            onChange={(e) => {
+                              if (e.target.value === "__new__") {
+                                setShowNewCategory(true);
+                              } else {
+                                setNewProductForm({ ...newProductForm, categoryId: e.target.value });
+                              }
+                            }}
+                            className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            <option value="">Select</option>
+                            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            <option value="__new__">+ Add new category</option>
+                          </select>
+                        </div>
+                        {showNewCategory && (
+                          <div className="flex gap-2 mt-2">
+                            <input type="text" placeholder="Category name" value={newCategoryName}
+                              onChange={(e) => setNewCategoryName(e.target.value)}
+                              className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                            <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()} size="sm" variant="accent">
+                              <Tags className="h-3.5 w-3.5" /> Add
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <Button onClick={handleCreateProduct} disabled={!newProductForm.name || !newProductForm.categoryId} variant="accent" size="sm">
+                      <PackagePlus className="h-3.5 w-3.5" /> Create & Add to Purchase
+                    </Button>
                   </div>
                 )}
               </div>
@@ -339,7 +470,7 @@ export default function AdminPurchasesPage() {
           <p className="text-muted-foreground text-center py-12">Loading...</p>
         ) : purchases.length === 0 ? (
           <p className="text-muted-foreground text-center py-12">No purchases yet.</p>
-        ) : (
+        ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {purchases.map((p) => (
               <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
@@ -371,6 +502,50 @@ export default function AdminPurchasesPage() {
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-muted text-left">
+                  <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Supplier</th>
+                  <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Items</th>
+                  <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Amount</th>
+                  <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-center">Status</th>
+                  <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Date</th>
+                  <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {purchases.map((p) => (
+                  <tr key={p.id} className="hover:bg-muted/30">
+                    <td className="px-4 py-2.5 text-sm font-medium text-secondary">{p.supplierName}</td>
+                    <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.items?.length || 0}</td>
+                    <td className="px-4 py-2.5 text-sm text-right">{formatCurrency(p.totalAmount)}</td>
+                    <td className="px-4 py-2.5 text-sm text-center">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        p.paymentStatus === "paid" ? "bg-green-50 text-green-700" :
+                        p.paymentStatus === "partially_paid" ? "bg-amber-50 text-amber-700" :
+                        "bg-red-50 text-red-700"
+                      }`}>
+                        {p.paymentStatus.replace("_", " ")}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(p.purchaseDate)}</td>
+                    <td className="px-4 py-2.5 text-sm text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button onClick={() => openReturn(p)} size="sm" variant="outline" className="text-xs px-2 py-1">
+                          <Undo2 className="h-3 w-3" />
+                        </Button>
+                        <Button onClick={() => handleDelete(p.id)} size="sm" variant="outline" className="text-xs px-2 py-1 text-red-500">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
