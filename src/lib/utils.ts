@@ -5,13 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function formatNumber(n: number): string {
+  try {
+    return new Intl.NumberFormat("ne-NP", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
+  } catch {
+    try {
+      return new Intl.NumberFormat("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
+    } catch {
+      return new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
+    }
+  }
+}
+
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("ne-NP", {
-    style: "currency",
-    currency: "NPR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  return `Rs. ${formatNumber(amount)}`;
 }
 
 export function toDate(v: unknown): Date {
