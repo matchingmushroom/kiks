@@ -1,4 +1,4 @@
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp } from "firebase/firestore";
 import { initializeApp, getApps } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { Product } from "@/types";
@@ -16,6 +16,22 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+function sanitize(data: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value instanceof Timestamp) {
+      result[key] = value.toMillis();
+    } else if (Array.isArray(value)) {
+      result[key] = value;
+    } else if (value !== null && typeof value === "object") {
+      result[key] = JSON.parse(JSON.stringify(value));
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 function fixImageUrl(url: string): string {
   const match = url.match(/unsplash\.com\/photos\/([^/]+)/);
   if (match) {
@@ -32,7 +48,7 @@ async function getProduct(id: string): Promise<Product | null> {
     const db = getFirestore(app);
     const snap = await getDoc(doc(db, "products", id));
     if (snap.exists()) {
-      const product = { id: snap.id, ...snap.data() } as Product;
+      const product = { id: snap.id, ...sanitize(snap.data()) } as Product;
       if (product.images) product.images = product.images.map(fixImageUrl);
       return product;
     }
