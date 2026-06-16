@@ -12,12 +12,12 @@ import {
   doc,
   collection,
   Timestamp,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Globe, Loader2, Database } from "lucide-react";
-import { generateSampleProducts } from "@/lib/sampleProducts";
+import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Globe, Loader2, AlertTriangle } from "lucide-react";
 
 const BASE_MATERIALS = ["", "Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"];
 const PLATING_OPTIONS = ["", "Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"];
@@ -56,7 +56,9 @@ export default function AdminProductsPage() {
   const [flipkartUrl, setFlipkartUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [seeding, setSeeding] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState("");
 
   useEffect(() => {
     if (categories.length > 0 && !form.categoryId) {
@@ -138,6 +140,24 @@ export default function AdminProductsPage() {
     }
   };
 
+  const handleDeleteAll = async () => {
+    setDeleteConfirm("");
+    setDeletingAll(true);
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      const ids = snap.docs.map((d) => d.id);
+      for (let i = 0; i < ids.length; i += 50) {
+        const batch = ids.slice(i, i + 50);
+        await Promise.all(batch.map((id) => deleteDoc(doc(db, "products", id))));
+      }
+      alert(`Deleted ${ids.length} products.`);
+    } catch (e) {
+      console.error("Delete all failed", e);
+      alert("Failed to delete all products.");
+    }
+    setDeletingAll(false);
+  };
+
   const toggleField = async (id: string, field: "isActive" | "isFeatured", value: boolean) => {
     await updateDoc(doc(db, "products", id), { [field]: value, updatedAt: Timestamp.fromDate(new Date()) });
   };
@@ -154,23 +174,6 @@ export default function AdminProductsPage() {
   const removeImage = (index: number) => {
     const images = form.images.filter((_, i) => i !== index);
     setForm({ ...form, images: images.length ? images : [""] });
-  };
-
-  const handleSeedProducts = async () => {
-    if (!categories[0]) return alert("No category available. Create a category first.");
-    if (!confirm("Add 100 sample artificial jewellery products? This will create Firestore documents.")) return;
-    setSeeding(true);
-    try {
-      const samples = generateSampleProducts(categories[0].id);
-      for (const p of samples) {
-        await addDoc(collection(db, "products"), { ...p, images: p.images.filter(Boolean) });
-      }
-      alert(`Successfully added ${samples.length} sample products!`);
-    } catch (e) {
-      console.error("Seeding failed", e);
-      alert("Seeding failed. Check console for details.");
-    }
-    setSeeding(false);
   };
 
   const importFromFlipkart = async () => {
@@ -195,15 +198,6 @@ export default function AdminProductsPage() {
       let brand = ld?.brand?.name || "";
       let images: string[] = [];
       if (ld?.image) images = Array.isArray(ld.image) ? ld.image : [ld.image];
-
-      const specs: Record<string, string> = {};
-      doc.querySelectorAll("table td, table th, [class*='_3oFyM']").forEach((el) => {
-        const text = el.textContent?.trim();
-        if (text && text.includes(":")) {
-          const [k, ...v] = text.split(":");
-          specs[k.trim()] = v.join(":").trim();
-        }
-      });
 
       const baseMaterial = BASE_MATERIALS.find((m) => m && html.toLowerCase().includes(m.toLowerCase())) || "";
       const plating = PLATING_OPTIONS.find((p) => p && html.toLowerCase().includes(p.toLowerCase())) || "";
@@ -249,15 +243,42 @@ export default function AdminProductsPage() {
             <Button onClick={() => { setShowImport(true); setFlipkartUrl(""); }} variant="outline">
               <Globe className="h-4 w-4" /> Import
             </Button>
-            <Button onClick={handleSeedProducts} disabled={seeding} variant="outline" title="Add 100 sample artificial jewellery products">
-              {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-              {seeding ? "Seeding..." : "Seed 100"}
-            </Button>
+            {products.length > 0 && (
+              <Button onClick={() => { setShowDeleteConfirm(true); setDeleteConfirm(""); }} variant="outline" className="text-red-500 border-red-200 hover:bg-red-50">
+                <Trash2 className="h-4 w-4" /> Delete All
+              </Button>
+            )}
             <Button onClick={openAdd} variant="accent">
               <Plus className="h-4 w-4" /> Add Product
             </Button>
           </div>
         </div>
+
+        {showDeleteConfirm && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 shadow-sm">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-700 mb-1">
+                  Delete ALL {products.length} products? This cannot be undone.
+                </p>
+                <p className="text-xs text-red-600 mb-3">
+                  Type <strong>DELETE</strong> below and click Confirm to proceed.
+                </p>
+                <input type="text" placeholder='Type "DELETE" to confirm'
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  className="px-3 py-2 border border-red-300 rounded-lg text-sm w-full max-w-xs focus:outline-none focus:ring-2 focus:ring-red-400 mb-3" />
+                <div className="flex gap-2">
+                  <Button onClick={handleDeleteAll} disabled={deletingAll || deleteConfirm !== "DELETE"} variant="accent" className="bg-red-600 hover:bg-red-700">
+                    {deletingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    {deletingAll ? "Deleting..." : "Confirm Delete All"}
+                  </Button>
+                  <Button onClick={() => { setShowDeleteConfirm(false); setDeleteConfirm(""); }} variant="outline">Cancel</Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showImport && (
           <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
@@ -311,7 +332,6 @@ export default function AdminProductsPage() {
               </button>
             </div>
             <div className="space-y-6">
-              {/* General Info Section */}
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">General Info</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -389,7 +409,6 @@ export default function AdminProductsPage() {
                 </div>
               </div>
 
-              {/* Pricing & Stock Section */}
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">Pricing & Stock</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -446,7 +465,6 @@ export default function AdminProductsPage() {
                 </div>
               </div>
 
-              {/* Material Details Section */}
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">Material Details</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -510,7 +528,6 @@ export default function AdminProductsPage() {
                 </div>
               </div>
 
-              {/* Description & Images */}
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">Description & Images</h3>
                 <div className="space-y-4">
