@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useFirestore, where } from "@/hooks/useFirestore";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { HomeSection, Product as ProductType, Category } from "@/types";
+import { useCollection } from "@/hooks/useCollection";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
@@ -42,12 +42,12 @@ function HeroSection({ section }: { section: HomeSection }) {
 }
 
 function CategoryGridSection() {
-  const { data: categories, loading } = useFirestore<Category>("categories", {
-    constraints: [where("isActive", "==", true)],
+  const { data: categories, loading } = useCollection<Category>("categories", {
+    where: [["isActive", "==", true]],
+    orderBy: ["order", "asc"],
   });
 
   if (loading || categories.length === 0) return null;
-  const sorted = [...categories].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
 
   return (
     <section className="py-16 bg-muted">
@@ -55,7 +55,7 @@ function CategoryGridSection() {
         <h2 className="text-3xl font-bold text-secondary mb-4">Our Collection</h2>
         <p className="text-muted-foreground mb-12">Browse our curated categories</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {sorted.map((cat) => (
+          {categories.map((cat) => (
             <Link
               key={cat.id}
               href={`/products/${cat.id}`}
@@ -74,15 +74,16 @@ function CategoryGridSection() {
 }
 
 function FeaturedProductsSection() {
-  const { data: products, loading } = useFirestore<ProductType>("products", {
-    constraints: [
-      where("isActive", "==", true),
-      where("isFeatured", "==", true),
+  const { data: products, loading } = useCollection<ProductType>("products", {
+    where: [
+      ["isActive", "==", true],
+      ["isFeatured", "==", true],
     ],
+    orderBy: ["createdAt", "desc"],
+    limit: 8,
   });
 
   if (loading || products.length === 0) return null;
-  const sorted = [...products].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
 
   return (
     <section className="py-16 bg-white">
@@ -92,7 +93,7 @@ function FeaturedProductsSection() {
           <p className="text-muted-foreground mt-2">Our most popular pieces</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {sorted.slice(0, 8).map((product) => (
+          {products.slice(0, 8).map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
@@ -102,14 +103,13 @@ function FeaturedProductsSection() {
 }
 
 function NewArrivalsSection() {
-  const { data: products, loading } = useFirestore<ProductType>("products", {
-    constraints: [where("isActive", "==", true)],
+  const { data: products, loading } = useCollection<ProductType>("products", {
+    where: [["isActive", "==", true]],
+    orderBy: ["createdAt", "desc"],
+    limit: 4,
   });
 
   if (loading || products.length === 0) return null;
-
-  const sorted = [...products].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
-  const newProducts = sorted.slice(0, 4);
 
   return (
     <section className="py-16 bg-muted">
@@ -119,7 +119,7 @@ function NewArrivalsSection() {
           <p className="text-muted-foreground mt-2">Latest additions to our collection</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {newProducts.map((product) => (
+          {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
@@ -156,8 +156,8 @@ function SectionRenderer({ section }: { section: HomeSection }) {
 }
 
 function HomeContent() {
-  const { data: sections, loading } = useFirestore<HomeSection>("sections", {
-    constraints: [where("isVisible", "==", true)],
+  const { data: sections, loading } = useCollection<HomeSection>("sections", {
+    where: [["isVisible", "==", true]],
   });
 
   if (loading) {

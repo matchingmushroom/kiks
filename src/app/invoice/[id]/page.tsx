@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getDocument } from "@/lib/firestoreRest";
 import { Invoice } from "@/types";
 import { formatCurrency, formatDate, amountInWords } from "@/lib/utils";
 import { Printer, Download } from "lucide-react";
@@ -22,21 +21,21 @@ export default function PublicInvoicePage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const snap = await getDoc(doc(db, "invoices", params.id as string));
-        if (snap.exists()) {
-          const inv = { id: snap.id, ...snap.data() } as Invoice;
+        const [inv, settings] = await Promise.all([
+          getDocument<Invoice>("invoices", params.id as string),
+          getDocument<any>("shop_settings", "config"),
+        ]);
+        if (inv) {
           setInvoice(inv);
           document.title = `${inv.invoiceNumber} - KIKS Collections`;
         } else {
           document.title = "Invoice Not Found - KIKS Collections";
         }
-        const settingsSnap = await getDoc(doc(db, "shop_settings", "config"));
-        if (settingsSnap.exists()) {
-          const s = settingsSnap.data();
-          setShopName(s.shopName || "KIKS Collections");
-          setShopTagline(s.tagline || "Exquisite Jewellery");
-          setShopAddress(s.address || "");
-          setLogoUrl(s.logoUrl || "/logo.svg");
+        if (settings) {
+          setShopName(settings.shopName || "KIKS Collections");
+          setShopTagline(settings.tagline || "Exquisite Jewellery");
+          setShopAddress(settings.address || "");
+          setLogoUrl(settings.logoUrl || "/logo.svg");
         }
       } catch {
         /* ignore */
@@ -226,7 +225,7 @@ export default function PublicInvoicePage() {
             )}
 
             <div className="border-t border-border pt-6 text-center text-xs text-muted-foreground">
-              <p>Thank you for your business! • {shopName}</p>
+              <p>Thank you for your business! &bull; {shopName}</p>
               {shopAddress && <p>{shopAddress}</p>}
             </div>
           </div>

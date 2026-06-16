@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { doc, getDoc, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { Product } from "@/types";
+import { getDocument } from "@/lib/firestoreRest";
 import ProductDetailClient from "@/components/shop/ProductDetailClient";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
@@ -12,9 +11,7 @@ import { useParams } from "next/navigation";
 
 function fixImageUrl(url: string): string {
   const match = url.match(/images\.unsplash\.com\/photo-([^?]+)/);
-  if (match) {
-    return `https://unsplash.com/photos/${match[1]}/download?w=400`;
-  }
+  if (match) return `https://unsplash.com/photos/${match[1]}/download?w=400`;
   return url;
 }
 
@@ -29,34 +26,24 @@ export default function ProductPage() {
     if (!id) return;
     let cancelled = false;
 
-    const timer = setTimeout(() => {
-      if (!cancelled) {
-        setError("Product data is taking longer than expected. Please check your connection and try again.");
-      }
-    }, 15000);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     (async () => {
       try {
-        const snap = await getDoc(doc(db, "products", id));
+        const p = await getDocument<Product>("products", id, controller.signal);
         if (cancelled) return;
-        if (snap.exists()) {
-          const data = snap.data();
-          const result: Record<string, unknown> = { id: snap.id };
-          for (const [key, value] of Object.entries(data)) {
-            if (value instanceof Timestamp) {
-              result[key] = value.toMillis();
-            } else {
-              result[key] = value;
-            }
-          }
-          const p = result as unknown as Product;
+        if (p) {
           if (p.images) p.images = p.images.map(fixImageUrl);
-          if (!cancelled) setProduct(p);
+          setProduct(p);
         } else {
-          if (!cancelled) setError("Product not found");
+          setError("Product not found");
         }
-      } catch (e) {
-        if (!cancelled) {
+      } catch (e: any) {
+        if (cancelled) return;
+        if (e.name === "AbortError") {
+          setError("Product data is taking longer than expected. Please check your connection and try again.");
+        } else {
           console.error("Product fetch failed", e);
           setError("Failed to load product. Please try again later.");
         }
@@ -67,7 +54,8 @@ export default function ProductPage() {
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
+      clearTimeout(timeoutId);
+      controller.abort();
     };
   }, [id]);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useFirestore, where } from "@/hooks/useFirestore";
+import { useCollection } from "@/hooks/useCollection";
 import { Product, Category } from "@/types";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopHeader from "@/components/shop/ShopHeader";
@@ -10,18 +10,18 @@ import ShopFooter from "@/components/shop/ShopFooter";
 export default function ProductsPage() {
   useEffect(() => { document.title = "Products - KIKS Collections"; }, []);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const { data: categories } = useFirestore<Category>("categories", {
-    constraints: [where("isActive", "==", true)],
+  const { data: categories } = useCollection<Category>("categories", {
+    where: [["isActive", "==", true]],
+    orderBy: ["order", "asc"],
   });
-  const { data: products, loading } = useFirestore<Product>("products", {
-    constraints: [where("isActive", "==", true)],
+  const { data: products, loading } = useCollection<Product>("products", {
+    where: [["isActive", "==", true]],
+    orderBy: ["createdAt", "desc"],
   });
 
-  const catSorted = [...categories].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
-  const sorted = [...products].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
   const filtered = selectedCategory === "all"
-    ? sorted
-    : sorted.filter((p) => p.categoryId === selectedCategory);
+    ? products
+    : products.filter((p) => p.categoryId === selectedCategory);
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
@@ -43,7 +43,7 @@ export default function ProductsPage() {
           >
             All
           </button>
-          {catSorted.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
