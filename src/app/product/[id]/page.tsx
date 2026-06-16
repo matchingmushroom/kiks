@@ -16,6 +16,15 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+function fixImageUrl(url: string): string {
+  const match = url.match(/unsplash\.com\/photos\/([^/]+)/);
+  if (match) {
+    const photoId = match[1].split("?")[0];
+    return `https://images.unsplash.com/photo-${photoId}?w=400&h=400&fit=crop&auto=format`;
+  }
+  return url;
+}
+
 async function getProduct(id: string): Promise<Product | null> {
   if (!firebaseConfig.projectId) return null;
   try {
@@ -23,7 +32,9 @@ async function getProduct(id: string): Promise<Product | null> {
     const db = getFirestore(app);
     const snap = await getDoc(doc(db, "products", id));
     if (snap.exists()) {
-      return { id: snap.id, ...snap.data() } as Product;
+      const product = { id: snap.id, ...snap.data() } as Product;
+      if (product.images) product.images = product.images.map(fixImageUrl);
+      return product;
     }
   } catch {}
   return null;
