@@ -136,7 +136,7 @@ export default function CartPage() {
         customerPhone,
         customerAddress,
       );
-      window.open(waLink, "_blank");
+      window.location.href = waLink;
     } catch {
       setOrdering(false);
     }

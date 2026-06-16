@@ -78,7 +78,7 @@ export default function AdminOrdersPage() {
     }
 
     const msg = encodeURIComponent(lines.join("\n"));
-    window.open(`https://wa.me/${order.customer.phone}?text=${msg}`, "_blank");
+    window.location.href = `https://wa.me/${order.customer.phone}?text=${msg}`;
   };
 
   const notifyDelivered = (order: Order) => {

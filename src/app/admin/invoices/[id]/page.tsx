@@ -104,7 +104,7 @@ export default function InvoiceDetailPage() {
     if (!invoice) return;
     const url = `${window.location.origin}/invoice/${invoice.id}`;
     const msg = `Your ${invoice.type === "invoice" ? "Invoice" : "Estimate"} #${invoice.invoiceNumber} is ready: ${url}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank");
+    window.location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
   };
 
   if (loading) {

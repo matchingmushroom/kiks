@@ -110,7 +110,6 @@ export default function ProductDetailPage() {
   }
 
   const specs = [
-    { label: "Warranty", value: product.warranty || "No warranty" },
     { label: "Brand", value: product.brand || "—" },
     { label: "Model Number", value: product.modelNo || "—" },
     { label: "Base Material", value: product.baseMaterial || "—" },
@@ -118,8 +117,9 @@ export default function ProductDetailPage() {
     { label: "Color", value: product.color || "—" },
     { label: "Type", value: product.productType || "—" },
     { label: "Ideal For", value: product.idealFor || "—" },
-    { label: "Net Quantity", value: product.netQuantity ? String(product.netQuantity) : "—" },
     { label: "Occasion", value: product.occasion || "—" },
+    { label: "Net Quantity", value: product.netQuantity ? String(product.netQuantity) : "—" },
+    { label: "Warranty", value: product.warranty || "No warranty" },
   ].filter(s => s.value !== "—");
 
   return (
