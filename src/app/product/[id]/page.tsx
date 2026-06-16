@@ -111,9 +111,16 @@ export default function ProductDetailPage() {
 
   const specs = [
     { label: "Warranty", value: product.warranty || "No warranty" },
-    { label: "Design Code", value: product.design || "—" },
-    { label: "SKU", value: product.sku || "—" },
-  ];
+    { label: "Brand", value: product.brand || "—" },
+    { label: "Model Number", value: product.modelNo || "—" },
+    { label: "Base Material", value: product.baseMaterial || "—" },
+    { label: "Plating Type", value: product.plating || "—" },
+    { label: "Color", value: product.color || "—" },
+    { label: "Type", value: product.productType || "—" },
+    { label: "Ideal For", value: product.idealFor || "—" },
+    { label: "Net Quantity", value: product.netQuantity ? String(product.netQuantity) : "—" },
+    { label: "Occasion", value: product.occasion || "—" },
+  ].filter(s => s.value !== "—");
 
   return (
     <div className="min-h-screen bg-white flex flex-col">
