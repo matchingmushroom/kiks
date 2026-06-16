@@ -25,7 +25,7 @@ export function toDate(v: unknown): Date {
 }
 
 export function formatDate(timestamp: unknown): string {
-  return new Intl.DateTimeFormat("ne-NP", {
+  return new Intl.DateTimeFormat("en-IN", {
     year: "numeric",
     month: "short",
     day: "2-digit",
@@ -33,7 +33,7 @@ export function formatDate(timestamp: unknown): string {
 }
 
 export function formatDateTime(timestamp: unknown): string {
-  return new Intl.DateTimeFormat("ne-NP", {
+  return new Intl.DateTimeFormat("en-IN", {
     year: "numeric",
     month: "short",
     day: "2-digit",
