@@ -1,17 +1,26 @@
-function genIds(prefix: string, start: number, end: number) {
-  const ids: { id: string }[] = [];
-  for (let i = start; i <= end; i++) ids.push({ id: `${prefix}-${String(i).padStart(3, "0")}` });
-  return ids;
-}
+export async function generateStaticParams() {
+  try {
+    const { initializeApp, getApps } = await import("firebase/app");
+    const { getFirestore, collection, getDocs } = await import("firebase/firestore");
 
-export function generateStaticParams() {
-  return [
-    ...genIds("rng", 1, 12),
-    ...genIds("nck", 1, 10),
-    ...genIds("ear", 1, 10),
-    ...genIds("brl", 1, 10),
-    ...genIds("pnd", 1, 8),
-  ];
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    };
+
+    if (!firebaseConfig.projectId) return [];
+
+    const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+    const db = getFirestore(app);
+    const snap = await getDocs(collection(db, "products"));
+    return snap.docs.map((d) => ({ id: d.id }));
+  } catch {
+    return [];
+  }
 }
 
 export default function ProductLayout({ children }: { children: React.ReactNode }) {
