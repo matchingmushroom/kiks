@@ -234,16 +234,9 @@ export default function ProductDetailPage() {
               {product.badge === "out_of_stock" && (
                 <span className="text-xs bg-red-500 text-white px-2 py-1 rounded font-medium">Out of Stock</span>
               )}
-              <span className={`inline-flex items-center gap-1 text-sm px-3 py-1 rounded-full ${
-                product.quantityInStock > 0
-                  ? "bg-green-50 text-green-700"
-                  : "bg-red-50 text-red-700"
-              }`}>
-                <span className={`w-2 h-2 rounded-full ${
-                  product.quantityInStock > 0 ? "bg-green-500" : "bg-red-500"
-                }`} />
-                {product.quantityInStock > 0 ? `In Stock (${product.quantityInStock})` : "Out of Stock"}
-              </span>
+              {product.quantityInStock <= 0 && (
+                <span className="text-xs bg-red-500 text-white px-2 py-1 rounded font-medium">Out of Stock</span>
+              )}
             </div>
 
             <div className="flex gap-3">
