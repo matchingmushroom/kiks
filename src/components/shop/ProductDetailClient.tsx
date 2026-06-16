@@ -8,17 +8,22 @@ import { Product } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { ShoppingBag, Check, ChevronLeft, ChevronRight } from "lucide-react";
 
+function imgUrl(url: string): string {
+  return url.replace(/images\.unsplash\.com\/photo-([^?]+)/, "unsplash.com/photos/$1/download?w=400");
+}
+
 export default function ProductDetailClient({ product }: { product: Product }) {
   const router = useRouter();
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
+  const images = product.images?.map(imgUrl) || [];
 
   const handleAddToCart = () => {
     addItem({
       productId: product.id,
       name: product.name,
-      image: product.images?.[0] || "",
+      image: images[0] || "",
       price: product.price,
       weight: product.weight,
       makingCharge: product.makingCharge,
@@ -54,20 +59,20 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
           <div>
             <div className="relative aspect-square bg-muted rounded-xl overflow-hidden mb-3 group">
-              {product.images?.[selectedImage] ? (
+              {images[selectedImage] ? (
                 <>
                   <img
-                    src={product.images[selectedImage]}
+                    src={images[selectedImage]}
                     alt={product.name}
                     className="w-full h-full object-cover"
                   />
-                  {product.images.length > 1 && (
+                  {images.length > 1 && (
                     <>
-                      <button onClick={() => setSelectedImage((selectedImage - 1 + product.images.length) % product.images.length)}
+                      <button onClick={() => setSelectedImage((selectedImage - 1 + images.length) % images.length)}
                         className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
                         <ChevronLeft className="h-5 w-5" />
                       </button>
-                      <button onClick={() => setSelectedImage((selectedImage + 1) % product.images.length)}
+                      <button onClick={() => setSelectedImage((selectedImage + 1) % images.length)}
                         className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
                         <ChevronRight className="h-5 w-5" />
                       </button>
@@ -80,9 +85,9 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 </div>
               )}
             </div>
-            {product.images && product.images.length > 1 && (
+            {images.length > 1 && (
               <div className="flex gap-2">
-                {product.images.map((img, i) => (
+                {images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}

@@ -18,6 +18,10 @@ const BADGE_STYLES: Record<ProductBadge, { bg: string; label: string }> = {
   offer: { bg: "bg-amber-500", label: "Offer" },
 };
 
+function imgUrl(url: string): string {
+  return url.replace(/images\.unsplash\.com\/photo-([^?]+)/, "unsplash.com/photos/$1/download?w=400");
+}
+
 export default function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
@@ -31,7 +35,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     addItem({
       productId: product.id,
       name: product.name,
-      image: product.images?.[0] || "",
+      image: imgUrl(product.images?.[0] || ""),
       price: product.price,
       weight: product.weight,
       makingCharge: product.makingCharge,
@@ -41,15 +45,17 @@ export default function ProductCard({ product }: ProductCardProps) {
     setTimeout(() => setAdded(false), 1500);
   };
 
+  const imageSrc = product.images?.[0] ? imgUrl(product.images[0]) : null;
+
   return (
     <Link
       href={`/product/${product.id}`}
       className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all"
     >
       <div className="aspect-square bg-muted relative overflow-hidden">
-        {product.images?.[0] ? (
+        {imageSrc ? (
           <img
-            src={product.images[0]}
+            src={imageSrc}
             alt={product.name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
