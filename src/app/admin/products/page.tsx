@@ -14,10 +14,11 @@ import {
   Timestamp,
   getDocs,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Globe, Loader2, AlertTriangle } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Globe, Loader2, AlertTriangle, Upload } from "lucide-react";
 
 const BASE_MATERIALS = ["", "Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"];
 const PLATING_OPTIONS = ["", "Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"];
@@ -59,6 +60,7 @@ export default function AdminProductsPage() {
   const [deletingAll, setDeletingAll] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (categories.length > 0 && !form.categoryId) {
@@ -165,15 +167,32 @@ export default function AdminProductsPage() {
   const updateImage = (index: number, value: string) => {
     const images = [...form.images];
     images[index] = value;
-    if (index === images.length - 1 && value) {
-      images.push("");
-    }
     setForm({ ...form, images });
+  };
+
+  const addImage = () => {
+    setForm({ ...form, images: [...form.images, ""] });
   };
 
   const removeImage = (index: number) => {
     const images = form.images.filter((_, i) => i !== index);
     setForm({ ...form, images: images.length ? images : [""] });
+  };
+
+  const uploadImage = async (file: File) => {
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `products/${Date.now()}-${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      const images = form.images.filter(Boolean);
+      images.push(url, "");
+      setForm({ ...form, images });
+    } catch (e) {
+      console.error("Upload failed", e);
+      alert("Failed to upload image");
+    }
+    setUploading(false);
   };
 
   const importFromFlipkart = async () => {
@@ -511,13 +530,38 @@ export default function AdminProductsPage() {
                           <input type="text" value={url} onChange={(e) => updateImage(i, e.target.value)}
                             placeholder="https://example.com/image.jpg"
                             className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                          {form.images.length > 1 && (
-                            <button onClick={() => removeImage(i)} className="p-2 text-red-500 hover:bg-red-50 rounded">
-                              <X className="h-4 w-4" />
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {url && (
+                              <img src={url} alt=""
+                                className="w-10 h-10 object-cover rounded border border-border"
+                                onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+                            )}
+                            {form.images.length > 1 && (
+                              <button onClick={() => removeImage(i)} className="p-2 text-red-500 hover:bg-red-50 rounded">
+                                <X className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
+                      <div className="flex items-center gap-3 pt-1">
+                        <button onClick={addImage}
+                          className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium">
+                          <Plus className="h-3.5 w-3.5" /> Add Image URL
+                        </button>
+                        <label className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium cursor-pointer">
+                          {uploading ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...</>
+                          ) : (
+                            <><Upload className="h-3.5 w-3.5" /> Upload from Device</>
+                          )}
+                          <input type="file" accept="image/*" className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0];
+                              if (file) { await uploadImage(file); e.target.value = ""; }
+                            }} />
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </div>
