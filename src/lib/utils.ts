@@ -7,13 +7,9 @@ export function cn(...inputs: ClassValue[]) {
 
 export function formatNumber(n: number): string {
   try {
-    return new Intl.NumberFormat("ne-NP", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
+    return new Intl.NumberFormat("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
   } catch {
-    try {
-      return new Intl.NumberFormat("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
-    } catch {
-      return new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
-    }
+    return new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
   }
 }
 
