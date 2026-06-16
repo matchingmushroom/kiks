@@ -21,20 +21,36 @@ export default function ProductDetailPage() {
   const [selectedImage, setSelectedImage] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchProduct = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        if (!cancelled) {
+          console.error("Product fetch timed out after 15s");
+          setLoading(false);
+        }
+      }, 15000);
       try {
         const docSnap = await getDoc(doc(db, "products", params.id as string));
-        if (docSnap.exists()) {
-          const p = { id: docSnap.id, ...docSnap.data() } as Product;
-          setProduct(p);
-          document.title = `${p.name} - KIKS Collections`;
+        if (!cancelled) {
+          if (docSnap.exists()) {
+            const p = { id: docSnap.id, ...docSnap.data() } as Product;
+            setProduct(p);
+            document.title = `${p.name} - KIKS Collections`;
+          }
+          setLoading(false);
         }
-      } catch {
-        /* product not found */
+      } catch (e) {
+        if (!cancelled) {
+          console.error("Product fetch error:", e);
+          setLoading(false);
+        }
       }
-      setLoading(false);
+      clearTimeout(timeoutId);
     };
     fetchProduct();
+    return () => { cancelled = true; };
   }, [params.id]);
 
   const handleAddToCart = () => {
