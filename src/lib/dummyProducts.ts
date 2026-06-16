@@ -20,7 +20,7 @@ let imageIndex = 0;
 function imgUrl(): string {
   const id = UNSPLASH_IDS[imageIndex % UNSPLASH_IDS.length];
   imageIndex++;
-  return `https://unsplash.com/photos/${id}/download?w=400`;
+  return `https://images.unsplash.com/photo-${id}?w=400&h=400&fit=crop&auto=format`;
 }
 
 function pick<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)]; }
