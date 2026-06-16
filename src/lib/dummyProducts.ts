@@ -170,15 +170,15 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
-    name: "BRILLIANT BEADS JEWELS Alloy White Crystal Earring Set",
-    description: "Crystalline white jewelry set that sparkles with every movement. Made from high-quality alloy with a rhodium-plated finish for extra shine. Features beautiful crystal stone work in a modern floral design.",
+    name: "BRILLIANT BEADS JEWELS Alloy Rhodium Crystal Nose Pin Set",
+    description: "Elegant set of 3 nosepins featuring sparkling crystal stones in a rhodium-plated alloy setting. Includes a stud, a hoop, and a drop-style nosepin. Hypoallergenic and nickel-free for sensitive skin. Adjustable screw posts for a secure fit.",
     design: "DS-2410", images: [imgUrl(), imgUrl()],
-    videoUrl: "", price: 167, originalPrice: 599, badge: "offer", costPrice: 83,
-    weight: 22.4, metalType: "Silver", stoneType: "Cubic Zirconia", stoneWeight: 3.0,
-    makingCharge: 35, warranty: "3 months", sku: "SKU-BRI-010", quantityInStock: 35,
+    videoUrl: "", price: 89, originalPrice: 399, badge: "offer", costPrice: 44,
+    weight: 3.2, metalType: "Silver", stoneType: "Cubic Zirconia", stoneWeight: 0.5,
+    makingCharge: 15, warranty: "3 months", sku: "SKU-BRI-010", quantityInStock: 35,
     isActive: true, isFeatured: false, brand: "BRILLIANT BEADS JEWELS", modelNo: "MOD-BRI-2410",
     baseMaterial: "Alloy", plating: "Rhodium", color: "White",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Everyday",
+    productType: "Nosepin", idealFor: "Women", netQuantity: 3, occasion: "Everyday",
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -242,15 +242,15 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
-    name: "KONASA Brass Gold-plated Green Emerald Stud Earrings",
-    description: "Stunning emerald green stud earrings set in a gold-plated brass base. The gemstone-cut glass stones catch light beautifully. Classic round shape with secure screw-back posts.",
+    name: "KONASA Brass Gold-plated Green Enamel Floral Brooch",
+    description: "Exquisite floral brooch crafted from brass with rich gold plating and vibrant green enamel detailing. Features layered petals with a sparkling crystal center. Secure pin closure on the back. Perfect accessory for sarees, blazers, and formal wear.",
     design: "DS-2416", images: [imgUrl(), imgUrl()],
-    videoUrl: "", price: 219, originalPrice: 1699, badge: "price_dropped", costPrice: 109,
-    weight: 12.8, metalType: "Gold", stoneType: "Emerald", stoneWeight: 1.5,
-    makingCharge: 40, warranty: "1 year", sku: "SKU-KON-016", quantityInStock: 25,
+    videoUrl: "", price: 145, originalPrice: 899, badge: "price_dropped", costPrice: 72,
+    weight: 8.5, metalType: "Gold", stoneType: "Cubic Zirconia", stoneWeight: 0.5,
+    makingCharge: 25, warranty: "1 year", sku: "SKU-KON-016", quantityInStock: 25,
     isActive: true, isFeatured: false, brand: "KONASA", modelNo: "MOD-KON-2416",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Green",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Workwear",
+    productType: "Brooch", idealFor: "Women", netQuantity: 1, occasion: "Workwear",
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -422,15 +422,15 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
-    name: "Vivanta Alloy Rose Gold-plated Pink Crystal Bracelet",
-    description: "Delicate rose gold bracelet with pink crystal accents. The chain features alternating crystal and metal bead patterns. Adjustable length with a secure lobster clasp. Perfect for stacking or wearing alone.",
+    name: "Vivanta Alloy Rose Gold-plated Crystal Hair Accessory Set",
+    description: "Beautiful set of 4 rose gold hair accessories including a crystal-encrusted hair comb, a decorative hairpin, a flexible headband, and mini claw clips. Adorned with sparkling pink crystals on an alloy base with rose gold plating. Perfect for bridal and party hairstyles.",
     design: "DS-2431", images: [imgUrl(), imgUrl()],
-    videoUrl: "", price: 170, originalPrice: 1299, badge: "offer", costPrice: 85,
-    weight: 10.5, metalType: "Rose Gold", stoneType: "Cubic Zirconia", stoneWeight: 0.5,
-    makingCharge: 25, warranty: "3 months", sku: "SKU-VIV-031", quantityInStock: 35,
+    videoUrl: "", price: 220, originalPrice: 999, badge: "offer", costPrice: 110,
+    weight: 18.0, metalType: "Rose Gold", stoneType: "Cubic Zirconia", stoneWeight: 1.0,
+    makingCharge: 35, warranty: "3 months", sku: "SKU-VIV-031", quantityInStock: 35,
     isActive: true, isFeatured: false, brand: "Vivanta", modelNo: "MOD-VIV-2431",
     baseMaterial: "Alloy", plating: "Rose Gold-plated", color: "Pink",
-    productType: "Bracelet", idealFor: "Women", netQuantity: 1, occasion: "Dailywear",
+    productType: "Hair Accessory", idealFor: "Women", netQuantity: 4, occasion: "Wedding",
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -663,9 +663,10 @@ const products: Omit<DummyProduct, "categoryId">[] = [
   },
 ];
 
-export function generateDummyProducts(categoryId: string): DummyProduct[] {
-  return products.map((p) => ({
+export function generateDummyProducts(categoryIds: string[]): DummyProduct[] {
+  if (!categoryIds.length) return [];
+  return products.map((p, i) => ({
     ...p,
-    categoryId,
+    categoryId: categoryIds[i % categoryIds.length],
   }));
 }

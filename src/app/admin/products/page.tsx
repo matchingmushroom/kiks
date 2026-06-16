@@ -165,14 +165,14 @@ export default function AdminProductsPage() {
 
   const handleSeed = async () => {
     if (!categories.length) { alert("No categories found. Create a category first."); return; }
-    if (!confirm(`Add 50 dummy products to the category "${categories[0].name}"?`)) return;
+    if (!confirm(`Add 50 dummy products across ${categories.length} categories (${categories.map(c => c.name).join(", ")})?`)) return;
     setSeeding(true);
     try {
-      const dummyProducts = generateDummyProducts(categories[0].id);
+      const dummyProducts = generateDummyProducts(categories.map(c => c.id));
       for (const p of dummyProducts) {
         await addDoc(collection(db, "products"), p);
       }
-      alert(`Added ${dummyProducts.length} dummy products successfully.`);
+      alert(`Added ${dummyProducts.length} dummy products across ${categories.length} categories successfully.`);
     } catch (e) {
       console.error("Seed failed", e);
       alert("Failed to seed products.");
