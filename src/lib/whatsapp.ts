@@ -8,23 +8,41 @@ export function generateWhatsAppLink(
   customerName: string,
   customerPhone: string,
   customerAddress: string,
+  couponCode?: string,
+  discount?: number,
 ): string {
   const lines = items.map(
     (item) =>
       `• ${item.name} (ID: ${item.productId}) x${item.quantity} — Rs. ${formatNumber(item.price * item.quantity)}`
   );
-  const message = [
+  const messageParts = [
     `*New Order from ${customerName}*`,
     `Phone: ${customerPhone}`,
     `Address: ${customerAddress}`,
     "",
     ...lines,
     "",
-    `*Total: Rs. ${formatNumber(total)}*`,
-    "",
-    "Thank you!",
-  ].join("\n");
+  ];
+  if (couponCode && discount && discount > 0) {
+    messageParts.push(`*Coupon:* ${couponCode} (-Rs. ${formatNumber(discount)})`);
+    messageParts.push("");
+  }
+  messageParts.push(`*Total: Rs. ${formatNumber(total)}*`);
+  messageParts.push("");
+  messageParts.push("Thank you!");
 
+  const message = messageParts.join("\n");
   const encoded = encodeURIComponent(message);
   return `https://wa.me/${phone}?text=${encoded}`;
+}
+
+export function openWhatsApp(url: string): void {
+  const a = document.createElement("a");
+  a.href = url;
+  a.target = "_self";
+  a.rel = "noopener noreferrer";
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }

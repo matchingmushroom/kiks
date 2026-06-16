@@ -6,7 +6,7 @@ import { collection, addDoc, Timestamp, getDocs, query, where, doc, updateDoc } 
 import { db } from "@/lib/firebase";
 import { useCart } from "@/contexts/CartContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
-import { generateWhatsAppLink } from "@/lib/whatsapp";
+import { generateWhatsAppLink, openWhatsApp } from "@/lib/whatsapp";
 import { generateOrderNumber, formatNumber } from "@/lib/utils";
 import { Coupon } from "@/types";
 import { Trash2, Minus, Plus, Tag, CheckCircle, XCircle } from "lucide-react";
@@ -55,14 +55,18 @@ export default function CartPage() {
         return;
       }
 
-      const coupon = { id: snap.docs[0].id, ...snap.docs[0].data() } as Coupon;
+      const data = snap.docs[0].data();
+      const coupon = { id: snap.docs[0].id, ...data } as Coupon;
       const now = Date.now();
 
-      if (coupon.validFrom && now < coupon.validFrom) {
+      const validFrom = data.validFrom && typeof data.validFrom.toMillis === "function" ? data.validFrom.toMillis() : Number(data.validFrom) || 0;
+      const validUntil = data.validUntil && typeof data.validUntil.toMillis === "function" ? data.validUntil.toMillis() : Number(data.validUntil) || 0;
+
+      if (validFrom && now < validFrom) {
         setCouponError("Coupon is not yet valid");
         return;
       }
-      if (coupon.validUntil && now > coupon.validUntil) {
+      if (validUntil && now > validUntil) {
         setCouponError("Coupon has expired");
         return;
       }
@@ -135,8 +139,10 @@ export default function CartPage() {
         customerName,
         customerPhone,
         customerAddress,
+        appliedCoupon?.code,
+        discount,
       );
-      window.location.href = waLink;
+      openWhatsApp(waLink);
     } catch {
       setOrdering(false);
     }

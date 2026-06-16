@@ -9,6 +9,7 @@ import { Invoice } from "@/types";
 import { formatCurrency, formatDate, amountInWords } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Printer, Download, Share2, ArrowLeft, RefreshCw, CheckCircle, XCircle } from "lucide-react";
+import { openWhatsApp } from "@/lib/whatsapp";
 import Link from "next/link";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import InvoicePDF from "@/components/invoice/InvoicePDF";
@@ -104,7 +105,7 @@ export default function InvoiceDetailPage() {
     if (!invoice) return;
     const url = `${window.location.origin}/invoice/${invoice.id}`;
     const msg = `Your ${invoice.type === "invoice" ? "Invoice" : "Estimate"} #${invoice.invoiceNumber} is ready: ${url}`;
-    window.location.href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    openWhatsApp(`https://wa.me/?text=${encodeURIComponent(msg)}`);
   };
 
   if (loading) {

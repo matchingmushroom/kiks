@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { Search, ChevronDown, ChevronUp, ExternalLink, MessageCircle, X } from "lucide-react";
 import Link from "next/link";
+import { openWhatsApp } from "@/lib/whatsapp";
 
 const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"] as const;
 const STATUS_COLORS: Record<string, string> = {
@@ -78,7 +79,7 @@ export default function AdminOrdersPage() {
     }
 
     const msg = encodeURIComponent(lines.join("\n"));
-    window.location.href = `https://wa.me/${order.customer.phone}?text=${msg}`;
+    openWhatsApp(`https://wa.me/${order.customer.phone}?text=${msg}`);
   };
 
   const notifyDelivered = (order: Order) => {
