@@ -42,12 +42,14 @@ function HeroSection({ section }: { section: HomeSection }) {
 }
 
 function CategoryGridSection() {
-  const { data: categories, loading } = useCollection<Category>("categories", {
+  const { data: categories, loading, error } = useCollection<Category>("categories", {
     where: [["isActive", "==", true]],
     orderBy: ["order", "asc"],
   });
 
-  if (loading || categories.length === 0) return null;
+  if (loading) return null;
+  if (error) return <p className="text-red-500 text-center py-4">Failed to load categories.</p>;
+  if (categories.length === 0) return null;
 
   return (
     <section className="py-16 bg-muted">
@@ -74,7 +76,7 @@ function CategoryGridSection() {
 }
 
 function FeaturedProductsSection() {
-  const { data: products, loading } = useCollection<ProductType>("products", {
+  const { data: products, loading, error } = useCollection<ProductType>("products", {
     where: [
       ["isActive", "==", true],
       ["isFeatured", "==", true],
@@ -83,7 +85,9 @@ function FeaturedProductsSection() {
     limit: 8,
   });
 
-  if (loading || products.length === 0) return null;
+  if (loading) return null;
+  if (error) return <p className="text-red-500 text-center py-4">Failed to load featured products.</p>;
+  if (products.length === 0) return null;
 
   return (
     <section className="py-16 bg-white">
@@ -103,13 +107,15 @@ function FeaturedProductsSection() {
 }
 
 function NewArrivalsSection() {
-  const { data: products, loading } = useCollection<ProductType>("products", {
+  const { data: products, loading, error } = useCollection<ProductType>("products", {
     where: [["isActive", "==", true]],
     orderBy: ["createdAt", "desc"],
     limit: 4,
   });
 
-  if (loading || products.length === 0) return null;
+  if (loading) return null;
+  if (error) return <p className="text-red-500 text-center py-4">Failed to load products.</p>;
+  if (products.length === 0) return null;
 
   return (
     <section className="py-16 bg-muted">
@@ -185,7 +191,9 @@ function HomeContent() {
               config: {},
             }}
           />
+          <FeaturedProductsSection />
           <CategoryGridSection />
+          <NewArrivalsSection />
         </>
       )}
     </main>

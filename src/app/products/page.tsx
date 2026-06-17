@@ -10,11 +10,11 @@ import ShopFooter from "@/components/shop/ShopFooter";
 export default function ProductsPage() {
   useEffect(() => { document.title = "Products - KIKS Collections"; }, []);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const { data: categories } = useCollection<Category>("categories", {
+  const { data: categories, error: catError } = useCollection<Category>("categories", {
     where: [["isActive", "==", true]],
     orderBy: ["order", "asc"],
   });
-  const { data: products, loading } = useCollection<Product>("products", {
+  const { data: products, loading, error: prodError } = useCollection<Product>("products", {
     where: [["isActive", "==", true]],
     orderBy: ["createdAt", "desc"],
   });
@@ -60,6 +60,10 @@ export default function ProductsPage() {
 
         {loading ? (
           <div className="text-center py-16 text-muted-foreground">Loading products...</div>
+        ) : prodError || catError ? (
+          <div className="text-center py-16">
+            <p className="text-red-500">Failed to load products. Please try again later.</p>
+          </div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-muted-foreground">No products found in this category.</p>

@@ -11,12 +11,12 @@ export default function CategoryProductsPage() {
   const params = useParams();
   const categoryId = params.category as string;
 
-  const { data: categories } = useCollection<Category>("categories", {
+  const { data: categories, error: catError } = useCollection<Category>("categories", {
     where: [["isActive", "==", true]],
   });
   const category = categories.find((c) => c.id === categoryId);
 
-  const { data: products, loading } = useCollection<Product>("products", {
+  const { data: products, loading, error: prodError } = useCollection<Product>("products", {
     where: [
       ["isActive", "==", true],
       ["categoryId", "==", categoryId],
@@ -37,6 +37,10 @@ export default function CategoryProductsPage() {
 
         {loading ? (
           <div className="text-center py-16 text-muted-foreground">Loading products...</div>
+        ) : prodError || catError ? (
+          <div className="text-center py-16">
+            <p className="text-red-500">Failed to load products. Please try again later.</p>
+          </div>
         ) : products.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-muted-foreground">No products found in this category.</p>
