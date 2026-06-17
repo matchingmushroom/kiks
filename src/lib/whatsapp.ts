@@ -37,5 +37,5 @@ export function generateWhatsAppLink(
 }
 
 export function openWhatsApp(url: string): void {
-  window.open(url, "_blank", "noopener,noreferrer");
+  window.location.href = url;
 }

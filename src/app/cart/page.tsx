@@ -6,7 +6,7 @@ import { collection, addDoc, Timestamp, getDocs, query, where, doc, updateDoc } 
 import { db } from "@/lib/firebase";
 import { useCart } from "@/contexts/CartContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
-import { generateWhatsAppLink, openWhatsApp } from "@/lib/whatsapp";
+import { generateWhatsAppLink } from "@/lib/whatsapp";
 import { generateOrderNumber, formatNumber } from "@/lib/utils";
 import { Coupon } from "@/types";
 import { Trash2, Minus, Plus, Tag, CheckCircle, XCircle } from "lucide-react";
@@ -132,17 +132,19 @@ export default function CartPage() {
       setOrderNumber(orderNum);
       setOrderPlaced(true);
 
-      const waLink = generateWhatsAppLink(
-        settings.whatsappNumber || "977XXXXXXXXX",
-        items,
-        finalTotal,
-        customerName,
-        customerPhone,
-        customerAddress,
-        appliedCoupon?.code,
-        discount,
-      );
-      openWhatsApp(waLink);
+      setTimeout(() => {
+        const waLink = generateWhatsAppLink(
+          settings.whatsappNumber || "977XXXXXXXXX",
+          items,
+          finalTotal,
+          customerName,
+          customerPhone,
+          customerAddress,
+          appliedCoupon?.code,
+          discount,
+        );
+        window.location.href = waLink;
+      }, 1500);
     } catch {
       setOrdering(false);
     }
