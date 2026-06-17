@@ -98,7 +98,10 @@ export default function CartPage() {
     setOrdering(true);
 
     try {
+      console.log("[cart] generating order number...");
       const orderNum = generateOrderNumber();
+      console.log("[cart] order number:", orderNum);
+      console.log("[cart] items count:", items.length);
       const itemsData = items.map((i) => ({
         productId: i.productId,
         productName: i.name,
@@ -123,7 +126,9 @@ export default function CartPage() {
         createdAt: Timestamp.fromDate(new Date()),
       };
 
+      console.log("[cart] saving to firestore...");
       const orderRef = await addDoc(collection(db, "orders"), orderData);
+      console.log("[cart] saved, id:", orderRef.id);
 
       if (appliedCoupon) {
         await updateDoc(doc(db, "coupons", appliedCoupon.id), {
@@ -132,6 +137,7 @@ export default function CartPage() {
         });
       }
 
+      console.log("[cart] generating whatsapp link...");
       setOrderNumber(orderNum);
 
       const wLink = generateWhatsAppLink(
@@ -144,11 +150,13 @@ export default function CartPage() {
         appliedCoupon?.code,
         discount,
       );
+      console.log("[cart] setting success state");
       setWaLink(wLink);
       setOrderPlaced(true);
+      console.log("[cart] DONE");
     } catch (err) {
-      console.error("Order failed:", err);
-      setOrderError("Failed to place order. Check console for details.");
+      console.error("[cart] Order failed:", err);
+      setOrderError("Failed to place order: " + (err instanceof Error ? err.message : "Unknown error"));
       setOrdering(false);
     }
   };
