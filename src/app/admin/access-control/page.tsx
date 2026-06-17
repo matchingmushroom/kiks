@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { AppUser } from "@/types";
-import { doc, updateDoc, Timestamp } from "firebase/firestore";
+import { doc, updateDoc, Timestamp, deleteField } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -91,7 +91,7 @@ export default function AccessControlPage() {
     setSaving(true);
     try {
       await updateDoc(doc(db, "users", editingUserId), {
-        permissions: editPermissions,
+        permissions: editPermissions.length > 0 ? editPermissions : deleteField(),
         updatedAt: Timestamp.fromDate(new Date()),
       });
       setEditingUserId(null);
@@ -102,10 +102,7 @@ export default function AccessControlPage() {
   };
 
   const resetToRoleDefaults = () => {
-    const user = users.find((u) => u.uid === editingUserId);
-    if (user) {
-      setEditPermissions([]);
-    }
+    setEditPermissions([]);
   };
 
   return (
