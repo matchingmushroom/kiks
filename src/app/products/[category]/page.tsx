@@ -21,7 +21,6 @@ export default function CategoryProductsPage() {
       ["isActive", "==", true],
       ["categoryId", "==", categoryId],
     ],
-    orderBy: ["createdAt", "desc"],
   });
 
   return (

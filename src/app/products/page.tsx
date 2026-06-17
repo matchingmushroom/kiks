@@ -12,11 +12,9 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const { data: categories, error: catError } = useCollection<Category>("categories", {
     where: [["isActive", "==", true]],
-    orderBy: ["order", "asc"],
   });
   const { data: products, loading, error: prodError } = useCollection<Product>("products", {
     where: [["isActive", "==", true]],
-    orderBy: ["createdAt", "desc"],
   });
 
   const filtered = selectedCategory === "all"
