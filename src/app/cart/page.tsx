@@ -9,7 +9,7 @@ import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { generateWhatsAppLink } from "@/lib/whatsapp";
 import { generateOrderNumber, formatNumber } from "@/lib/utils";
 import { Coupon } from "@/types";
-import { Trash2, Minus, Plus, Tag, CheckCircle, XCircle } from "lucide-react";
+import { Trash2, Minus, Plus, Tag, CheckCircle, XCircle, ExternalLink } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 
@@ -132,19 +132,17 @@ export default function CartPage() {
       setOrderNumber(orderNum);
       setOrderPlaced(true);
 
-      setTimeout(() => {
-        const waLink = generateWhatsAppLink(
-          settings.whatsappNumber || "977XXXXXXXXX",
-          items,
-          finalTotal,
-          customerName,
-          customerPhone,
-          customerAddress,
-          appliedCoupon?.code,
-          discount,
-        );
-        window.location.href = waLink;
-      }, 1500);
+      const waLink = generateWhatsAppLink(
+        settings.whatsappNumber || "977XXXXXXXXX",
+        items,
+        finalTotal,
+        customerName,
+        customerPhone,
+        customerAddress,
+        appliedCoupon?.code,
+        discount,
+      );
+      window.open(waLink, "_blank");
     } catch {
       setOrdering(false);
     }
@@ -160,8 +158,18 @@ export default function CartPage() {
             <h1 className="text-2xl font-bold text-secondary mb-2">Order Placed!</h1>
             <p className="text-muted-foreground mb-2">Order #{orderNumber}</p>
             <p className="text-sm text-muted-foreground mb-6">
-              Your order details have been sent via WhatsApp. Our team will contact you shortly.
+              Your order has been placed. WhatsApp should open in a new tab to send your order details.
             </p>
+            {settings.whatsappNumber && settings.whatsappNumber !== "977XXXXXXXXX" && (
+              <a
+                href={`https://wa.me/${settings.whatsappNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm text-green-600 hover:text-green-700 font-medium mb-4"
+              >
+                <ExternalLink className="h-4 w-4" /> Open WhatsApp
+              </a>
+            )}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
                 href="/products"
