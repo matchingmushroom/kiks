@@ -94,6 +94,8 @@ export default function CartPage() {
     if (!customerName || !customerPhone) return;
     setOrdering(true);
 
+    const waWindow = window.open("", "_blank");
+
     try {
       const orderNum = generateOrderNumber();
       const itemsData = items.map((i) => ({
@@ -142,9 +144,15 @@ export default function CartPage() {
         appliedCoupon?.code,
         discount,
       );
-      window.open(waLink, "_blank");
+
+      if (waWindow) {
+        waWindow.location.href = waLink;
+      } else {
+        window.location.href = waLink;
+      }
     } catch {
       setOrdering(false);
+      if (waWindow) waWindow.close();
     }
   };
 

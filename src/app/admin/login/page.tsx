@@ -83,7 +83,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-                placeholder="admin@kiks.com.np"
+                placeholder="Enter your email"
                 required
                 autoFocus
               />
@@ -95,7 +95,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-shadow"
-                placeholder="Enter password"
+                placeholder="Enter your password"
                 required
               />
             </div>
