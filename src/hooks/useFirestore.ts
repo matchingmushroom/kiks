@@ -35,7 +35,7 @@ export function useFirestore<T>(
       const unsub = onSnapshot(
         q,
         (snapshot) => {
-          const docs = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as T));
+          const docs = snapshot.docs.map((d) => ({ ...d.data(), id: d.id, uid: d.id } as T));
           setData(docs);
           setLoading(false);
         },
