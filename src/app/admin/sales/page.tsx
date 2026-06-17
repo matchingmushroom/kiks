@@ -55,7 +55,7 @@ function SalesContent() {
   const { data: allCustomers } = useFirestore<Customer>("customers", {
     constraints: [orderBy("name", "asc")],
   });
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const [search, setSearch] = useState(customerFilter || "");
   const [paymentFilter, setPaymentFilter] = useState("all");
@@ -69,6 +69,7 @@ function SalesContent() {
   const [manualCustomer, setManualCustomer] = useState(false);
   const [orderData, setOrderData] = useState<Order | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(false);
+  const [detailSale, setDetailSale] = useState<Sale | null>(null);
 
   const filteredSales = useMemo(() => {
     let result = sales;
@@ -161,11 +162,14 @@ function SalesContent() {
   };
 
   const addItem = (product: Product) => {
+    const stock = product.quantityInStock ?? 0;
+    if (stock <= 0) return;
     const existing = form.items.find((i) => i.productId === product.id);
     if (existing) {
+      const newQty = Math.min(existing.quantity + 1, stock);
       const items = form.items.map((i) =>
         i.productId === product.id
-          ? { ...i, quantity: i.quantity + 1, subtotal: (i.quantity + 1) * i.unitPrice }
+          ? { ...i, quantity: newQty, subtotal: newQty * i.unitPrice }
           : i
       );
       const calc = recalc(items, form.discountAmount, form.receivedAmount);
@@ -222,6 +226,13 @@ function SalesContent() {
     if (!form.customerName || form.items.length === 0) return;
     setSaving(true);
     try {
+      for (const item of form.items) {
+        const product = products.find((p) => p.id === item.productId);
+        const stock = product?.quantityInStock ?? 0;
+        if (item.quantity > stock) {
+          throw new Error(`Insufficient stock for ${item.productName}. Available: ${stock}, requested: ${item.quantity}`);
+        }
+      }
       const itemsWithCost = form.items.map((item) => {
         const product = products.find((p) => p.id === item.productId);
         return { ...item, costPriceAtSale: product?.costPrice || 0 };
@@ -351,6 +362,7 @@ function SalesContent() {
         validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
         relatedSaleId: saleRef.id,
         generatedBy: user?.uid || "",
+        createdByName: profile?.displayName || "",
         couponIssued: couponCode ? { code: couponCode, discountValue: 10 } : undefined,
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
@@ -519,7 +531,9 @@ function SalesContent() {
                       <button key={p.id} onClick={() => addItem(p)}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-muted flex items-center justify-between">
                         <span>{p.name}</span>
-                        <span className="text-muted-foreground text-xs">{formatCurrency(p.price)}</span>
+                        <span className={`text-xs ${(p.quantityInStock ?? 0) <= 0 ? "text-red-500" : "text-muted-foreground"}`}>
+                          {formatCurrency(p.price)} &middot; Stock: {p.quantityInStock ?? 0}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -528,22 +542,45 @@ function SalesContent() {
               {form.items.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">No items added yet. Search and add products above.</p>
               ) : (
-                <div className="border border-border rounded-lg divide-y divide-border">
-                  {form.items.map((item, i) => (
-                    <div key={i} className="flex items-center gap-2 px-3 py-2 text-sm">
-                      <span className="flex-1 min-w-0 truncate">{item.productName}</span>
-                      <input type="number" value={item.quantity} min={1}
-                        onChange={(e) => updateItem(i, "quantity", Number(e.target.value))}
-                        className="w-16 px-2 py-1 border border-border rounded text-xs text-center" />
-                      <input type="number" value={item.unitPrice}
-                        onChange={(e) => updateItem(i, "unitPrice", Number(e.target.value))}
-                        className="w-24 px-2 py-1 border border-border rounded text-xs text-right" />
-                      <span className="w-24 text-right font-medium text-xs">{formatCurrency(item.subtotal)}</span>
-                      <button onClick={() => removeItem(i)} className="p-1 text-red-500 hover:bg-red-50 rounded">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ))}
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/20 font-medium">
+                    <span className="flex-1">Product</span>
+                    <span className="w-12 text-center">Stock</span>
+                    <span className="w-16 text-center">Qty</span>
+                    <span className="w-24 text-right">Unit Price</span>
+                    <span className="w-24 text-right">Subtotal</span>
+                    <span className="w-8" />
+                  </div>
+                  <div className="divide-y divide-border">
+                    {form.items.map((item, i) => {
+                      const product = products.find((p) => p.id === item.productId);
+                      const maxStock = product?.quantityInStock ?? 0;
+                      const exceedsStock = item.quantity > maxStock;
+                      return (
+                        <div key={i} className="flex items-center gap-2 px-3 py-2 text-sm">
+                          <span className="flex-1 min-w-0 truncate">{item.productName}</span>
+                          <span className={`w-12 text-center text-xs ${maxStock <= 0 ? "text-red-500" : "text-muted-foreground"}`}>
+                            {maxStock}
+                          </span>
+                          <input type="number" value={item.quantity} min={1} max={Math.max(1, maxStock)}
+                            onChange={(e) => {
+                              let val = Number(e.target.value);
+                              if (val > maxStock) val = maxStock;
+                              if (val < 1) val = 1;
+                              updateItem(i, "quantity", val);
+                            }}
+                            className={`w-16 px-2 py-1 border rounded text-xs text-center ${exceedsStock ? "border-red-400 bg-red-50" : "border-border"}`} />
+                          <input type="number" value={item.unitPrice}
+                            onChange={(e) => updateItem(i, "unitPrice", Number(e.target.value))}
+                            className="w-24 px-2 py-1 border border-border rounded text-xs text-right" />
+                          <span className="w-24 text-right font-medium text-xs">{formatCurrency(item.subtotal)}</span>
+                          <button onClick={() => removeItem(i)} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             </div>
@@ -645,7 +682,7 @@ function SalesContent() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {filteredSales.map((s) => (
             <div key={s.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-              <Link href={`/admin/sales/${s.id}`} className="block space-y-2">
+              <button onClick={() => setDetailSale(s)} className="block space-y-2 w-full text-left">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-secondary text-sm truncate">{s.customer?.name}</p>
@@ -662,11 +699,11 @@ function SalesContent() {
                   <span className="text-muted-foreground">{formatDate(s.saleDate)}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">{s.items?.length || 0} items</p>
-              </Link>
-              <Link href={`/admin/sales/${s.id}`}
+              </button>
+              <button onClick={() => setDetailSale(s)}
                 className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                 <Eye className="h-3 w-3" /> View Details
-              </Link>
+              </button>
             </div>
           ))}
         </div>
@@ -698,10 +735,10 @@ function SalesContent() {
                   </td>
                   <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(s.saleDate)}</td>
                   <td className="px-4 py-2.5 text-right">
-                    <Link href={`/admin/sales/${s.id}`}
+                    <button onClick={() => setDetailSale(s)}
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                       <Eye className="h-3.5 w-3.5" /> View
-                    </Link>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -710,7 +747,95 @@ function SalesContent() {
         </div>
       )}
 
-      {/* Sale detail page at /admin/sales/[id] */}
+      {detailSale && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setDetailSale(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full my-8" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-border bg-muted/20 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-secondary">Sale Details</h2>
+              <button onClick={() => setDetailSale(null)} className="p-1 hover:bg-muted rounded">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-6">
+              <div>
+                <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Customer</h3>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div><span className="text-muted-foreground">Name:</span> <span className="font-medium ml-1">{detailSale.customer?.name}</span></div>
+                  <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium ml-1">{detailSale.customer?.phone}</span></div>
+                  {detailSale.customer?.address && <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="font-medium ml-1">{detailSale.customer.address}</span></div>}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Items</h3>
+                <div className="border border-border rounded-lg divide-y divide-border">
+                  <div className="flex items-center px-4 py-2 text-xs text-muted-foreground bg-muted/20 font-medium">
+                    <span className="flex-1">Product</span>
+                    <span className="w-16 text-center">Qty</span>
+                    <span className="w-24 text-right">Unit Price</span>
+                    <span className="w-24 text-right">Subtotal</span>
+                  </div>
+                  {detailSale.items?.map((item, i) => (
+                    <div key={i} className="flex items-center px-4 py-2.5 text-sm">
+                      <span className="flex-1">{item.productName}</span>
+                      <span className="w-16 text-center text-muted-foreground">×{item.quantity}</span>
+                      <span className="w-24 text-right">{formatCurrency(item.unitPrice)}</span>
+                      <span className="w-24 text-right font-medium">{formatCurrency(item.subtotal || item.unitPrice * item.quantity)}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between px-4 py-3 text-sm font-bold bg-muted/10">
+                    <span>Total</span>
+                    <span>{formatCurrency(detailSale.totalAmount || 0)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Payment</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Method</span><span className="font-medium capitalize">{detailSale.payment?.method || "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Received</span><span className="font-medium">{formatCurrency(detailSale.payment?.receivedAmount || 0)}</span></div>
+                    {(detailSale.payment?.balanceDue ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Balance Due</span><span className="font-medium text-red-600">{formatCurrency(detailSale.payment!.balanceDue)}</span></div>}
+                    {(detailSale.discountAmount ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-medium text-red-500">-{formatCurrency(detailSale.discountAmount!)}</span></div>}
+                    <div className="flex justify-between pt-1 border-t border-border"><span className="font-bold">Final Amount</span><span className="font-bold">{formatCurrency(detailSale.finalAmount)}</span></div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Warranty</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between"><span className="text-muted-foreground">Period</span><span className="font-medium">{detailSale.warranty?.period || "None"}</span></div>
+                    {detailSale.warranty?.terms && <div className="flex justify-between"><span className="text-muted-foreground">Terms</span><span className="font-medium">{detailSale.warranty.terms}</span></div>}
+                  </div>
+                </div>
+              </div>
+
+              {detailSale.couponIssued && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Coupon Issued</h3>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                    <span className="font-mono font-medium text-blue-700">{detailSale.couponIssued.code}</span>
+                    <span className="text-blue-500">•</span>
+                    <span className="text-blue-600">-{formatCurrency(detailSale.couponIssued.discountValue)}</span>
+                  </div>
+                </div>
+              )}
+
+              {detailSale.notes && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Notes</h3>
+                  <p className="text-sm bg-muted/20 p-3 rounded-lg">{detailSale.notes}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
+                <p>Sale Date: {formatDateTime(detailSale.saleDate)}</p>
+                <p>Recorded By: {detailSale.recordedBy || "—"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

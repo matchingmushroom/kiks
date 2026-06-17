@@ -156,6 +156,7 @@ export interface Invoice {
   validUntil: number;
   relatedSaleId: string;
   generatedBy: string;
+  createdByName: string;
   couponIssued?: { code: string; discountValue: number };
   createdAt: number;
   updatedAt: number;
@@ -213,6 +214,7 @@ export interface PurchaseItem {
   sku: string;
   quantity: number;
   unitCost: number;
+  salesPrice: number;
   subtotal: number;
 }
 

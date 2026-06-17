@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useAuth } from "@/contexts/AuthContext";
 import { Product, Customer } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ interface LineItem {
 
 export default function NewInvoicePage() {
   const router = useRouter();
+  const { profile } = useAuth();
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc")],
   });
@@ -129,6 +131,7 @@ export default function NewInvoicePage() {
         validUntil: validUntil ? Timestamp.fromDate(new Date(validUntil)) : null,
         relatedSaleId: "",
         generatedBy: "",
+        createdByName: profile?.displayName || "",
         createdAt: Timestamp.fromDate(now),
         updatedAt: Timestamp.fromDate(now),
       });

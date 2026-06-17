@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
+import { useAuth } from "@/contexts/AuthContext";
 import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, Timestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Invoice } from "@/types";
@@ -27,6 +28,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function InvoiceDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { profile } = useAuth();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
   const [shopName, setShopName] = useState("KIKS Collections");
@@ -85,6 +87,7 @@ export default function InvoiceDetailPage() {
         invoiceNumber: invoiceNum,
         status: "draft",
         relatedSaleId: invoice.id,
+        createdByName: profile?.displayName || invoice.createdByName || "",
         createdAt: Timestamp.fromDate(now),
         updatedAt: Timestamp.fromDate(now),
       });
@@ -237,6 +240,9 @@ export default function InvoiceDetailPage() {
               <div className="text-right">
                 <p className="text-xs text-muted-foreground uppercase mb-1">Date</p>
                 <p className="text-sm">{formatDate(invoice.createdAt as unknown as number)}</p>
+                {invoice.createdByName && (
+                  <p className="text-xs text-muted-foreground mt-3 mb-1">Created by: {invoice.createdByName}</p>
+                )}
                 {invoice.type === "estimate" && invoice.validUntil && (
                   <>
                     <p className="text-xs text-muted-foreground uppercase mt-3 mb-1">Valid Until</p>

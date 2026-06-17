@@ -139,6 +139,9 @@ export default function PublicInvoicePage() {
               <div className="text-right">
                 <p className="text-xs text-muted-foreground uppercase mb-1">Date</p>
                 <p className="text-sm">{formatDate(invoice.createdAt as unknown as number)}</p>
+                {invoice.createdByName && (
+                  <p className="text-xs text-muted-foreground mt-3 mb-1">Created by: {invoice.createdByName}</p>
+                )}
                 {invoice.type === "estimate" && invoice.validUntil && (
                   <>
                     <p className="text-xs text-muted-foreground uppercase mt-3 mb-1">Valid Until</p>

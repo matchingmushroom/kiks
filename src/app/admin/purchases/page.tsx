@@ -78,6 +78,7 @@ export default function AdminPurchasesPage() {
       sku: product.sku || "",
       quantity: 1,
       unitCost: costPrice,
+      salesPrice: product.price,
       subtotal: costPrice,
     };
     const items = [...form.items, newItem];
@@ -241,6 +242,7 @@ export default function AdminPurchasesPage() {
             await updateDoc(prodRef, {
               quantityInStock: newStock,
               costPrice: newCost,
+              price: item.salesPrice,
             });
           }
           await addDoc(collection(db, "inventoryLogs"), {
@@ -450,22 +452,35 @@ export default function AdminPurchasesPage() {
                 {form.items.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">No items added yet.</p>
                 ) : (
-                  <div className="border border-border rounded-lg divide-y divide-border">
-                    {form.items.map((item, i) => (
-                      <div key={i} className="flex items-center gap-2 px-3 py-2 text-sm">
-                        <span className="flex-1 min-w-0 truncate">{item.productName}</span>
-                        <input type="number" value={item.quantity} min={1}
-                          onChange={(e) => updateItem(i, "quantity", Number(e.target.value))}
-                          className="w-16 px-2 py-1 border border-border rounded text-xs text-center" />
-                        <input type="number" value={item.unitCost}
-                          onChange={(e) => updateItem(i, "unitCost", Number(e.target.value))}
-                          className="w-20 px-2 py-1 border border-border rounded text-xs text-right" placeholder="Cost" />
-                        <span className="w-20 text-right font-medium text-xs">{formatCurrency(item.subtotal)}</span>
-                        <button onClick={() => removeItem(i)} className="p-1 text-red-500 hover:bg-red-50 rounded">
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/20 font-medium">
+                      <span className="flex-1">Product</span>
+                      <span className="w-16 text-center">Buy Qty</span>
+                      <span className="w-20 text-right">Buy Price</span>
+                      <span className="w-20 text-right">Sales Price</span>
+                      <span className="w-20 text-right">Subtotal</span>
+                      <span className="w-8" />
+                    </div>
+                    <div className="divide-y divide-border">
+                      {form.items.map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 px-3 py-2 text-sm">
+                          <span className="flex-1 min-w-0 truncate">{item.productName}</span>
+                          <input type="number" value={item.quantity} min={1}
+                            onChange={(e) => updateItem(i, "quantity", Number(e.target.value))}
+                            className="w-16 px-2 py-1 border border-border rounded text-xs text-center" />
+                          <input type="number" value={item.unitCost}
+                            onChange={(e) => updateItem(i, "unitCost", Number(e.target.value))}
+                            className="w-20 px-2 py-1 border border-border rounded text-xs text-right" />
+                          <input type="number" value={item.salesPrice}
+                            onChange={(e) => updateItem(i, "salesPrice", Number(e.target.value))}
+                            className="w-20 px-2 py-1 border border-border rounded text-xs text-right" />
+                          <span className="w-20 text-right font-medium text-xs">{formatCurrency(item.subtotal)}</span>
+                          <button onClick={() => removeItem(i)} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
