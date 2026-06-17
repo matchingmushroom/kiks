@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Product } from "@/types";
-import { getDocument } from "@/lib/firestoreRest";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import ProductDetailClient from "@/components/shop/ProductDetailClient";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
@@ -26,14 +27,12 @@ export default function ProductPage() {
     if (!id) return;
     let cancelled = false;
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000);
-
     (async () => {
       try {
-        const p = await getDocument<Product>("products", id, controller.signal);
+        const snap = await getDoc(doc(db, "products", id));
         if (cancelled) return;
-        if (p) {
+        if (snap.exists()) {
+          const p = { id: snap.id, ...snap.data() } as Product;
           if (p.images) p.images = p.images.map(fixImageUrl);
           setProduct(p);
         } else {
@@ -41,12 +40,8 @@ export default function ProductPage() {
         }
       } catch (e: any) {
         if (cancelled) return;
-        if (e.name === "AbortError") {
-          setError("Product data is taking longer than expected. Please check your connection and try again.");
-        } else {
-          console.error("Product fetch failed", e);
-          setError("Failed to load product. Please try again later.");
-        }
+        console.error("Product fetch failed", e);
+        setError("Failed to load product. Please try again later.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -54,8 +49,6 @@ export default function ProductPage() {
 
     return () => {
       cancelled = true;
-      clearTimeout(timeoutId);
-      controller.abort();
     };
   }, [id]);
 

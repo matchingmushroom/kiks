@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { getDocument } from "@/lib/firestoreRest";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { Invoice } from "@/types";
 import { formatCurrency, formatDate, amountInWords } from "@/lib/utils";
 import { Printer, Download } from "lucide-react";
@@ -21,10 +22,12 @@ export default function PublicInvoicePage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [inv, settings] = await Promise.all([
-          getDocument<Invoice>("invoices", params.id as string),
-          getDocument<any>("shop_settings", "config"),
+        const [invSnap, settingsSnap] = await Promise.all([
+          getDoc(doc(db, "invoices", params.id as string)),
+          getDoc(doc(db, "shop_settings", "config")),
         ]);
+        const inv = invSnap.exists() ? ({ id: invSnap.id, ...invSnap.data() } as Invoice) : null;
+        const settings = settingsSnap.exists() ? settingsSnap.data() : null;
         if (inv) {
           setInvoice(inv);
           document.title = `${inv.invoiceNumber} - KIKS Collections`;
