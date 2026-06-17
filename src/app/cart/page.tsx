@@ -27,6 +27,7 @@ export default function CartPage() {
   const [ordering, setOrdering] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
+  const [waLink, setWaLink] = useState("");
 
   const discount = appliedCoupon
     ? appliedCoupon.discountType === "percentage"
@@ -94,8 +95,6 @@ export default function CartPage() {
     if (!customerName || !customerPhone) return;
     setOrdering(true);
 
-    const waWindow = window.open("", "_blank");
-
     try {
       const orderNum = generateOrderNumber();
       const itemsData = items.map((i) => ({
@@ -132,9 +131,8 @@ export default function CartPage() {
       }
 
       setOrderNumber(orderNum);
-      setOrderPlaced(true);
 
-      const waLink = generateWhatsAppLink(
+      const wLink = generateWhatsAppLink(
         settings.whatsappNumber || "977XXXXXXXXX",
         items,
         finalTotal,
@@ -144,15 +142,10 @@ export default function CartPage() {
         appliedCoupon?.code,
         discount,
       );
-
-      if (waWindow) {
-        waWindow.location.href = waLink;
-      } else {
-        window.location.href = waLink;
-      }
+      setWaLink(wLink);
+      setOrderPlaced(true);
     } catch {
       setOrdering(false);
-      if (waWindow) waWindow.close();
     }
   };
 
@@ -166,16 +159,16 @@ export default function CartPage() {
             <h1 className="text-2xl font-bold text-secondary mb-2">Order Placed!</h1>
             <p className="text-muted-foreground mb-2">Order #{orderNumber}</p>
             <p className="text-sm text-muted-foreground mb-6">
-              Your order has been placed. WhatsApp should open in a new tab to send your order details.
+              Your order has been saved. Click the button below to send your order details via WhatsApp.
             </p>
-            {settings.whatsappNumber && settings.whatsappNumber !== "977XXXXXXXXX" && (
+            {waLink && (
               <a
-                href={`https://wa.me/${settings.whatsappNumber}`}
+                href={waLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm text-green-600 hover:text-green-700 font-medium mb-4"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors mb-6"
               >
-                <ExternalLink className="h-4 w-4" /> Open WhatsApp
+                <ExternalLink className="h-5 w-5" /> Open WhatsApp
               </a>
             )}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
