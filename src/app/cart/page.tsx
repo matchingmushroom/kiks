@@ -28,6 +28,7 @@ export default function CartPage() {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [orderNumber, setOrderNumber] = useState("");
   const [waLink, setWaLink] = useState("");
+  const [orderError, setOrderError] = useState("");
 
   const discount = appliedCoupon
     ? appliedCoupon.discountType === "percentage"
@@ -93,6 +94,7 @@ export default function CartPage() {
 
   const placeOrder = async () => {
     if (!customerName || !customerPhone) return;
+    setOrderError("");
     setOrdering(true);
 
     try {
@@ -144,7 +146,9 @@ export default function CartPage() {
       );
       setWaLink(wLink);
       setOrderPlaced(true);
-    } catch {
+    } catch (err) {
+      console.error("Order failed:", err);
+      setOrderError("Failed to place order. Check console for details.");
       setOrdering(false);
     }
   };
@@ -316,6 +320,11 @@ export default function CartPage() {
                 />
               </div>
 
+              {orderError && (
+                <p className="flex items-center gap-1 text-sm text-red-500">
+                  <XCircle className="h-4 w-4" /> {orderError}
+                </p>
+              )}
               <button
                 onClick={placeOrder}
                 disabled={!customerName || !customerPhone || ordering}
