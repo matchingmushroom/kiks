@@ -1,0 +1,301 @@
+===============================================================================
+  AS COLLECTION — Jewellery E-commerce Website Development Plan
+===============================================================================
+
+Tech Stack
+----------
+  Framework   : Next.js 14+ (App Router)
+  Styling     : Tailwind CSS + shadcn/ui
+  Auth        : Firebase Authentication (Email/Password)
+  Database    : Firestore (NoSQL)
+  Charts      : Recharts
+  PDF         : @react-pdf/renderer
+  State       : React Context + localStorage (cart)
+  Currency    : NPR (Nepalese Rupee)
+  Payments    : WhatsApp-based (no gateway)
+
+===============================================================================
+  FIRESTORE COLLECTIONS (Data Model)
+===============================================================================
+
+  1. users/
+     uid, email, displayName, role (admin|manager|staff|accountant),
+     phone, createdAt
+
+  2. categories/
+     id, name, description, image, order, isActive
+
+  3. products/
+     id, name, description, design, categoryId, images[], videoUrl,
+     price (NPR), weight (g), purity (karat), metalType,
+     stoneType, stoneWeight, makingCharge, warranty, sku,
+     quantityInStock, isActive, isFeatured, createdAt, updatedAt
+
+  4. sections/
+     id, type (hero|featured_products|category_grid|new_arrivals|custom_html),
+     title, subtitle, order, isVisible,
+     config: { images[], ctaText, ctaLink, maxProducts, etc. }
+
+  5. orders/
+     id, orderNumber, customer: { name, phone, address },
+     items: [{ productId, productName, sku, quantity, price, weight,
+               purity, makingCharge, subtotal }],
+     totalAmount, couponApplied: { code, discountValue },
+     status (pending|confirmed|shipped|delivered|cancelled),
+     notes, createdAt, processedBy
+
+  6. sales/
+     id, orderId?, saleType (cash|credit|partial),
+     customer: { name, phone, address, email? },
+     items: [{ productId, productName, sku, quantity, unitPrice,
+               weight, purity, makingCharge, subtotal }],
+     totalAmount, discountAmount, finalAmount,
+     payment: { method, receivedAmount, balanceDue },
+     warranty: { period, terms, startDate, endDate },
+     couponIssued: { couponId, code, discountValue },
+     notes, saleDate, recordedBy, createdAt, updatedAt
+
+  7. invoices/
+     id, invoiceNumber (INV-2026-0001 | EST-2026-0001),
+     type (invoice|estimate), status (draft|sent|paid|partial|cancelled|expired),
+     customer: { name, phone, address },
+     items: [{ productName, description, weight, purity, quantity,
+               unitPrice, makingCharge, subtotal }],
+     subtotal, discountAmount, totalAmount,
+     warranty: { period, terms },
+     notes, termsAndConditions, validUntil (estimates only),
+     relatedSaleId?, generatedBy, createdAt, updatedAt
+
+  8. coupons/
+     id, code (unique), discountType (%|fixed), discountValue,
+     minPurchaseAmount, maxDiscount, validFrom, validUntil,
+     usageLimit, usedCount, isActive, issuedToCustomer (name/phone),
+     issuedForOrderId?, createdAt, createdBy
+
+  9. debtors/
+     id, customerName, customerPhone, customerAddress,
+     totalAmount, amountPaid, balanceDue, dueDate,
+     orderIds[], status (active|cleared),
+     paymentHistory: [{ date, amount, method, notes }],
+     createdAt, updatedAt
+
+  10. inventory_logs/
+      id, productId, changeType (add|remove|adjust),
+      quantityChange, reason, performedBy, createdAt
+
+  11. shop_settings/
+      id (singleton: "config"),
+      shopName, tagline, logoUrl, phone, address,
+      whatsappNumber, currency
+
+  12. counters/
+      invoices: { year, lastNumber }
+      estimates: { year, lastNumber }
+
+===============================================================================
+  ROLES & PERMISSIONS
+===============================================================================
+
+  Feature                   Admin   Manager   Staff   Accountant
+  -----------------------   ------  -------   ------  ----------
+  Products CRUD             ✅      ✅        ❌     ❌
+  Categories CRUD           ✅      ✅        ❌     ❌
+  Orders management         ✅      ✅        ✅     ✅
+  Sales recording           ✅      ✅        ✅     ✅
+  Invoices/Estimates        ✅      ✅        ❌     ✅
+  Sales reports             ✅      ✅        ❌     ✅
+  Debtors management        ✅      ✅        ❌     ✅
+  Coupons management        ✅      ✅        ❌     ❌
+  Inventory audit           ✅      ✅        ✅     ❌
+  Staff management          ✅      ❌        ❌     ❌
+  Homepage sections         ✅      ✅        ❌     ❌
+  Backup & Reports          ✅      ✅        ❌     ✅
+  Shop settings             ✅      ✅        ❌     ❌
+
+===============================================================================
+  ROUTES (Public Shop — No Auth)
+===============================================================================
+
+  /                              Homepage (dynamic sections)
+  /products                      Product grid with category filter
+  /products/[category]           Products by category
+  /product/[id]                  Product detail (images, video, specs)
+  /cart                          Cart review → Order via WhatsApp
+  /invoice/[id]                  Public invoice/estimate view (print, PDF)
+
+===============================================================================
+  ROUTES (Admin Dashboard — Auth Required)
+===============================================================================
+
+  /admin/login                   Firebase Auth login
+  /admin                         Dashboard (KPI cards + charts)
+  /admin/products                Product list + CRUD
+  /admin/categories              Category management (reorderable)
+  /admin/orders                  Order list + status management
+  /admin/sales                   Sales records + new sale form
+  /admin/invoices                Invoices & Estimates list
+  /admin/invoices/new            Create invoice/estimate
+  /admin/invoices/[id]           View, print, PDF, share WhatsApp
+  /admin/coupons                 Coupon CRUD
+  /admin/debtors                 Debtors with payment tracking
+  /admin/inventory               Inventory view + audit log
+  /admin/homepage                Drag-and-drop section builder
+  /admin/staff                   User management (admin only)
+  /admin/settings                Shop settings (logo, tagline, contact)
+  /admin/backup                  CSV export, email backup, reports
+
+===============================================================================
+  DASHBOARD WIDGETS (/admin)
+===============================================================================
+
+  KPI Cards:
+    - YTD Sales, MTD Sales, Weekly Sales, Total Sales
+    - Debtors Balance (sum of active balances)
+    - Low Stock Count (qty <= threshold)
+    - Today's Orders Count
+
+  Charts (Recharts):
+    - Sales Trend (line chart, daily for 30 days)
+    - Sales by Category (donut/pie chart)
+    - Inventory Levels (horizontal bar)
+
+  Tables:
+    - Top Selling Products (top 5 by revenue)
+    - Recent Orders (last 5)
+    - Overdue Debtors (aging view)
+
+===============================================================================
+  INVOICE / ESTIMATE FEATURE
+===============================================================================
+
+  - Numbering: INV-2026-0001 / EST-2026-0001 (auto-increment, yearly reset)
+  - Admin creates via form → saves to Firestore
+  - Actions on invoice page:
+      * Print (window.print + @media print CSS)
+      * Download PDF (@react-pdf/renderer API route)
+      * Share via WhatsApp (public link → wa.me)
+      * Convert Estimate → Invoice (one-click, copies data)
+  - Public route /invoice/[id] (no auth) for customer view
+
+===============================================================================
+  WHATSAPP ORDER FLOW
+===============================================================================
+
+  1. Customer browses products (no login required)
+  2. Adds items to cart (stored in localStorage)
+  3. On cart page: fills name + phone
+  4. Clicks "Order via WhatsApp"
+  5. System:
+       a) Saves order to Firestore (orders collection)
+       b) Applies coupon discount if valid code entered
+       c) Opens wa.me link with order summary as message
+  6. Admin sees new order in dashboard
+
+===============================================================================
+  BACKUP & REPORTS
+===============================================================================
+
+  CSV Export (works OOB):
+    - Select collections → download as ZIP of CSV files
+    - Client-side: Firestore fetch → convert to CSV → zip via JSZip
+
+  Email Backup (works OOB with SMTP config):
+    - Server-side API: fetch all data → attach CSV/JSON → send via Nodemailer
+
+  Google Drive Backup (optional):
+    - Requires Google Cloud project + Service Account key
+    - Setup guide provided in repo
+
+  Reports (YTD / MTD / Custom):
+    - Sales Summary, Product Performance, Debtors Aging, Category Breakdown
+    - Generated as downloadable CSV
+
+===============================================================================
+  SHOP SETTINGS
+===============================================================================
+
+  Editable from /admin/settings:
+    - Shop Name, Tagline, Logo (PNG upload), Phone, Address
+    - WhatsApp Number, Currency
+  Default logo: public/logo.svg ("ASC" stylized text mark)
+  Settings stored in Firestore: shop_settings/config
+
+===============================================================================
+  IMPLEMENTATION PHASES
+===============================================================================
+
+  Phase 1  : Project scaffold — Next.js + Tailwind + shadcn/ui + Firebase init
+  Phase 2  : Types + Firestore helpers + Auth context + Cart context + Settings seed
+  Phase 3  : Public shop — Homepage (dynamic sections) + product listing + detail
+  Phase 4  : Cart + WhatsApp order flow + coupon validation
+  Phase 5  : Admin auth — login, role guards, sidebar layout
+  Phase 6  : Admin Dashboard — KPI cards + charts (Recharts) + tables
+  Phase 7  : Admin — Products CRUD + Categories (reorderable) + Settings page
+  Phase 8  : Admin — Orders management + Sales recording form (warranty, coupons)
+  Phase 9  : Admin — Invoices & Estimates (create, print, PDF, WhatsApp, convert)
+  Phase 10 : Admin — Homepage section builder (drag-and-drop)
+  Phase 11 : Admin — Coupons + Debtors management (payments, aging)
+  Phase 12 : Admin — Inventory logs + Staff management
+  Phase 13 : Admin — Backup & Reports (CSV, email, Drive, YTD/MTD reports)
+  Phase 14 : Polish — responsive, SEO, seed data, README, setup guides
+
+===============================================================================
+  ESTIMATED TIMELINE
+===============================================================================
+
+  Total phases: 14
+  Estimated duration: 7-10 days (single developer)
+
+===============================================================================
+  ROADMAP — Short-term (Next)
+===============================================================================
+
+  [ ] Fix build error: add generateStaticParams() to admin/sales/[id]
+  [ ] Replace Unsplash image URLs with stable image hosting
+  [ ] Add loading skeletons to all public pages
+  [ ] Implement proper empty states for admin pages
+  [ ] Add pagination to large lists
+
+===============================================================================
+  ROADMAP — Medium-term
+===============================================================================
+
+  [ ] Payment gateway integration (eSewa, Khalti, or ConnectIPS)
+  [ ] Order tracking page for customers (by order number)
+  [ ] Email notifications for order status updates
+  [ ] Product reviews / ratings
+  [ ] Wishlist feature
+  [ ] Multi-language support (Nepali + English)
+  [ ] Dark mode toggle
+
+===============================================================================
+  ROADMAP — Long-term
+===============================================================================
+
+  [ ] Mobile app (React Native or Flutter)
+  [ ] Real-time order tracking dashboard for customers
+  [ ] Inventory barcode/QR code scanning
+  [ ] Automated backup to Google Drive (server-side)
+  [ ] SMS notifications
+  [ ] Accounting integration (direct ledger posting)
+  [ ] GST/VAT tax calculation and reporting
+  [ ] POS (Point of Sale) mode
+  [ ] Multi-branch / multi-store support
+
+===============================================================================
+  KNOWN BUGS
+===============================================================================
+
+  [ ] WhatsApp button not working after async order save (popup blocker)
+  [ ] Firestore REST API where + orderBy queries fail (needs composite indexes)
+  [ ] Admin build fails due to missing generateStaticParams in dynamic routes
+
+===============================================================================
+  NOTES
+===============================================================================
+
+  - Update project.md as features are added or changed
+  - Keep .env.local out of git (already in .gitignore)
+  - Test WhatsApp flow on real mobile devices before deployment
+
+===============================================================================
