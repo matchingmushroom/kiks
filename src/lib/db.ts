@@ -36,6 +36,9 @@ const collections = {
   accounts: "accounts",
   accountTransactions: "account_transactions",
   offers: "offers",
+  creditors: "creditors",
+  suppliers: "suppliers",
+  customers: "customers",
 };
 
 function toTimestamp(date?: Date): Timestamp {

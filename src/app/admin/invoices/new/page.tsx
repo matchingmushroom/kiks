@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
-import { Product } from "@/types";
+import { Product, Customer } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { addDoc, collection, setDoc, doc, Timestamp } from "firebase/firestore";
@@ -28,11 +28,15 @@ export default function NewInvoicePage() {
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc")],
   });
+  const { data: allCustomers } = useFirestore<Customer>("customers", {
+    constraints: [orderBy("name", "asc")],
+  });
 
   const [type, setType] = useState<"invoice" | "estimate">("invoice");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");
+  const [manualCustomer, setManualCustomer] = useState(false);
   const [items, setItems] = useState<LineItem[]>([]);
   const [productSearch, setProductSearch] = useState("");
   const [discountAmount, setDiscountAmount] = useState(0);
@@ -168,16 +172,53 @@ export default function NewInvoicePage() {
         <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-6">
           <div>
             <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase">Customer</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <input type="text" placeholder="Customer Name *" value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              <input type="tel" placeholder="Phone" value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              <input type="text" placeholder="Address" value={customerAddress}
-                onChange={(e) => setCustomerAddress(e.target.value)}
-                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <div className="space-y-3">
+              <select value={manualCustomer ? "other" : customerName}
+                onChange={(e) => {
+                  if (e.target.value === "other") {
+                    setManualCustomer(true);
+                  } else if (e.target.value === "") {
+                    setCustomerName(""); setCustomerPhone(""); setCustomerAddress("");
+                    setManualCustomer(false);
+                  } else {
+                    const selected = allCustomers.find((c) => c.name === e.target.value);
+                    setCustomerName(selected?.name || ""); setCustomerPhone(selected?.phone || ""); setCustomerAddress(selected?.address || "");
+                    setManualCustomer(false);
+                  }
+                }}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                <option value="">Select customer</option>
+                {allCustomers.map((c) => (
+                  <option key={c.id} value={c.name}>{c.name}{c.phone ? ` (${c.phone})` : ""}</option>
+                ))}
+                <option value="other">Other (Enter Manually)</option>
+              </select>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {manualCustomer ? (
+                  <input type="text" placeholder="Customer Name *" value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                ) : (
+                  <input type="text" placeholder="Customer Name *" value={customerName} readOnly
+                    className="px-3 py-2 border border-border rounded-lg text-sm bg-gray-50 text-muted-foreground cursor-not-allowed" />
+                )}
+                {manualCustomer ? (
+                  <input type="tel" placeholder="Phone" value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                ) : (
+                  <input type="tel" value={customerPhone} readOnly
+                    className="px-3 py-2 border border-border rounded-lg text-sm bg-gray-50 text-muted-foreground cursor-not-allowed" />
+                )}
+                {manualCustomer ? (
+                  <input type="text" placeholder="Address" value={customerAddress}
+                    onChange={(e) => setCustomerAddress(e.target.value)}
+                    className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                ) : (
+                  <input type="text" value={customerAddress} readOnly
+                    className="px-3 py-2 border border-border rounded-lg text-sm bg-gray-50 text-muted-foreground cursor-not-allowed" />
+                )}
+              </div>
             </div>
           </div>
 

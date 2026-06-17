@@ -15,7 +15,7 @@ import {
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, X } from "lucide-react";
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, X, LayoutGrid, List } from "lucide-react";
 
 export default function AdminCategoriesPage() {
   const { data: categories, loading } = useFirestore<Category>("categories", {
@@ -30,6 +30,7 @@ export default function AdminCategoriesPage() {
   const [orderNum, setOrderNum] = useState(0);
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const openAdd = () => {
     setName(""); setDescription(""); setImage("");
@@ -143,44 +144,109 @@ export default function AdminCategoriesPage() {
         ) : categories.length === 0 ? (
           <p className="text-muted-foreground text-center py-12">No categories yet.</p>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {categories.map((cat, i) => (
-              <div key={cat.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-secondary text-sm truncate">{cat.name}</p>
-                    {cat.description && <p className="text-xs text-muted-foreground truncate">{cat.description}</p>}
+          <>
+            <div className="flex items-center gap-1 mb-3">
+              <button onClick={() => setViewMode("grid")}
+                className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button onClick={() => setViewMode("list")}
+                className={`p-1.5 rounded ${viewMode === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+                <List className="h-4 w-4" />
+              </button>
+            </div>
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {categories.map((cat, i) => (
+                  <div key={cat.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-secondary text-sm truncate">{cat.name}</p>
+                        {cat.description && <p className="text-xs text-muted-foreground truncate">{cat.description}</p>}
+                      </div>
+                      <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${cat.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-muted-foreground"}`}>
+                        {cat.isActive ? "Active" : "Inactive"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => moveOrder(cat.id, cat.order - 1)}
+                          disabled={i === 0}
+                          className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </button>
+                        <span className="text-xs text-muted-foreground">Order {cat.order}</span>
+                        <button onClick={() => moveOrder(cat.id, cat.order + 1)}
+                          disabled={i === categories.length - 1}
+                          className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => openEdit(cat)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </button>
+                        <button onClick={() => handleDelete(cat.id, cat.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${cat.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-muted-foreground"}`}>
-                    {cat.isActive ? "Active" : "Inactive"}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => moveOrder(cat.id, cat.order - 1)}
-                      disabled={i === 0}
-                      className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </button>
-                    <span className="text-xs text-muted-foreground">Order {cat.order}</span>
-                    <button onClick={() => moveOrder(cat.id, cat.order + 1)}
-                      disabled={i === categories.length - 1}
-                      className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => openEdit(cat)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => handleDelete(cat.id, cat.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
+                ))}
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted text-left">
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Name</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Order</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Status</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {categories.map((cat, i) => (
+                      <tr key={cat.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-2.5">
+                          <p className="font-medium text-secondary">{cat.name}</p>
+                          {cat.description && <p className="text-xs text-muted-foreground">{cat.description}</p>}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => moveOrder(cat.id, cat.order - 1)}
+                              disabled={i === 0}
+                              className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
+                              <ArrowUp className="h-3 w-3" />
+                            </button>
+                            <span className="text-xs">{cat.order}</span>
+                            <button onClick={() => moveOrder(cat.id, cat.order + 1)}
+                              disabled={i === categories.length - 1}
+                              className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
+                              <ArrowDown className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${cat.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-muted-foreground"}`}>
+                            {cat.isActive ? "Active" : "Inactive"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <button onClick={() => openEdit(cat)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                            <Edit2 className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={() => handleDelete(cat.id, cat.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         )}
       </div>
     </AdminLayout>

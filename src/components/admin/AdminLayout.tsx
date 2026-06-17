@@ -27,6 +27,7 @@ import {
   CreditCard,
   Wallet,
   Sparkles,
+  ClipboardList,
 } from "lucide-react";
 
 interface NavItem {
@@ -48,7 +49,11 @@ const navItems: NavItem[] = [
   { label: "Coupons", href: "/admin/coupons", icon: <Tags className="h-4 w-4" />, permission: "manage_coupons" },
   { label: "Offers", href: "/admin/offers", icon: <Sparkles className="h-4 w-4" />, permission: "manage_offers" },
   { label: "Debtors", href: "/admin/debtors", icon: <Users className="h-4 w-4" />, permission: "manage_debtors" },
+  { label: "Creditors", href: "/admin/creditors", icon: <Users className="h-4 w-4" />, permission: "manage_creditors" },
+  { label: "Suppliers", href: "/admin/suppliers", icon: <Truck className="h-4 w-4" />, permission: "manage_suppliers" },
+  { label: "Customers", href: "/admin/customers", icon: <Users className="h-4 w-4" />, permission: "manage_customers" },
   { label: "Inventory", href: "/admin/inventory", icon: <BarChart3 className="h-4 w-4" />, permission: "manage_inventory" },
+  { label: "Reconciliation", href: "/admin/reconciliation", icon: <ClipboardList className="h-4 w-4" />, permission: "manage_inventory" },
   { divider: true, section: "FINANCE" },
   { label: "Purchases", href: "/admin/purchases", icon: <DollarSign className="h-4 w-4" />, permission: "manage_purchases" },
   { label: "Expenses", href: "/admin/expenses", icon: <CreditCard className="h-4 w-4" />, permission: "manage_expenses" },
@@ -56,6 +61,7 @@ const navItems: NavItem[] = [
   { divider: true },
   { label: "Homepage", href: "/admin/homepage", icon: <Home className="h-4 w-4" />, permission: "manage_homepage" },
   { label: "Staff", href: "/admin/staff", icon: <Shield className="h-4 w-4" />, permission: "manage_staff" },
+  { label: "Access Control", href: "/admin/access-control", icon: <Shield className="h-4 w-4" />, permission: "manage_access_control" },
   { label: "Backup", href: "/admin/backup", icon: <Receipt className="h-4 w-4" />, permission: "manage_backup" },
   { label: "Settings", href: "/admin/settings", icon: <Settings className="h-4 w-4" />, permission: "manage_settings" },
   { label: "Setup", href: "/admin/setup", icon: <Rocket className="h-4 w-4" />, permission: "manage_settings" },
@@ -90,7 +96,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const routePermission = getRoutePermission(pathname);
   const permitted = routePermission
-    ? hasPermission(profile?.role, routePermission as never)
+    ? hasPermission(profile?.role, routePermission as never, profile?.permissions)
     : true;
 
   if (!permitted) {
@@ -114,7 +120,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const filteredItems = navItems.filter((item) => {
     if (item.divider) return true;
     if (!item.permission) return true;
-    return hasPermission(profile?.role, item.permission as never);
+    return hasPermission(profile?.role, item.permission as never, profile?.permissions);
   });
 
   return (

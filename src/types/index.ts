@@ -7,6 +7,8 @@ export interface AppUser {
   role: UserRole;
   phone: string;
   createdAt: number;
+  permissions?: string[];
+  isActive?: boolean;
 }
 
 export interface Category {
@@ -102,6 +104,7 @@ export interface SaleItem {
   purity?: string;
   makingCharge: number;
   subtotal: number;
+  costPriceAtSale?: number;
 }
 
 export interface Sale {
@@ -153,6 +156,7 @@ export interface Invoice {
   validUntil: number;
   relatedSaleId: string;
   generatedBy: string;
+  couponIssued?: { code: string; discountValue: number };
   createdAt: number;
   updatedAt: number;
 }
@@ -196,7 +200,7 @@ export interface Debtor {
 export interface InventoryLog {
   id: string;
   productId: string;
-  changeType: "add" | "remove" | "adjust" | "sale" | "purchase" | "purchase_return";
+  changeType: "add" | "remove" | "adjust" | "sale" | "purchase" | "purchase_return" | "sales_return";
   quantityChange: number;
   reason: string;
   performedBy: string;
@@ -281,10 +285,57 @@ export interface AccountTransaction {
   amount: number;
   description: string;
   date: number;
-  referenceType: "sale" | "expense" | "purchase" | "purchase_return" | "manual" | "transfer" | "debtor_payment";
+  referenceType: "sale" | "expense" | "purchase" | "purchase_return" | "manual" | "transfer" | "debtor_payment" | "creditor_payment" | "sales_return";
   referenceId?: string;
   recordedBy: string;
   createdAt: number;
+}
+
+export interface Creditor {
+  id: string;
+  supplierName: string;
+  supplierPhone?: string;
+  currentBalance: number;
+  lastTransactionDate: number;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface CreditorPayment {
+  id: string;
+  creditorId: string;
+  amount: number;
+  date: number;
+  accountId: string;
+  paymentMethod: string;
+  notes?: string;
+  recordedBy: string;
+  createdAt: number;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  phone: string;
+  address: string;
+  contactPerson: string;
+  contactPersonPhone: string;
+  website: string;
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  notes: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface HomeSection {

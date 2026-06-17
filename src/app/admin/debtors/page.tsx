@@ -4,13 +4,15 @@ import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Debtor } from "@/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { resolveAccount } from "@/lib/accounts";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   updateDoc, doc, Timestamp, arrayUnion, addDoc, collection,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle } from "lucide-react";
+import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, Eye, LayoutGrid, List } from "lucide-react";
 
 function getDaysOverdue(dueDate: number): number {
   return Math.floor((Date.now() - dueDate) / (1000 * 60 * 60 * 24));
@@ -20,11 +22,14 @@ export default function AdminDebtorsPage() {
   const { data: debtors, loading } = useFirestore<Debtor>("debtors", {
     constraints: [orderBy("createdAt", "desc")],
   });
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [paymentForm, setPaymentForm] = useState<{ amount: string; method: string; notes: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [selectedDebtor, setSelectedDebtor] = useState<Debtor | null>(null);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   const filtered = debtors.filter((d) => {
     const matchSearch = !search ||
@@ -66,16 +71,15 @@ export default function AdminDebtorsPage() {
         updatedAt: Timestamp.fromDate(new Date()),
       });
 
-      const accountId = paymentForm.method === "cash" ? "cash_in_hand" : "bank_account";
       await addDoc(collection(db, "accountTransactions"), {
-        accountId,
+        accountId: resolveAccount(paymentForm.method),
         type: "credit",
         amount,
         description: `Debtor payment from ${debtor.customerName}`,
         date: Timestamp.fromDate(new Date()),
         referenceType: "debtor_payment",
         referenceId: debtor.id,
-        recordedBy: "",
+        recordedBy: user?.uid || "",
         createdAt: Timestamp.fromDate(new Date()),
       });
 
@@ -111,12 +115,51 @@ export default function AdminDebtorsPage() {
             <option value="">All Status</option>
             <option value="cleared">Cleared</option>
           </select>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setViewMode("grid")}
+              className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+              <LayoutGrid className="h-4 w-4" />
+            </button>
+            <button onClick={() => setViewMode("list")}
+              className={`p-1.5 rounded ${viewMode === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+              <List className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {loading ? (
           <p className="text-muted-foreground text-center py-12">Loading...</p>
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-center py-12">No debtors found.</p>
+        ) : viewMode === "grid" ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {filtered.map((debtor) => {
+              const overdue = debtor.dueDate ? getDaysOverdue(debtor.dueDate as unknown as number) : 0;
+              return (
+                <div key={debtor.id} onClick={() => setSelectedDebtor(debtor)}
+                  className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-secondary text-sm truncate">{debtor.customerName}</p>
+                      <p className="text-xs text-muted-foreground">{debtor.customerPhone}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                      debtor.status === "active" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
+                    }`}>
+                      {debtor.status}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-secondary">{formatCurrency(debtor.balanceDue)}</p>
+                    <p className="text-xs text-muted-foreground">of {formatCurrency(debtor.totalAmount)}</p>
+                  </div>
+                  {debtor.status === "active" && overdue > 0 && (
+                    <span className="inline-block text-xs text-red-500 font-medium">{overdue}d overdue</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         ) : (
           <div className="space-y-3">
             {filtered.map((debtor) => {
@@ -126,10 +169,9 @@ export default function AdminDebtorsPage() {
               return (
                 <div key={debtor.id} className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
                   <div
-                    className="flex items-center gap-4 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
-                    onClick={() => setExpandedId(isExpanded ? null : debtor.id)}
+                    className="flex items-center gap-4 px-4 py-3 hover:bg-muted/30 transition-colors"
                   >
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0" onClick={() => setSelectedDebtor(debtor)}>
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-secondary">{debtor.customerName}</span>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
@@ -149,7 +191,12 @@ export default function AdminDebtorsPage() {
                       <p className="font-semibold text-secondary">{formatCurrency(debtor.balanceDue)}</p>
                       <p className="text-xs text-muted-foreground">of {formatCurrency(debtor.totalAmount)}</p>
                     </div>
-                    {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    <button onClick={() => setSelectedDebtor(debtor)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-lg" title="View details">
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button onClick={() => setExpandedId(isExpanded ? null : debtor.id)} className="p-1 text-muted-foreground hover:bg-muted rounded-lg">
+                      {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
                   </div>
 
                   {isExpanded && (
@@ -253,6 +300,94 @@ export default function AdminDebtorsPage() {
           </div>
         )}
       </div>
+
+      {/* Debtor Detail Modal */}
+      {selectedDebtor && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectedDebtor(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-secondary">Debtor Details</h2>
+              <button onClick={() => setSelectedDebtor(null)} className="p-1 hover:bg-muted rounded">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <p className="font-medium text-secondary">{selectedDebtor.customerName}</p>
+                  <p className="text-sm text-muted-foreground">{selectedDebtor.customerPhone || "—"}</p>
+                </div>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  selectedDebtor.status === "active" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
+                }`}>
+                  {selectedDebtor.status}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Total Amount</p>
+                  <p className="font-bold text-secondary">{formatCurrency(selectedDebtor.totalAmount)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Paid</p>
+                  <p className="font-bold text-green-600">{formatCurrency(selectedDebtor.amountPaid || 0)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Balance Due</p>
+                  <p className="font-bold text-red-600">{formatCurrency(selectedDebtor.balanceDue)}</p>
+                </div>
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground">Due Date</p>
+                  <p className="font-bold">{selectedDebtor.dueDate ? formatDate(selectedDebtor.dueDate) : "—"}</p>
+                </div>
+              </div>
+
+              {selectedDebtor.customerAddress && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-1 uppercase">Address</h3>
+                  <p className="text-sm">{selectedDebtor.customerAddress}</p>
+                </div>
+              )}
+
+              <div>
+                <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase">Payment History</h3>
+                {selectedDebtor.paymentHistory && selectedDebtor.paymentHistory.length > 0 ? (
+                  <div className="border border-border rounded-lg divide-y divide-border">
+                    {selectedDebtor.paymentHistory.map((p, i) => (
+                      <div key={i} className="flex items-center justify-between px-3 py-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate((p.date as unknown as { toMillis?: () => number })?.toMillis?.() || (p.date as unknown as number))}
+                          </span>
+                          <span className="capitalize text-xs text-muted-foreground">{p.method}</span>
+                        </div>
+                        <span className="font-medium">{formatCurrency(p.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No payments recorded.</p>
+                )}
+              </div>
+
+              {selectedDebtor.orderIds && selectedDebtor.orderIds.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-1 uppercase">Related Orders</h3>
+                  <p className="text-sm text-muted-foreground">{selectedDebtor.orderIds.join(", ")}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-2 border-t border-border">
+                <p>Created: {formatDateTime(selectedDebtor.createdAt)}</p>
+                <p>Updated: {formatDateTime(selectedDebtor.updatedAt)}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

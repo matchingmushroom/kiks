@@ -5,13 +5,14 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Offer, Product, Category } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   addDoc, collection, updateDoc, doc, Timestamp, deleteDoc, getDocs, query, where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
-  Plus, X, Save, Trash2, Edit2, Search, AlertCircle, CheckCircle,
+  Plus, X, Save, Trash2, Edit2, Search, AlertCircle, CheckCircle, LayoutGrid, List,
 } from "lucide-react";
 
 const emptyForm = {
@@ -27,6 +28,7 @@ const emptyForm = {
 };
 
 export default function AdminOffersPage() {
+  const { user } = useAuth();
   const { data: offers, loading } = useFirestore<Offer>("offers", {
     constraints: [orderBy("createdAt", "desc")],
   });
@@ -41,6 +43,7 @@ export default function AdminOffersPage() {
   const [saving, setSaving] = useState(false);
   const [prodSearch, setProdSearch] = useState("");
   const [expiredBanner, setExpiredBanner] = useState("");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   // Auto-expire offers on page load
   useEffect(() => {
@@ -187,7 +190,7 @@ export default function AdminOffersPage() {
         startDate: start,
         endDate: end,
         isActive: true,
-        recordedBy: "",
+        recordedBy: user?.uid || "",
         updatedAt: Timestamp.fromDate(new Date()),
       };
 
@@ -196,7 +199,7 @@ export default function AdminOffersPage() {
       } else {
         const offerRef = await addDoc(collection(db, "offers"), {
           ...offerData,
-          createdBy: "",
+          createdBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
 
@@ -414,48 +417,97 @@ export default function AdminOffersPage() {
         ) : offers.length === 0 ? (
           <p className="text-muted-foreground text-center py-12">No offers created yet.</p>
         ) : (
-          <div className="space-y-3">
-            {offers.map((offer) => {
-              const status = getStatus(offer);
-              const affectedCount = getAffectedProductIds(offer).length;
-              return (
-                <div key={offer.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-secondary">{offer.title}</p>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize border ${status.color}`}>
-                          {status.label}
-                        </span>
+          <>
+            <div className="flex items-center gap-1 mb-3">
+              <button onClick={() => setViewMode("grid")}
+                className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+                <LayoutGrid className="h-4 w-4" />
+              </button>
+              <button onClick={() => setViewMode("list")}
+                className={`p-1.5 rounded ${viewMode === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+                <List className="h-4 w-4" />
+              </button>
+            </div>
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {offers.map((offer) => {
+                  const status = getStatus(offer);
+                  const affectedCount = getAffectedProductIds(offer).length;
+                  return (
+                    <div key={offer.id} onClick={() => openEdit(offer)}
+                      className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-secondary text-sm truncate">{offer.title}</p>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize border shrink-0 ${status.color}`}>
+                              {status.label}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {offer.discountType === "percentage" ? `${offer.discountValue}% off` : `${formatCurrency(offer.discountValue)} off`}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {offer.discountType === "percentage" ? `${offer.discountValue}% off` : `${formatCurrency(offer.discountValue)} off`}
-                        {" · "}
-                        <span className="capitalize">{offer.badgeType.replace("_", " ")} badge</span>
-                        {" · "}
-                        {offer.scope === "all" ? "All products" : offer.scope === "category" ? "By category" : `${(offer.productIds || []).length} products`}
-                      </p>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">{formatDate(offer.startDate)} → {formatDate(offer.endDate)}</span>
+                        <span className="text-muted-foreground">{affectedCount} product(s)</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="capitalize text-muted-foreground">{offer.badgeType.replace("_", " ")} · {offer.scope === "all" ? "All" : offer.scope}</span>
+                        <Button onClick={(e) => { e.stopPropagation(); handleDelete(offer.id, offer); }} size="sm" variant="outline" className="text-xs text-red-500">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0 text-xs text-muted-foreground">
-                      <p>{formatDate(offer.startDate)}</p>
-                      <p>→ {formatDate(offer.endDate)}</p>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {offers.map((offer) => {
+                  const status = getStatus(offer);
+                  const affectedCount = getAffectedProductIds(offer).length;
+                  return (
+                    <div key={offer.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-secondary">{offer.title}</p>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize border ${status.color}`}>
+                              {status.label}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {offer.discountType === "percentage" ? `${offer.discountValue}% off` : `${formatCurrency(offer.discountValue)} off`}
+                            {" · "}
+                            <span className="capitalize">{offer.badgeType.replace("_", " ")} badge</span>
+                            {" · "}
+                            {offer.scope === "all" ? "All products" : offer.scope === "category" ? "By category" : `${(offer.productIds || []).length} products`}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0 text-xs text-muted-foreground">
+                          <p>{formatDate(offer.startDate)}</p>
+                          <p>→ {formatDate(offer.endDate)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">{affectedCount} product(s)</span>
+                        <div className="flex gap-2">
+                          <Button onClick={() => openEdit(offer)} size="sm" variant="outline" className="text-xs">
+                            <Edit2 className="h-3 w-3" /> Edit
+                          </Button>
+                          <Button onClick={() => handleDelete(offer.id, offer)} size="sm" variant="outline" className="text-xs text-red-500">
+                            <Trash2 className="h-3 w-3" /> Delete
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-muted-foreground">{affectedCount} product(s)</span>
-                    <div className="flex gap-2">
-                      <Button onClick={() => openEdit(offer)} size="sm" variant="outline" className="text-xs">
-                        <Edit2 className="h-3 w-3" /> Edit
-                      </Button>
-                      <Button onClick={() => handleDelete(offer.id, offer)} size="sm" variant="outline" className="text-xs text-red-500">
-                        <Trash2 className="h-3 w-3" /> Delete
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </div>
     </AdminLayout>

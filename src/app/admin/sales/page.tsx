@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense, useMemo } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
-import { Sale, Product, Order } from "@/types";
-import { formatCurrency, formatDate, generateCouponCode } from "@/lib/utils";
+import { Sale, Product, Order, Customer } from "@/types";
+import { formatCurrency, formatDate, formatDateTime, generateCouponCode } from "@/lib/utils";
+import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, query, limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, Search, X, Save, CheckCircle, LayoutGrid, List } from "lucide-react";
+import { Plus, Search, X, Save, CheckCircle, LayoutGrid, List, ExternalLink, Eye } from "lucide-react";
+import Link from "next/link";
 
 interface LineItem {
   productId: string;
@@ -36,7 +39,12 @@ const emptyForm = {
 
 function SalesContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const orderId = searchParams.get("orderId");
+  const customerFilter = searchParams.get("customer");
+  const returnDiscount = searchParams.get("returnDiscount");
+  const returnCustomer = searchParams.get("returnCustomer");
+  const returnPhone = searchParams.get("returnPhone");
 
   const { data: sales, loading } = useFirestore<Sale>("sales", {
     constraints: [orderBy("saleDate", "desc")],
@@ -44,17 +52,100 @@ function SalesContent() {
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc")],
   });
+  const { data: allCustomers } = useFirestore<Customer>("customers", {
+    constraints: [orderBy("name", "asc")],
+  });
+  const { user } = useAuth();
 
+  const [search, setSearch] = useState(customerFilter || "");
+  const [paymentFilter, setPaymentFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [productSearch, setProductSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedSale, setSavedSale] = useState(false);
+  const [savedInvoiceId, setSavedInvoiceId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [manualCustomer, setManualCustomer] = useState(false);
+  const [orderData, setOrderData] = useState<Order | null>(null);
+  const [loadingOrder, setLoadingOrder] = useState(false);
+
+  const filteredSales = useMemo(() => {
+    let result = sales;
+    if (search) {
+      const q = search.toLowerCase();
+      result = result.filter((s) =>
+        s.customer?.name?.toLowerCase().includes(q) ||
+        s.customer?.phone?.includes(q) ||
+        s.notes?.toLowerCase().includes(q)
+      );
+    }
+    if (paymentFilter !== "all") {
+      result = result.filter((s) =>
+        paymentFilter === "paid" ? !s.payment?.balanceDue || s.payment.balanceDue <= 0
+        : paymentFilter === "due" ? (s.payment?.balanceDue || 0) > 0
+        : true
+      );
+    }
+    return result;
+  }, [sales, search, paymentFilter]);
+
+  useEffect(() => {
+    if (returnDiscount && returnCustomer) {
+      setShowForm(true);
+      setForm({
+        ...emptyForm,
+        customerName: returnCustomer,
+        customerPhone: returnPhone || "",
+        discountAmount: Number(returnDiscount),
+      });
+    }
+  }, [returnDiscount, returnCustomer, returnPhone]);
 
   useEffect(() => {
     if (orderId) {
       setShowForm(true);
+      setLoadingOrder(true);
+      const fetchOrder = async () => {
+        try {
+          const snap = await getDoc(doc(db, "orders", orderId));
+          if (snap.exists()) {
+            const order = { id: snap.id, ...snap.data() } as Order;
+            setOrderData(order);
+            const items: LineItem[] = (order.items || []).map((item) => ({
+              productId: item.productId,
+              productName: item.productName,
+              sku: item.sku || "",
+              quantity: item.quantity,
+              unitPrice: item.price,
+              weight: item.weight || 0,
+              makingCharge: item.makingCharge || 0,
+              subtotal: item.subtotal || item.price * item.quantity,
+            }));
+            const total = items.reduce((s, i) => s + i.subtotal, 0);
+            setForm({
+              customerName: order.customer?.name || "",
+              customerPhone: order.customer?.phone || "",
+              customerAddress: order.customer?.address || "",
+              items,
+              totalAmount: total,
+              discountAmount: 0,
+              finalAmount: total,
+              paymentMethod: "cash",
+              receivedAmount: total,
+              balanceDue: 0,
+              warrantyPeriod: "",
+              warrantyTerms: "",
+              issueCoupon: false,
+              notes: order.notes || "",
+            });
+          }
+        } catch (e) {
+          console.error("Failed to load order", e);
+        }
+        setLoadingOrder(false);
+      };
+      fetchOrder();
     }
   }, [orderId]);
 
@@ -131,11 +222,15 @@ function SalesContent() {
     if (!form.customerName || form.items.length === 0) return;
     setSaving(true);
     try {
+      const itemsWithCost = form.items.map((item) => {
+        const product = products.find((p) => p.id === item.productId);
+        return { ...item, costPriceAtSale: product?.costPrice || 0 };
+      });
       const saleRef = await addDoc(collection(db, "sales"), {
         orderId: orderId || "",
         saleType: form.balanceDue > 0 ? (form.receivedAmount > 0 ? "partial" : "credit") : "cash",
         customer: { name: form.customerName, phone: form.customerPhone, address: form.customerAddress, email: "" },
-        items: form.items,
+        items: itemsWithCost,
         totalAmount: form.totalAmount,
         discountAmount: form.discountAmount,
         finalAmount: form.finalAmount,
@@ -144,7 +239,7 @@ function SalesContent() {
         couponIssued: null,
         notes: form.notes,
         saleDate: Timestamp.fromDate(new Date()),
-        recordedBy: "",
+        recordedBy: user?.uid || "",
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       });
@@ -161,22 +256,21 @@ function SalesContent() {
           changeType: "sale",
           quantityChange: -item.quantity,
           reason: `Sale to ${form.customerName}`,
-          performedBy: "",
+          performedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
       }
 
       if (form.receivedAmount > 0 && form.paymentMethod !== "credit") {
-        const accountId = form.paymentMethod === "cash" ? "cash_in_hand" : "bank_account";
         await addDoc(collection(db, "accountTransactions"), {
-          accountId,
+          accountId: resolveAccount(form.paymentMethod),
           type: "credit",
           amount: form.receivedAmount,
           description: `Sale to ${form.customerName}`,
           date: Timestamp.fromDate(new Date()),
           referenceType: "sale",
           referenceId: saleRef.id,
-          recordedBy: "",
+          recordedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
       }
@@ -201,10 +295,11 @@ function SalesContent() {
         await addDoc(collection(db, "debtors"), debtorData);
       }
 
+      let couponCode: string | null = null;
       if (form.issueCoupon) {
-        const code = generateCouponCode();
-        await setDoc(doc(db, "coupons", code), {
-          code,
+        couponCode = generateCouponCode();
+        await setDoc(doc(db, "coupons", couponCode), {
+          code: couponCode,
           discountType: "percentage",
           discountValue: 10,
           minPurchaseAmount: 0,
@@ -217,13 +312,64 @@ function SalesContent() {
           issuedToCustomer: { name: form.customerName, phone: form.customerPhone },
           issuedForOrderId: saleRef.id,
           createdAt: Timestamp.fromDate(new Date()),
-          createdBy: "",
+          createdBy: user?.uid || "",
+        });
+      }
+
+      // Auto-invoice on sale
+      const now = new Date();
+      const year = now.getFullYear();
+      const invPrefix = "INV";
+      const invCounterDoc = doc(db, "counters", `invoices_${year}`);
+      const invCounterSnap = await getDoc(invCounterDoc);
+      let invSeq = 1;
+      if (invCounterSnap.exists()) {
+        invSeq = (invCounterSnap.data().lastNumber || 0) + 1;
+      }
+      await setDoc(invCounterDoc, { lastNumber: invSeq, year }, { merge: true });
+      const invoiceNumber = `${invPrefix}-${year}-${String(invSeq).padStart(4, "0")}`;
+
+      const invRef = await addDoc(collection(db, "invoices"), {
+        invoiceNumber,
+        type: "invoice",
+        status: form.balanceDue > 0 ? "partially_paid" : "paid",
+        customer: { name: form.customerName, phone: form.customerPhone, address: form.customerAddress },
+        items: itemsWithCost.map((item) => ({
+          productId: item.productId, productName: item.productName, sku: item.sku,
+          quantity: item.quantity, unitPrice: item.unitPrice, weight: item.weight,
+          purity: item.purity, makingCharge: item.makingCharge, subtotal: item.subtotal,
+        })),
+        subtotal: form.totalAmount,
+        discountAmount: form.discountAmount,
+        totalAmount: form.finalAmount,
+        paymentStatus: form.balanceDue > 0 ? "partial" : "full",
+        cashReceived: form.receivedAmount,
+        balanceDue: form.balanceDue,
+        warranty: { period: form.warrantyPeriod, terms: form.warrantyTerms },
+        notes: form.notes,
+        termsAndConditions: "Goods once sold cannot be returned.",
+        validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+        relatedSaleId: saleRef.id,
+        generatedBy: user?.uid || "",
+        couponIssued: couponCode ? { code: couponCode, discountValue: 10 } : undefined,
+        createdAt: Timestamp.fromDate(new Date()),
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+
+      setSavedInvoiceId(invRef.id);
+
+      // Auto-complete order when sale is from an order
+      if (orderId) {
+        await updateDoc(doc(db, "orders", orderId), {
+          status: "delivered",
+          updatedAt: Timestamp.fromDate(new Date()),
         });
       }
 
       setSavedSale(true);
       setForm(emptyForm);
-      setTimeout(() => setSavedSale(false), 3000);
+      setOrderData(null);
+      setTimeout(() => { setSavedSale(false); setSavedInvoiceId(null); }, 6000);
     } catch (e) {
       console.error("Sale save failed", e);
     }
@@ -239,20 +385,62 @@ function SalesContent() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-secondary">Sales</h1>
-          <p className="text-sm text-muted-foreground">{sales.length} total</p>
+          <p className="text-sm text-muted-foreground">{filteredSales.length} of {sales.length} total</p>
         </div>
         <Button onClick={() => { setShowForm(true); setForm(emptyForm); }} variant="accent">
           <Plus className="h-4 w-4" /> Record Sale
         </Button>
-        <button onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
-          className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
-          {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
-        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-3 mb-6">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input type="text" placeholder="Search by customer name, phone or notes..." value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+        </div>
+        <select value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+          <option value="all">All Payments</option>
+          <option value="paid">Paid</option>
+          <option value="due">Due</option>
+        </select>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setViewMode("grid")}
+            className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+            <LayoutGrid className="h-4 w-4" />
+          </button>
+          <button onClick={() => setViewMode("list")}
+            className={`p-1.5 rounded ${viewMode === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+            <List className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {savedSale && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm text-green-700">
           <CheckCircle className="h-5 w-5" /> Sale recorded successfully!
+          {savedInvoiceId && (
+            <Link href={`/admin/invoices/${savedInvoiceId}`}
+              className="ml-auto inline-flex items-center gap-1 text-green-800 font-medium hover:underline">
+              <ExternalLink className="h-4 w-4" /> View Invoice
+            </Link>
+          )}
+        </div>
+      )}
+
+      {orderId && orderData && !savedSale && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm text-blue-700">
+          <span>Creating Sale from Order <strong>{orderData.orderNumber}</strong> — customer details, items, and notes pre-filled from the order.</span>
+          <button onClick={() => { setForm(emptyForm); setOrderData(null); }} className="ml-auto text-blue-500 hover:text-blue-700">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {loadingOrder && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 text-sm text-blue-700">
+          Loading order details...
         </div>
       )}
 
@@ -268,16 +456,53 @@ function SalesContent() {
           <div className="space-y-6">
             <div>
               <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Customer</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <input type="text" placeholder="Customer Name *" value={form.customerName}
-                  onChange={(e) => setForm({ ...form, customerName: e.target.value })}
-                  className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                <input type="tel" placeholder="Phone *" value={form.customerPhone}
-                  onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
-                  className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                <input type="text" placeholder="Address" value={form.customerAddress}
-                  onChange={(e) => setForm({ ...form, customerAddress: e.target.value })}
-                  className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <div className="space-y-3">
+                <select value={manualCustomer ? "other" : form.customerName}
+                  onChange={(e) => {
+                    if (e.target.value === "other") {
+                      setManualCustomer(true);
+                    } else if (e.target.value === "") {
+                      setForm({ ...form, customerName: "", customerPhone: "", customerAddress: "" });
+                      setManualCustomer(false);
+                    } else {
+                      const selected = allCustomers.find((c) => c.name === e.target.value);
+                      setForm({ ...form, customerName: selected?.name || "", customerPhone: selected?.phone || "", customerAddress: selected?.address || "" });
+                      setManualCustomer(false);
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                  <option value="">Select customer</option>
+                  {allCustomers.map((c) => (
+                    <option key={c.id} value={c.name}>{c.name}{c.phone ? ` (${c.phone})` : ""}</option>
+                  ))}
+                  <option value="other">Other (Enter Manually)</option>
+                </select>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {manualCustomer ? (
+                    <input type="text" placeholder="Customer Name *" value={form.customerName}
+                      onChange={(e) => setForm({ ...form, customerName: e.target.value })}
+                      className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  ) : (
+                    <input type="text" placeholder="Customer Name *" value={form.customerName} readOnly
+                      className="px-3 py-2 border border-border rounded-lg text-sm bg-gray-50 text-muted-foreground cursor-not-allowed" />
+                  )}
+                  {manualCustomer ? (
+                    <input type="tel" placeholder="Phone *" value={form.customerPhone}
+                      onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+                      className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  ) : (
+                    <input type="tel" value={form.customerPhone} readOnly
+                      className="px-3 py-2 border border-border rounded-lg text-sm bg-gray-50 text-muted-foreground cursor-not-allowed" />
+                  )}
+                  {manualCustomer ? (
+                    <input type="text" placeholder="Address" value={form.customerAddress}
+                      onChange={(e) => setForm({ ...form, customerAddress: e.target.value })}
+                      className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  ) : (
+                    <input type="text" value={form.customerAddress} readOnly
+                      className="px-3 py-2 border border-border rounded-lg text-sm bg-gray-50 text-muted-foreground cursor-not-allowed" />
+                  )}
+                </div>
               </div>
             </div>
 
@@ -414,28 +639,34 @@ function SalesContent() {
         </div>
       )}
 
-      {sales.length === 0 ? (
-        <p className="text-muted-foreground text-center py-12">No sales recorded yet.</p>
+      {filteredSales.length === 0 ? (
+        <p className="text-muted-foreground text-center py-12">No sales found.</p>
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {sales.map((s) => (
+          {filteredSales.map((s) => (
             <div key={s.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-secondary text-sm truncate">{s.customer?.name}</p>
-                  <p className="text-xs text-muted-foreground">{s.customer?.phone}</p>
+              <Link href={`/admin/sales/${s.id}`} className="block space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-secondary text-sm truncate">{s.customer?.name}</p>
+                    <p className="text-xs text-muted-foreground">{s.customer?.phone}</p>
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${
+                    s.payment?.balanceDue > 0 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
+                  }`}>
+                    {s.payment?.balanceDue > 0 ? `Due ${formatCurrency(s.payment.balanceDue)}` : "Paid"}
+                  </span>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${
-                  s.payment?.balanceDue > 0 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
-                }`}>
-                  {s.payment?.balanceDue > 0 ? `Due ${formatCurrency(s.payment.balanceDue)}` : "Paid"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-secondary">{formatCurrency(s.finalAmount)}</span>
-                <span className="text-muted-foreground">{formatDate(s.saleDate)}</span>
-              </div>
-              <p className="text-xs text-muted-foreground">{s.items?.length || 0} items</p>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-secondary">{formatCurrency(s.finalAmount)}</span>
+                  <span className="text-muted-foreground">{formatDate(s.saleDate)}</span>
+                </div>
+                <p className="text-xs text-muted-foreground">{s.items?.length || 0} items</p>
+              </Link>
+              <Link href={`/admin/sales/${s.id}`}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                <Eye className="h-3 w-3" /> View Details
+              </Link>
             </div>
           ))}
         </div>
@@ -449,10 +680,11 @@ function SalesContent() {
                 <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Amount</th>
                 <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Status</th>
                 <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Date</th>
+                <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {sales.map((s) => (
+              {filteredSales.map((s) => (
                 <tr key={s.id} className="hover:bg-muted/30">
                   <td className="px-4 py-2.5 text-sm font-medium text-secondary">{s.customer?.name}</td>
                   <td className="px-4 py-2.5 text-sm text-muted-foreground">{s.customer?.phone}</td>
@@ -465,12 +697,20 @@ function SalesContent() {
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(s.saleDate)}</td>
+                  <td className="px-4 py-2.5 text-right">
+                    <Link href={`/admin/sales/${s.id}`}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                      <Eye className="h-3.5 w-3.5" /> View
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* Sale detail page at /admin/sales/[id] */}
     </div>
   );
 }

@@ -5,9 +5,11 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import {
   Sale, Product, Expense, Debtor, Purchase,
-  Account, AccountTransaction,
+  Account, AccountTransaction, Creditor,
 } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { ACCOUNTS } from "@/lib/accounts";
+import { useAuth } from "@/contexts/AuthContext";
 import { getDoc, doc, setDoc, Timestamp, addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -26,6 +28,7 @@ const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 const startOfYear = new Date(today.getFullYear(), 0, 1);
 
 export default function AdminFinancePage() {
+  const { user } = useAuth();
   const [tab, setTab] = useState<"pnl" | "balance" | "accounts">("pnl");
 
   // Data for all tabs
@@ -44,6 +47,7 @@ export default function AdminFinancePage() {
   const { data: transactions } = useFirestore<AccountTransaction>("accountTransactions", {
     constraints: [orderBy("date", "desc")],
   });
+  const { data: creditors } = useFirestore<Creditor>("creditors");
 
   // P&L state
   const [pnlRange, setPnlRange] = useState<"mtd" | "ytd" | "custom">("mtd");
@@ -62,6 +66,13 @@ export default function AdminFinancePage() {
     amount: 0, description: "", date: today.toISOString().slice(0, 10),
   });
   const [txSaving, setTxSaving] = useState(false);
+
+  // Transfer state
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [transferForm, setTransferForm] = useState({
+    fromAccountId: "", toAccountId: "", amount: 0, date: today.toISOString().slice(0, 10), description: "",
+  });
+  const [transferSaving, setTransferSaving] = useState(false);
 
   // Load opening capital
   useEffect(() => {
@@ -118,7 +129,7 @@ export default function AdminFinancePage() {
     for (const sale of filteredSales) {
       for (const item of sale.items) {
         const product = products.find((p) => p.id === item.productId);
-        const costPrice = product?.costPrice || 0;
+        const costPrice = (item as any).costPriceAtSale ?? product?.costPrice ?? 0;
         cogs += costPrice * item.quantity;
       }
     }
@@ -167,23 +178,35 @@ export default function AdminFinancePage() {
     const cashBalance = accountBalances["cash_in_hand"] || 0;
     const bankBalance = accountBalances["bank_account"] || 0;
 
-    // Liabilities
-    const sundryCreditors = purchases
-      .filter((p) => p.paymentStatus === "unpaid" || p.paymentStatus === "partially_paid")
+    // Liabilities - from creditors collection (falls back to purchase-based calculation)
+    const creditorsBalance = creditors.reduce((sum, c) => sum + (c.currentBalance || 0), 0);
+    const purchaseCreditors = purchases
+      .filter((p) => {
+        const d = (p.purchaseDate as unknown as { toMillis?: () => number })?.toMillis?.() || (p.purchaseDate as number);
+        return d <= bsEnd && (p.paymentStatus === "unpaid" || p.paymentStatus === "partially_paid");
+      })
       .reduce((sum, p) => sum + (p.totalAmount - (p.paidAmount || 0)), 0);
+    const sundryCreditors = creditorsBalance > 0 ? creditorsBalance : purchaseCreditors;
 
-    // Equity
-    // Retained earnings = cumulative net profit from all periods
+    // Equity - date-filtered sales and expenses
+    const filteredSalesForBs = sales.filter((s) => {
+      const d = (s.saleDate as unknown as { toMillis?: () => number })?.toMillis?.() || (s.saleDate as number);
+      return d <= bsEnd;
+    });
+    const filteredExpensesForBs = expenses.filter((e) => {
+      const d = (e.date as unknown as { toMillis?: () => number })?.toMillis?.() || (e.date as number);
+      return d <= bsEnd;
+    });
     let retainedEarnings = 0;
-    for (const sale of sales) {
+    for (const sale of filteredSalesForBs) {
       for (const item of sale.items) {
         const product = products.find((p) => p.id === item.productId);
-        const costPrice = product?.costPrice || 0;
+        const costPrice = (item as any).costPriceAtSale ?? product?.costPrice ?? 0;
         retainedEarnings -= costPrice * item.quantity;
       }
       retainedEarnings += sale.finalAmount;
     }
-    for (const expense of expenses) {
+    for (const expense of filteredExpensesForBs) {
       retainedEarnings -= expense.amount;
     }
 
@@ -218,7 +241,7 @@ export default function AdminFinancePage() {
         description: txForm.description,
         date: Timestamp.fromDate(new Date(txForm.date)),
         referenceType: "manual",
-        recordedBy: "",
+        recordedBy: user?.uid || "",
         createdAt: Timestamp.fromDate(new Date()),
       });
       setShowTxForm(false);
@@ -227,6 +250,42 @@ export default function AdminFinancePage() {
       console.error("Transaction failed", e);
     }
     setTxSaving(false);
+  };
+
+  const handleTransfer = async () => {
+    if (!transferForm.fromAccountId || !transferForm.toAccountId || !transferForm.amount || transferForm.fromAccountId === transferForm.toAccountId) return;
+    setTransferSaving(true);
+    try {
+      const transferId = `transfer_${Date.now()}`;
+      const date = Timestamp.fromDate(new Date(transferForm.date));
+      await addDoc(collection(db, "accountTransactions"), {
+        accountId: transferForm.fromAccountId,
+        type: "debit",
+        amount: Number(transferForm.amount),
+        description: transferForm.description || `Transfer to ${ACCOUNTS.find((a) => a.id === transferForm.toAccountId)?.name || transferForm.toAccountId}`,
+        date,
+        referenceType: "transfer",
+        referenceId: transferId,
+        recordedBy: user?.uid || "",
+        createdAt: Timestamp.fromDate(new Date()),
+      });
+      await addDoc(collection(db, "accountTransactions"), {
+        accountId: transferForm.toAccountId,
+        type: "credit",
+        amount: Number(transferForm.amount),
+        description: transferForm.description || `Transfer from ${ACCOUNTS.find((a) => a.id === transferForm.fromAccountId)?.name || transferForm.fromAccountId}`,
+        date,
+        referenceType: "transfer",
+        referenceId: transferId,
+        recordedBy: user?.uid || "",
+        createdAt: Timestamp.fromDate(new Date()),
+      });
+      setShowTransfer(false);
+      setTransferForm({ fromAccountId: "", toAccountId: "", amount: 0, date: today.toISOString().slice(0, 10), description: "" });
+    } catch (e) {
+      console.error("Transfer failed", e);
+    }
+    setTransferSaving(false);
   };
 
   const downloadCSV = () => {
@@ -467,9 +526,14 @@ export default function AdminFinancePage() {
                   );
                 })}
               </div>
-              <Button onClick={() => setShowTxForm(true)} variant="accent">
-                <Plus className="h-4 w-4" /> Add Transaction
-              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => setShowTxForm(true)} variant="accent">
+                  <Plus className="h-4 w-4" /> Add Transaction
+                </Button>
+                <Button onClick={() => setShowTransfer(true)} variant="outline">
+                  Transfer
+                </Button>
+              </div>
             </div>
 
             {showTxForm && (
@@ -522,6 +586,61 @@ export default function AdminFinancePage() {
                     <Save className="h-4 w-4" /> {txSaving ? "Saving..." : "Add Transaction"}
                   </Button>
                   <Button onClick={() => setShowTxForm(false)} variant="outline">Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            {showTransfer && (
+              <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-secondary">Transfer Between Accounts</h3>
+                  <button onClick={() => setShowTransfer(false)} className="p-1 hover:bg-muted rounded">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">From Account</label>
+                    <select value={transferForm.fromAccountId}
+                      onChange={(e) => setTransferForm({ ...transferForm, fromAccountId: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm">
+                      <option value="">Select</option>
+                      {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">To Account</label>
+                    <select value={transferForm.toAccountId}
+                      onChange={(e) => setTransferForm({ ...transferForm, toAccountId: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm">
+                      <option value="">Select</option>
+                      {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Amount (NPR)</label>
+                    <input type="number" value={transferForm.amount || ""}
+                      onChange={(e) => setTransferForm({ ...transferForm, amount: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Date</label>
+                    <input type="date" value={transferForm.date}
+                      onChange={(e) => setTransferForm({ ...transferForm, date: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+                  </div>
+                  <div className="md:col-span-4">
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Description (optional)</label>
+                    <input type="text" value={transferForm.description}
+                      onChange={(e) => setTransferForm({ ...transferForm, description: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-4 mt-4 border-t border-border">
+                  <Button onClick={handleTransfer} disabled={transferSaving || !transferForm.fromAccountId || !transferForm.toAccountId || !transferForm.amount || transferForm.fromAccountId === transferForm.toAccountId} variant="accent">
+                    <Save className="h-4 w-4" /> {transferSaving ? "Processing..." : "Complete Transfer"}
+                  </Button>
+                  <Button onClick={() => setShowTransfer(false)} variant="outline">Cancel</Button>
                 </div>
               </div>
             )}

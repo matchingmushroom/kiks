@@ -5,13 +5,15 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Expense, ExpenseHead, RecurringExpenseTemplate } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { resolveAccount } from "@/lib/accounts";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-  addDoc, collection, updateDoc, doc, Timestamp, deleteDoc, setDoc,
+  addDoc, collection, updateDoc, doc, Timestamp, deleteDoc, setDoc, getDocs, query, where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
-  Plus, Search, X, Save, Trash2, Edit2, Repeat, AlertCircle,
+  Plus, Search, X, Save, Trash2, Edit2, Repeat, AlertCircle, LayoutGrid, List,
 } from "lucide-react";
 
 const EXPENSE_HEADS: ExpenseHead[] = [
@@ -45,6 +47,7 @@ export default function AdminExpensesPage() {
     constraints: [orderBy("date", "desc")],
   });
   const { data: templates } = useFirestore<RecurringExpenseTemplate>("recurringExpenses");
+  const { user } = useAuth();
 
   // Merge hardcoded heads with unique custom heads from existing expenses
   const allHeads = useMemo(() => {
@@ -59,6 +62,7 @@ export default function AdminExpensesPage() {
   const [search, setSearch] = useState("");
   const [headFilter, setHeadFilter] = useState("");
   const [tab, setTab] = useState<"expenses" | "recurring">("expenses");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const [showRecurringForm, setShowRecurringForm] = useState(false);
   const [editingRecurringId, setEditingRecurringId] = useState<string | null>(null);
@@ -108,25 +112,43 @@ export default function AdminExpensesPage() {
         date: Timestamp.fromDate(new Date(form.date)),
         paymentMethod: form.paymentMethod,
         receiptUrl: form.receiptUrl,
-        recordedBy: "",
+        recordedBy: user?.uid || "",
         updatedAt: Timestamp.fromDate(new Date()),
       };
       if (editingId) {
         await updateDoc(doc(db, "expenses", editingId), data);
+        const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "expense"), where("referenceId", "==", editingId)));
+        const txData = {
+          accountId: resolveAccount(form.paymentMethod),
+          type: "debit",
+          amount: Number(form.amount),
+          description: `Expense: ${form.title}`,
+          date: Timestamp.fromDate(new Date(form.date)),
+          recordedBy: user?.uid || "",
+        };
+        if (!txSnap.empty) {
+          await updateDoc(doc(db, "accountTransactions", txSnap.docs[0].id), txData);
+        } else {
+          await addDoc(collection(db, "accountTransactions"), {
+            ...txData,
+            referenceType: "expense",
+            referenceId: editingId,
+            createdAt: Timestamp.fromDate(new Date()),
+          });
+        }
       } else {
         const expenseRef = await addDoc(collection(db, "expenses"), {
           ...data, createdAt: Timestamp.fromDate(new Date()),
         });
-        const accountId = form.paymentMethod === "bank" ? "bank_account" : "cash_in_hand";
         await addDoc(collection(db, "accountTransactions"), {
-          accountId,
+          accountId: resolveAccount(form.paymentMethod),
           type: "debit",
           amount: Number(form.amount),
           description: `Expense: ${form.title}`,
           date: Timestamp.fromDate(new Date(form.date)),
           referenceType: "expense",
           referenceId: expenseRef.id,
-          recordedBy: "",
+          recordedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
       }
@@ -140,6 +162,10 @@ export default function AdminExpensesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "expense"), where("referenceId", "==", id)));
+    for (const tx of txSnap.docs) {
+      await deleteDoc(doc(db, "accountTransactions", tx.id));
+    }
     await deleteDoc(doc(db, "expenses", id));
   };
 
@@ -158,20 +184,19 @@ export default function AdminExpensesPage() {
           date: now,
           paymentMethod: t.paymentMethod,
           receiptUrl: "",
-          recordedBy: "",
+          recordedBy: user?.uid || "",
           createdAt: now,
           updatedAt: now,
         });
-        const accountId = t.paymentMethod === "bank" ? "bank_account" : "cash_in_hand";
         await addDoc(collection(db, "accountTransactions"), {
-          accountId,
+          accountId: resolveAccount(t.paymentMethod),
           type: "debit",
           amount: t.amount,
           description: `Recurring: ${t.title}`,
           date: now,
           referenceType: "expense",
           referenceId: expenseRef.id,
-          recordedBy: "",
+          recordedBy: user?.uid || "",
           createdAt: now,
         });
         const nextDate = new Date(t.nextDueDate);
@@ -205,7 +230,7 @@ export default function AdminExpensesPage() {
         description: recurringForm.description,
         paymentMethod: recurringForm.paymentMethod,
         isActive: true,
-        recordedBy: "",
+        recordedBy: user?.uid || "",
         updatedAt: Timestamp.fromDate(new Date()),
       };
       if (editingRecurringId) {
@@ -237,6 +262,12 @@ export default function AdminExpensesPage() {
             <p className="text-sm text-muted-foreground">{expenses.length} total</p>
           </div>
           <div className="flex gap-2">
+            {tab === "expenses" && (
+              <button onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+                className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
+                {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+              </button>
+            )}
             {dueCount > 0 && (
               <Button onClick={generateDueExpenses} disabled={saving} variant="outline" className="text-amber-600 border-amber-300">
                 <AlertCircle className="h-4 w-4" /> Generate {dueCount} Due
@@ -353,7 +384,7 @@ export default function AdminExpensesPage() {
               <p className="text-muted-foreground text-center py-12">Loading...</p>
             ) : filtered.length === 0 ? (
               <p className="text-muted-foreground text-center py-12">No expenses found.</p>
-            ) : (
+            ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {filtered.map((e) => (
                   <div key={e.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
@@ -381,6 +412,44 @@ export default function AdminExpensesPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted text-left">
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Title</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Head</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Amount</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground capitalize">Method</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Date</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filtered.map((e) => (
+                      <tr key={e.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-2.5 text-sm font-medium text-secondary">{e.title}</td>
+                        <td className="px-4 py-2.5 text-sm text-muted-foreground">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{e.head}</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-sm text-right font-medium">{formatCurrency(e.amount)}</td>
+                        <td className="px-4 py-2.5 text-sm text-right capitalize">{e.paymentMethod}</td>
+                        <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(e.date)}</td>
+                        <td className="px-4 py-2.5 text-sm text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => openEdit(e)} className="p-1 hover:bg-muted rounded" title="Edit">
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => handleDelete(e.id)} className="p-1 hover:bg-muted rounded text-red-500" title="Delete">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </>

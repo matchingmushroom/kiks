@@ -67,6 +67,7 @@ interface InvoicePDFProps {
   termsAndConditions: string;
   date: string;
   validUntil?: string;
+  couponCode?: string;
 }
 
 export default function InvoicePDF(data: InvoicePDFProps) {
@@ -152,6 +153,14 @@ export default function InvoicePDF(data: InvoicePDFProps) {
         </View>
 
         <Text style={styles.amountWords}>Amount in words: {amountInWords(data.totalAmount)}</Text>
+
+        {data.couponCode && (
+          <View style={{ marginTop: 12, padding: 8, backgroundColor: "#eff6ff", borderRadius: 4, border: "1 solid #bfdbfe" }}>
+            <Text style={{ fontSize: 9, fontWeight: "bold", color: "#1d4ed8", marginBottom: 2 }}>Coupon Issued</Text>
+            <Text style={{ fontSize: 10, fontFamily: "Courier", color: "#1e40af" }}>{data.couponCode}</Text>
+            <Text style={{ fontSize: 8, color: "#6b7280", marginTop: 2 }}>Use this code on your next purchase for 10% off!</Text>
+          </View>
+        )}
 
         {data.warranty.period && (
           <View style={styles.warranty}>

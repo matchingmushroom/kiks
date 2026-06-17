@@ -3,10 +3,12 @@
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
-import { Purchase, PurchaseItem as PurchaseItemType, Product, Category } from "@/types";
+import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { resolveAccount } from "@/lib/accounts";
+import { useAuth } from "@/contexts/AuthContext";
 import {
-  addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc, setDoc,
+  addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc, setDoc, getDocs, query, where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -32,6 +34,10 @@ export default function AdminPurchasesPage() {
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
   });
+  const { data: allSuppliers } = useFirestore<Supplier>("suppliers", {
+    constraints: [orderBy("name", "asc")],
+  });
+  const { user } = useAuth();
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -47,6 +53,7 @@ export default function AdminPurchasesPage() {
   const [newProductForm, setNewProductForm] = useState({ name: "", costPrice: 0, categoryId: "" });
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
+  const [manualSupplier, setManualSupplier] = useState(false);
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -150,6 +157,30 @@ export default function AdminPurchasesPage() {
     setNewProductForm({ name: "", costPrice: 0, categoryId: "" });
   };
 
+  const upsertCreditor = async (supplierName: string, supplierPhone: string | undefined, balanceChange: number) => {
+    const existing = await getDocs(query(collection(db, "creditors"), where("supplierName", "==", supplierName)));
+    if (!existing.empty) {
+      const cred = existing.docs[0];
+      const currentBalance = cred.data().currentBalance || 0;
+      await updateDoc(doc(db, "creditors", cred.id), {
+        currentBalance: currentBalance + balanceChange,
+        lastTransactionDate: Timestamp.fromDate(new Date()),
+        supplierPhone: supplierPhone || cred.data().supplierPhone,
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+    } else {
+      await addDoc(collection(db, "creditors"), {
+        supplierName,
+        supplierPhone: supplierPhone || "",
+        currentBalance: Math.max(0, balanceChange),
+        lastTransactionDate: Timestamp.fromDate(new Date()),
+        notes: "",
+        createdAt: Timestamp.fromDate(new Date()),
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+    }
+  };
+
   const handleSave = async () => {
     if (!form.supplierName || form.items.length === 0) return;
     setSaving(true);
@@ -164,13 +195,36 @@ export default function AdminPurchasesPage() {
         paymentMethod: form.paymentMethod,
         paidAmount: form.paidAmount,
         notes: form.notes,
-        recordedBy: "",
+        recordedBy: user?.uid || "",
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       };
 
       if (editingId) {
         await updateDoc(doc(db, "purchases", editingId), purchaseData);
+        const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "purchase"), where("referenceId", "==", editingId)));
+        if (form.paidAmount && form.paidAmount > 0 && form.paymentMethod) {
+          const txData = {
+            accountId: resolveAccount(form.paymentMethod),
+            type: "debit",
+            amount: form.paidAmount,
+            description: `Purchase from ${form.supplierName}`,
+            date: Timestamp.fromDate(new Date()),
+            recordedBy: user?.uid || "",
+          };
+          if (!txSnap.empty) {
+            await updateDoc(doc(db, "accountTransactions", txSnap.docs[0].id), txData);
+          } else {
+            await addDoc(collection(db, "accountTransactions"), {
+              ...txData,
+              referenceType: "purchase",
+              referenceId: editingId,
+              createdAt: Timestamp.fromDate(new Date()),
+            });
+          }
+        } else if (!txSnap.empty) {
+          await deleteDoc(doc(db, "accountTransactions", txSnap.docs[0].id));
+        }
       } else {
         const ref = await addDoc(collection(db, "purchases"), purchaseData);
         for (const item of form.items) {
@@ -194,23 +248,28 @@ export default function AdminPurchasesPage() {
             changeType: "purchase",
             quantityChange: item.quantity,
             reason: `Purchase from ${form.supplierName}`,
-            performedBy: "",
+            performedBy: user?.uid || "",
             createdAt: Timestamp.fromDate(new Date()),
           });
         }
         if (form.paidAmount && form.paidAmount > 0 && form.paymentMethod) {
-          const accountId = form.paymentMethod === "cash" ? "cash_in_hand" : "bank_account";
           await addDoc(collection(db, "accountTransactions"), {
-            accountId,
+            accountId: resolveAccount(form.paymentMethod),
             type: "debit",
             amount: form.paidAmount,
             description: `Purchase from ${form.supplierName}`,
             date: Timestamp.fromDate(new Date()),
             referenceType: "purchase",
             referenceId: ref.id,
-            recordedBy: "",
+            recordedBy: user?.uid || "",
             createdAt: Timestamp.fromDate(new Date()),
           });
+        }
+        if (form.paymentStatus !== "paid") {
+          const balanceChange = form.paymentStatus === "unpaid" ? form.totalAmount : Math.max(0, form.totalAmount - (form.paidAmount || 0));
+          if (balanceChange > 0) {
+            await upsertCreditor(form.supplierName, form.supplierPhone, balanceChange);
+          }
         }
       }
 
@@ -232,10 +291,12 @@ export default function AdminPurchasesPage() {
     if (!returnModal) return;
     setSaving(true);
     try {
+      let returnValue = 0;
       for (const ri of returnItems) {
         if (ri.qty <= 0) continue;
         const item = returnModal.items.find((i) => i.productId === ri.productId);
         if (!item) continue;
+        returnValue += ri.qty * item.unitCost;
         const prodRef = doc(db, "products", item.productId);
         const prodSnap = await getDoc(prodRef);
         if (prodSnap.exists()) {
@@ -247,9 +308,31 @@ export default function AdminPurchasesPage() {
           changeType: "purchase_return",
           quantityChange: -ri.qty,
           reason: `Return from purchase #${returnModal.id}`,
-          performedBy: "",
+          performedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
+      }
+      if (returnValue > 0) {
+        if (returnModal.paymentStatus === "paid" || returnModal.paymentStatus === "partially_paid") {
+          const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "purchase"), where("referenceId", "==", returnModal.id)));
+          if (!txSnap.empty) {
+            const origTx = txSnap.docs[0].data();
+            await addDoc(collection(db, "accountTransactions"), {
+              accountId: origTx.accountId,
+              type: "credit",
+              amount: returnValue,
+              description: `Purchase return from #${returnModal.id}`,
+              date: Timestamp.fromDate(new Date()),
+              referenceType: "purchase_return",
+              referenceId: returnModal.id,
+              recordedBy: user?.uid || "",
+              createdAt: Timestamp.fromDate(new Date()),
+            });
+          }
+        }
+        if (returnModal.paymentStatus === "unpaid" || returnModal.paymentStatus === "partially_paid") {
+          await upsertCreditor(returnModal.supplierName, returnModal.supplierPhone, -returnValue);
+        }
       }
       setReturnModal(null);
     } catch (e) {
@@ -259,6 +342,10 @@ export default function AdminPurchasesPage() {
   };
 
   const handleDelete = async (id: string) => {
+    const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "purchase"), where("referenceId", "==", id)));
+    for (const tx of txSnap.docs) {
+      await deleteDoc(doc(db, "accountTransactions", tx.id));
+    }
     await deleteDoc(doc(db, "purchases", id));
   };
 
@@ -295,16 +382,38 @@ export default function AdminPurchasesPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Supplier Name *</label>
-                  <input type="text" value={form.supplierName}
-                    onChange={(e) => setForm({ ...form, supplierName: e.target.value })}
-                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Supplier *</label>
+                  <select value={manualSupplier ? "other" : form.supplierName}
+                    onChange={(e) => {
+                      if (e.target.value === "other") {
+                        setManualSupplier(true);
+                      } else if (e.target.value === "") {
+                        setForm({ ...form, supplierName: "", supplierPhone: "" });
+                        setManualSupplier(false);
+                      } else {
+                        const selected = allSuppliers.find((s) => s.name === e.target.value);
+                        setForm({ ...form, supplierName: selected?.name || "", supplierPhone: selected?.phone || "" });
+                        setManualSupplier(false);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value="">Select supplier</option>
+                    {allSuppliers.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}{s.phone ? ` (${s.phone})` : ""}</option>
+                    ))}
+                    <option value="other">Other (Enter Manually)</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Supplier Phone</label>
-                  <input type="text" value={form.supplierPhone}
-                    onChange={(e) => setForm({ ...form, supplierPhone: e.target.value })}
-                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  {manualSupplier ? (
+                    <input type="text" value={form.supplierPhone}
+                      onChange={(e) => setForm({ ...form, supplierPhone: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  ) : (
+                    <input type="text" value={form.supplierPhone} readOnly
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-gray-50 text-muted-foreground cursor-not-allowed" />
+                  )}
                 </div>
               </div>
 
@@ -437,6 +546,7 @@ export default function AdminPurchasesPage() {
                     <option value="cash">Cash</option>
                     <option value="bank_transfer">Bank Transfer</option>
                     <option value="qr">QR Payment</option>
+                    <option value="credit">Credit</option>
                   </select>
                 </div>
                 <div>

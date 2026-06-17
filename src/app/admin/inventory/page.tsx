@@ -5,12 +5,13 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Product, InventoryLog, Category } from "@/types";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   addDoc, collection, updateDoc, doc, Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package } from "lucide-react";
+import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package, LayoutGrid, List } from "lucide-react";
 
 export default function AdminInventoryPage() {
   const { data: products } = useFirestore<Product>("products", {
@@ -20,6 +21,7 @@ export default function AdminInventoryPage() {
     constraints: [orderBy("createdAt", "desc")],
   });
   const { data: categories } = useFirestore<Category>("categories");
+  const { user } = useAuth();
 
   const [search, setSearch] = useState("");
   const [stockFilter, setStockFilter] = useState("");
@@ -29,6 +31,7 @@ export default function AdminInventoryPage() {
   const [adjustReason, setAdjustReason] = useState("");
   const [tab, setTab] = useState<"stock" | "log">("stock");
   const [saving, setSaving] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
@@ -63,14 +66,46 @@ export default function AdminInventoryPage() {
 
       await updateDoc(productRef, { quantityInStock: newQty, updatedAt: Timestamp.fromDate(new Date()) });
 
+      const qtyChange = adjustType === "set" ? newQty - adjusting.currentStock : (adjustType === "add" ? adjustQty : -adjustQty);
+
       await addDoc(collection(db, "inventoryLogs"), {
         productId: adjusting.productId,
         changeType: adjustType,
-        quantityChange: adjustType === "set" ? newQty - adjusting.currentStock : (adjustType === "add" ? adjustQty : -adjustQty),
+        quantityChange: qtyChange,
         reason: adjustReason,
-        performedBy: "",
+        performedBy: user?.uid || "",
         createdAt: Timestamp.fromDate(new Date()),
       });
+
+      // Financial impact for stock changes
+      const product = products.find((p) => p.id === adjusting.productId);
+      const costPrice = product?.costPrice || 0;
+      if (costPrice > 0 && qtyChange !== 0) {
+        const value = Math.abs(qtyChange) * costPrice;
+        if (qtyChange < 0) {
+          await addDoc(collection(db, "accountTransactions"), {
+            accountId: "cash_in_hand",
+            type: "debit",
+            amount: value,
+            description: `Stock loss: ${adjustReason || adjusting.name}`,
+            date: Timestamp.fromDate(new Date()),
+            referenceType: "manual",
+            recordedBy: user?.uid || "",
+            createdAt: Timestamp.fromDate(new Date()),
+          });
+        } else {
+          await addDoc(collection(db, "accountTransactions"), {
+            accountId: "cash_in_hand",
+            type: "credit",
+            amount: value,
+            description: `Stock surplus: ${adjustReason || adjusting.name}`,
+            date: Timestamp.fromDate(new Date()),
+            referenceType: "manual",
+            recordedBy: user?.uid || "",
+            createdAt: Timestamp.fromDate(new Date()),
+          });
+        }
+      }
 
       setAdjusting(null);
     } catch (e) {
@@ -122,6 +157,10 @@ export default function AdminInventoryPage() {
                 <option value="low">Low Stock (≤3)</option>
                 <option value="out">Out of Stock</option>
               </select>
+              <button onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
+                className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
+                {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
+              </button>
             </div>
 
             {/* Adjust Stock Form */}
@@ -173,40 +212,82 @@ export default function AdminInventoryPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {filtered.map((p) => (
-                <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-secondary text-sm truncate">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">{categoryMap.get(p.categoryId) || "—"} · {p.sku || "—"}</p>
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                {filtered.map((p) => (
+                  <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-secondary text-sm truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">{categoryMap.get(p.categoryId) || "—"} · {p.sku || "—"}</p>
+                      </div>
+                      <button onClick={() => startAdjust(p)}
+                        className="text-xs px-2.5 py-1.5 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-secondary transition-colors shrink-0">
+                        Adjust
+                      </button>
                     </div>
-                    <button onClick={() => startAdjust(p)}
-                      className="text-xs px-2.5 py-1.5 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-secondary transition-colors shrink-0">
-                      Adjust
-                    </button>
+                    <div className="flex items-center justify-between">
+                      <span className={`font-bold text-lg ${
+                        p.quantityInStock <= 0 ? "text-red-500" :
+                        p.quantityInStock <= 3 ? "text-amber-500" :
+                        "text-secondary"
+                      }`}>{p.quantityInStock}</span>
+                      {p.quantityInStock <= 0 ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-red-600">
+                          <AlertTriangle className="h-3 w-3" /> Out of Stock
+                        </span>
+                      ) : p.quantityInStock <= 3 ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                          <AlertTriangle className="h-3 w-3" /> Low Stock
+                        </span>
+                      ) : (
+                        <span className="text-xs text-green-600">In Stock</span>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`font-bold text-lg ${
-                      p.quantityInStock <= 0 ? "text-red-500" :
-                      p.quantityInStock <= 3 ? "text-amber-500" :
-                      "text-secondary"
-                    }`}>{p.quantityInStock}</span>
-                    {p.quantityInStock <= 0 ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-red-600">
-                        <AlertTriangle className="h-3 w-3" /> Out of Stock
-                      </span>
-                    ) : p.quantityInStock <= 3 ? (
-                      <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-                        <AlertTriangle className="h-3 w-3" /> Low Stock
-                      </span>
-                    ) : (
-                      <span className="text-xs text-green-600">In Stock</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted text-left">
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Product</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Category</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">SKU</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Stock</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Status</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {filtered.map((p) => (
+                      <tr key={p.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-2.5 text-sm font-medium text-secondary">{p.name}</td>
+                        <td className="px-4 py-2.5 text-sm text-muted-foreground">{categoryMap.get(p.categoryId) || "—"}</td>
+                        <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.sku || "—"}</td>
+                        <td className="px-4 py-2.5 text-sm text-right font-bold">{p.quantityInStock}</td>
+                        <td className="px-4 py-2.5 text-sm text-right">
+                          {p.quantityInStock <= 0 ? (
+                            <span className="text-xs text-red-600 font-medium">Out of Stock</span>
+                          ) : p.quantityInStock <= 3 ? (
+                            <span className="text-xs text-amber-600 font-medium">Low Stock</span>
+                          ) : (
+                            <span className="text-xs text-green-600">In Stock</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2.5 text-sm text-right">
+                          <button onClick={() => startAdjust(p)}
+                            className="text-xs px-2.5 py-1.5 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-secondary transition-colors">
+                            Adjust
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         ) : (
           <div className="space-y-3">

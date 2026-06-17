@@ -1,0 +1,220 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import AdminLayout from "@/components/admin/AdminLayout";
+import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { AppUser } from "@/types";
+import { doc, updateDoc, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import LoadingSpinner from "@/components/ui/LoadingSpinner";
+import { Search, Shield, Save, X, Check } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasPermission } from "@/lib/roles";
+
+const ALL_PERMISSIONS = [
+  "manage_products",
+  "manage_categories",
+  "manage_orders",
+  "manage_sales",
+  "manage_invoices",
+  "manage_coupons",
+  "manage_debtors",
+  "view_reports",
+  "manage_inventory",
+  "manage_staff",
+  "manage_homepage",
+  "manage_settings",
+  "manage_backup",
+  "manage_purchases",
+  "manage_expenses",
+  "manage_offers",
+  "manage_creditors",
+  "manage_suppliers",
+  "manage_customers",
+] as const;
+
+const PERMISSION_LABELS: Record<string, string> = {
+  manage_products: "Products",
+  manage_categories: "Categories",
+  manage_orders: "Orders",
+  manage_sales: "Sales",
+  manage_invoices: "Invoices",
+  manage_coupons: "Coupons",
+  manage_debtors: "Debtors",
+  view_reports: "Reports",
+  manage_inventory: "Inventory",
+  manage_staff: "Staff",
+  manage_homepage: "Homepage",
+  manage_settings: "Settings",
+  manage_backup: "Backup",
+  manage_purchases: "Purchases",
+  manage_expenses: "Expenses",
+  manage_offers: "Offers",
+  manage_creditors: "Creditors",
+  manage_suppliers: "Suppliers",
+  manage_customers: "Customers",
+};
+
+export default function AccessControlPage() {
+  const { profile: currentUser } = useAuth();
+  const { data: users, loading } = useFirestore<AppUser>("users", {
+    constraints: [orderBy("createdAt", "desc")],
+  });
+  const [search, setSearch] = useState("");
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editPermissions, setEditPermissions] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  const nonAdminUsers = useMemo(
+    () => users.filter((u) => u.role !== "admin" && u.uid !== currentUser?.uid),
+    [users, currentUser?.uid]
+  );
+
+  const filtered = nonAdminUsers.filter((u) =>
+    !search || u.displayName?.toLowerCase().includes(search.toLowerCase()) || u.email?.includes(search)
+  );
+
+  const startEdit = (u: AppUser) => {
+    setEditingUserId(u.uid);
+    setEditPermissions(u.permissions ?? []);
+  };
+
+  const togglePermission = (perm: string) => {
+    setEditPermissions((prev) =>
+      prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
+    );
+  };
+
+  const savePermissions = async () => {
+    if (!editingUserId) return;
+    setSaving(true);
+    try {
+      await updateDoc(doc(db, "users", editingUserId), {
+        permissions: editPermissions,
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+      setEditingUserId(null);
+    } catch (e) {
+      console.error("Save failed", e);
+    }
+    setSaving(false);
+  };
+
+  const resetToRoleDefaults = () => {
+    const user = users.find((u) => u.uid === editingUserId);
+    if (user) {
+      setEditPermissions([]);
+    }
+  };
+
+  return (
+    <AdminLayout>
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-secondary">Access Control</h1>
+            <p className="text-sm text-muted-foreground">Manage per-user permission overrides</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 mb-6 flex-wrap">
+          <div className="relative max-w-xs flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input type="text" placeholder="Search users..." value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            <Shield className="h-3 w-3 inline mr-1" />
+            Admin users have full access and cannot be edited here.
+          </p>
+        </div>
+
+        {loading ? (
+          <LoadingSpinner />
+        ) : filtered.length === 0 ? (
+          <p className="text-muted-foreground text-center py-12">No users found.</p>
+        ) : (
+          <div className="space-y-4">
+            {filtered.map((user) => {
+              const isEditing = editingUserId === user.uid;
+              const activePerms = isEditing ? editPermissions : (user.permissions ?? []);
+              const hasOverrides = activePerms.length > 0;
+
+              return (
+                <div key={user.uid} className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                  <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                        {user.displayName?.charAt(0)?.toUpperCase() || "?"}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-secondary text-sm truncate">{user.displayName}</p>
+                        <p className="text-xs text-muted-foreground">{user.email} <span className="capitalize">({user.role})</span></p>
+                      </div>
+                      {hasOverrides && !isEditing && (
+                        <span className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full shrink-0">
+                          Custom
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {isEditing ? (
+                        <>
+                          <Button size="sm" variant="ghost" onClick={resetToRoleDefaults} disabled={saving}>
+                            <X className="h-3.5 w-3.5" /> Reset
+                          </Button>
+                          <Button size="sm" variant="accent" onClick={savePermissions} disabled={saving}>
+                            <Save className="h-3.5 w-3.5" /> {saving ? "Saving..." : "Save"}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setEditingUserId(null)}>Cancel</Button>
+                        </>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => startEdit(user)}>
+                          <Shield className="h-3.5 w-3.5" /> Edit
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center gap-4 flex-wrap">
+                      {ALL_PERMISSIONS.map((perm) => {
+                        const granted = isEditing
+                          ? editPermissions.includes(perm)
+                          : hasPermission(user.role, perm, user.permissions);
+                        const defaultGranted = hasPermission(user.role, perm, undefined);
+                        const isOverride = isEditing
+                          ? editPermissions.includes(perm) !== defaultGranted
+                          : (user.permissions && user.permissions.includes(perm) !== defaultGranted);
+
+                        return (
+                          <button
+                            key={perm}
+                            onClick={() => isEditing && togglePermission(perm)}
+                            disabled={!isEditing}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border transition-colors ${
+                              granted
+                                ? "bg-green-50 text-green-700 border-green-200"
+                                : "bg-gray-50 text-gray-400 border-gray-200"
+                            } ${isOverride ? "ring-2 ring-amber-300" : ""} ${
+                              isEditing ? "cursor-pointer hover:opacity-80" : "cursor-default"
+                            }`}
+                            title={isOverride ? "Overridden from role default" : isEditing ? "Click to toggle" : ""}
+                          >
+                            {granted && <Check className="h-3 w-3" />}
+                            {PERMISSION_LABELS[perm] || perm}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </AdminLayout>
+  );
+}

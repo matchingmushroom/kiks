@@ -40,6 +40,10 @@ export default function AdminDashboardPage() {
     constraints: [orderBy("balanceDue", "desc")],
   });
 
+  const isStaff = profile?.role === "staff";
+  const mySales = isStaff ? sales.filter((s) => s.recordedBy === profile?.uid) : sales;
+  const myOrders = isStaff ? orders.filter((o) => o.processedBy === profile?.uid) : orders;
+
   const now = new Date();
   const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
@@ -50,13 +54,13 @@ export default function AdminDashboardPage() {
     if (typeof d?.getTime === "function") return d.getTime();
     return Number(d) || 0;
   };
-  const ytdSales = sales
+  const ytdSales = mySales
     .filter((s) => saleTime(s) >= startOfYear)
     .reduce((sum, s) => sum + s.finalAmount, 0);
-  const mtdSales = sales
+  const mtdSales = mySales
     .filter((s) => saleTime(s) >= startOfMonth)
     .reduce((sum, s) => sum + s.finalAmount, 0);
-  const totalSales = sales.reduce((sum, s) => sum + s.finalAmount, 0);
+  const totalSales = mySales.reduce((sum, s) => sum + s.finalAmount, 0);
   const totalDebt = debtors
     .filter((d) => d.status === "active")
     .reduce((sum, d) => sum + d.balanceDue, 0);
@@ -84,7 +88,7 @@ export default function AdminDashboardPage() {
   };
   const salesTrend = last30.map((date) => ({
     date: date.slice(5),
-    sales: sales
+    sales: mySales
       .filter((s) => safeDate(s.saleDate) === date)
       .reduce((sum, s) => sum + s.finalAmount, 0),
   }));
@@ -92,7 +96,7 @@ export default function AdminDashboardPage() {
   const productMap = new Map(products.map((p) => [p.id, p]));
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
   const catRevenue = new Map<string, number>();
-  sales.forEach((s) => {
+  mySales.forEach((s) => {
     (s.items || []).forEach((item) => {
       const prod = productMap.get(item.productId);
       const catName = prod ? categoryMap.get(prod.categoryId) || "Uncategorized" : "Uncategorized";
@@ -111,7 +115,7 @@ export default function AdminDashboardPage() {
   const inventoryData = Array.from(catStock.entries()).map(([name, stock]) => ({ name, stock }));
 
   const productSales = new Map<string, { qty: number; revenue: number }>();
-  sales.forEach((s) => {
+  mySales.forEach((s) => {
     (s.items || []).forEach((item) => {
       const prev = productSales.get(item.productName) || { qty: 0, revenue: 0 };
       productSales.set(item.productName, {
@@ -131,6 +135,7 @@ export default function AdminDashboardPage() {
         <h1 className="text-2xl font-bold text-secondary mb-1">Dashboard</h1>
         <p className="text-muted-foreground mb-6">
           Welcome back, {profile?.displayName || "User"}
+          {isStaff && <span className="ml-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">Showing your data</span>}
         </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
@@ -158,7 +163,7 @@ export default function AdminDashboardPage() {
               <TrendingUp className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold text-secondary">Sales Trend (30 days)</h2>
             </div>
-            {sales.length === 0 ? (
+            {mySales.length === 0 ? (
               <p className="text-muted-foreground text-sm py-8 text-center">No sales data yet</p>
             ) : (
               <ResponsiveContainer width="100%" height={220}>
@@ -253,14 +258,37 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
             <div className="flex items-center gap-2 mb-4">
+              <ShoppingCart className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold text-secondary">Recent Sales</h2>
+            </div>
+            {mySales.length === 0 ? (
+              <p className="text-muted-foreground text-sm py-8 text-center">No sales yet</p>
+            ) : (
+              <div className="space-y-2">
+                {mySales.slice(0, 5).map((s) => (
+                  <Link key={s.id} href={`/admin/sales?customer=${encodeURIComponent(s.customer?.name || "")}`}
+                    className="flex items-center justify-between text-sm hover:bg-muted/50 -mx-2 px-2 py-1.5 rounded-lg transition-colors">
+                    <div className="min-w-0 truncate">
+                      <span className="truncate font-medium">{s.customer?.name || "Unknown"}</span>
+                      <span className="text-xs text-muted-foreground ml-2">{s.customer?.phone}</span>
+                    </div>
+                    <span className="font-medium flex-shrink-0">{formatCurrency(s.finalAmount)}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
               <Clock className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold text-secondary">Recent Orders</h2>
             </div>
-            {orders.length === 0 ? (
+            {myOrders.length === 0 ? (
               <p className="text-muted-foreground text-sm py-8 text-center">No orders yet</p>
             ) : (
               <div className="space-y-2">
-                {orders.slice(0, 5).map((order) => (
+                {myOrders.slice(0, 5).map((order) => (
                   <Link key={order.id} href="/admin/orders"
                     className="flex items-center justify-between text-sm hover:bg-muted/50 -mx-2 px-2 py-1.5 rounded-lg transition-colors">
                     <div className="flex items-center gap-2 min-w-0">

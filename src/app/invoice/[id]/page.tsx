@@ -203,6 +203,14 @@ export default function PublicInvoicePage() {
               Amount in words: {amountInWords(invoice.totalAmount)}
             </div>
 
+            {invoice.couponIssued && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm">
+                <p className="font-medium text-blue-800 mb-1">Coupon Issued</p>
+                <p className="font-mono text-blue-700 font-bold">{invoice.couponIssued.code}</p>
+                <p className="text-blue-600 text-xs mt-1">Use this code on your next purchase for 10% off!</p>
+              </div>
+            )}
+
             {invoice.warranty?.period && (
               <div className="bg-muted rounded-lg p-4 mb-4 text-sm">
                 <p className="font-medium mb-1">Warranty: {invoice.warranty.period}</p>
