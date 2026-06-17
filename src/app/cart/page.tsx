@@ -109,14 +109,14 @@ export default function CartPage() {
         quantity: i.quantity,
         price: i.price,
         weight: i.weight,
-        purity: i.purity,
-        makingCharge: i.makingCharge,
+        purity: i.purity ?? null,
+        makingCharge: i.makingCharge ?? null,
         subtotal: i.price * i.quantity,
       }));
 
       const orderData = {
         orderNumber: orderNum,
-        customer: { name: customerName, phone: customerPhone, address: customerAddress },
+        customer: { name: customerName, phone: customerPhone, address: customerAddress || null },
         items: itemsData,
         totalAmount: finalTotal,
         couponApplied: appliedCoupon ? { code: appliedCoupon.code, discountValue: discount } : null,
