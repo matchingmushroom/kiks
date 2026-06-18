@@ -13,7 +13,7 @@ import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit, arrayRemove, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2, RotateCcw } from "lucide-react";
+import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2, RotateCcw, Printer } from "lucide-react";
 import Link from "next/link";
 
 interface LineItem {
@@ -1090,9 +1090,15 @@ function SalesContent() {
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-secondary">{invoicePreviewData.invoiceNumber}</h2>
-              <button onClick={() => setInvoicePreviewId(null)} className="p-1 hover:bg-muted rounded">
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => window.open(`/admin/invoice-viewer?id=${invoicePreviewId}`, "_blank")}
+                  className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-primary/10 text-primary rounded hover:bg-primary/20">
+                  <Printer className="h-3.5 w-3.5" /> Print
+                </button>
+                <button onClick={() => setInvoicePreviewId(null)} className="p-1 hover:bg-muted rounded">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <div className="space-y-4 text-sm">
               <div>
