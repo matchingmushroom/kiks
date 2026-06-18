@@ -1144,6 +1144,18 @@ function SalesContent() {
                   </div>
                 )}
               </div>
+              {invoicePreviewData.couponIssued && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+                  <p className="font-medium text-blue-800 mb-0.5">Coupon Issued</p>
+                  <p className="font-mono text-blue-700 font-bold text-sm">{invoicePreviewData.couponIssued.code}</p>
+                  <p className="text-blue-600 mt-0.5">
+                    {invoicePreviewData.couponIssued.discountType === "percentage"
+                      ? `${invoicePreviewData.couponIssued.discountValue}% off`
+                      : `Rs. ${invoicePreviewData.couponIssued.discountValue} off`}
+                    {invoicePreviewData.couponIssued.terms ? ` · ${invoicePreviewData.couponIssued.terms}` : ""}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
