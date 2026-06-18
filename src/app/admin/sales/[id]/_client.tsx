@@ -132,6 +132,11 @@ export default function SaleDetailPage() {
         }
       }
 
+      await updateDoc(doc(db, "sales", sale.id), {
+        returned: true,
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+
       setShowReturn(false);
 
       if (returnType === "exchange") {
@@ -169,7 +174,12 @@ export default function SaleDetailPage() {
                     }`}>
                       {sale.payment?.balanceDue > 0 ? `Due ${formatCurrency(sale.payment.balanceDue)}` : "Paid"}
                     </span>
-                    <Button size="sm" variant="outline" onClick={openReturn}>
+                    {sale.returned && (
+                      <span className="text-xs px-3 py-1 rounded-full font-medium bg-yellow-50 text-yellow-700">
+                        Returned
+                      </span>
+                    )}
+                    <Button size="sm" variant="outline" onClick={openReturn} disabled={sale.returned}>
                       <RotateCcw className="h-3.5 w-3.5" /> Return
                     </Button>
                   </div>

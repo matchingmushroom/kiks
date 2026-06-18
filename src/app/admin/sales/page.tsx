@@ -81,6 +81,7 @@ function SalesContent() {
   const [savingReturn, setSavingReturn] = useState(false);
   const [invoicePreviewId, setInvoicePreviewId] = useState<string | null>(null);
   const [invoicePreviewData, setInvoicePreviewData] = useState<Invoice | null>(null);
+  const [showReturned, setShowReturned] = useState(false);
 
   // Live-update sale detail modal when the sale doc changes
   useEffect(() => {
@@ -116,6 +117,9 @@ function SalesContent() {
         : paymentFilter === "due" ? (s.payment?.balanceDue || 0) > 0
         : true
       );
+    }
+    if (!showReturned) {
+      result = result.filter((s) => !s.returned);
     }
     return result;
   }, [sales, search, paymentFilter]);
@@ -413,21 +417,24 @@ function SalesContent() {
     const snap = await getDoc(doc(db, "sales", id));
     if (!snap.exists()) return;
     const sale = snap.data() as Sale;
-    for (const item of sale.items) {
-      const prodRef = doc(db, "products", item.productId);
-      const prodSnap = await getDoc(prodRef);
-      if (prodSnap.exists()) {
-        const currentStock = prodSnap.data().quantityInStock || 0;
-        await updateDoc(prodRef, { quantityInStock: currentStock + item.quantity });
+    // Skip restocking if already returned — stock was restored during return
+    if (!sale.returned) {
+      for (const item of sale.items) {
+        const prodRef = doc(db, "products", item.productId);
+        const prodSnap = await getDoc(prodRef);
+        if (prodSnap.exists()) {
+          const currentStock = prodSnap.data().quantityInStock || 0;
+          await updateDoc(prodRef, { quantityInStock: currentStock + item.quantity });
+        }
+        await addDoc(collection(db, "inventoryLogs"), {
+          productId: item.productId,
+          changeType: "sale",
+          quantityChange: item.quantity,
+          reason: `Sale #${id} deleted`,
+          performedBy: user?.uid || "",
+          createdAt: Timestamp.fromDate(new Date()),
+        });
       }
-      await addDoc(collection(db, "inventoryLogs"), {
-        productId: item.productId,
-        changeType: "sale",
-        quantityChange: item.quantity,
-        reason: `Sale #${id} deleted`,
-        performedBy: user?.uid || "",
-        createdAt: Timestamp.fromDate(new Date()),
-      });
     }
     // Delete linked invoice
     const invSnap = await getDocs(query(collection(db, "invoices"), where("relatedSaleId", "==", id)));
@@ -546,6 +553,12 @@ function SalesContent() {
         }
       }
 
+      // Mark sale as returned (prevents double restock on delete)
+      await updateDoc(doc(db, "sales", returnSale.id), {
+        returned: true,
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+
       setReturnSale(null);
 
       if (returnType === "exchange") {
@@ -586,6 +599,10 @@ function SalesContent() {
           <option value="paid">Paid</option>
           <option value="due">Due</option>
         </select>
+        <button onClick={() => setShowReturned(!showReturned)}
+          className={`px-3 py-2 border rounded-lg text-sm flex items-center gap-1.5 ${showReturned ? "bg-yellow-50 border-yellow-300 text-yellow-800" : "border-border text-muted-foreground hover:bg-muted"}`}>
+          <RotateCcw className="h-4 w-4" /> {showReturned ? "Hide" : "Show"} Returned
+        </button>
         <div className="flex items-center gap-1">
           <button onClick={() => setViewMode("grid")}
             className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
@@ -909,8 +926,11 @@ function SalesContent() {
                   <Eye className="h-3 w-3" /> View Details
                 </button>
                 <div className="flex items-center gap-2">
-                  <button onClick={() => openReturn(s)}
-                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                  {s.returned && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 font-medium">Returned</span>
+                  )}
+                  <button onClick={() => openReturn(s)} disabled={s.returned}
+                    className={`inline-flex items-center gap-1 text-xs ${s.returned ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:text-primary"}`}>
                     <RotateCcw className="h-3 w-3" /> Return
                   </button>
                   <button onClick={() => handleDeleteSale(s.id)}
@@ -930,23 +950,26 @@ function SalesContent() {
                 <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Customer</th>
                 <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Phone</th>
                 <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Amount</th>
-                <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Status</th>
+                <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-center">Payment</th>
                 <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Date</th>
-                <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Actions</th>
+                <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody>
               {filteredSales.map((s) => (
-                <tr key={s.id} className="hover:bg-muted/30">
-                  <td className="px-4 py-2.5 text-sm font-medium text-secondary">{s.customer?.name}</td>
-                  <td className="px-4 py-2.5 text-sm text-muted-foreground">{s.customer?.phone}</td>
-                  <td className="px-4 py-2.5 text-sm text-right">{formatCurrency(s.finalAmount)}</td>
-                  <td className="px-4 py-2.5 text-sm text-right">
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                <tr key={s.id} className="border-t border-border hover:bg-muted/20">
+                  <td className="px-4 py-2.5">{s.customer?.name || "—"}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{s.customer?.phone || "—"}</td>
+                  <td className="px-4 py-2.5 text-right font-medium">{formatCurrency(s.finalAmount)}</td>
+                  <td className="px-4 py-2.5 text-center">
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                       s.payment?.balanceDue > 0 ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
                     }`}>
                       {s.payment?.balanceDue > 0 ? "Due" : "Paid"}
                     </span>
+                    {s.returned && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 font-medium ml-1">Returned</span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(s.saleDate)}</td>
                   <td className="px-4 py-2.5 text-right">
@@ -955,8 +978,8 @@ function SalesContent() {
                         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                         <Eye className="h-3.5 w-3.5" /> View
                       </button>
-                      <button onClick={() => openReturn(s)}
-                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                      <button onClick={() => openReturn(s)} disabled={s.returned}
+                        className={`inline-flex items-center gap-1 text-xs ${s.returned ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:text-primary"}`}>
                         <RotateCcw className="h-3.5 w-3.5" /> Return
                       </button>
                       <button onClick={() => handleDeleteSale(s.id)}

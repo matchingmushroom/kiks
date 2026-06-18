@@ -125,6 +125,7 @@ export interface Sale {
   recordedByName: string;
   createdAt: number;
   updatedAt: number;
+  returned?: boolean;
 }
 
 export interface InvoiceItem {
