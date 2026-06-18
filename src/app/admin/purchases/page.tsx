@@ -37,7 +37,7 @@ export default function AdminPurchasesPage() {
   const { data: allSuppliers } = useFirestore<Supplier>("suppliers", {
     constraints: [orderBy("name", "asc")],
   });
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -197,6 +197,7 @@ export default function AdminPurchasesPage() {
         paidAmount: form.paidAmount,
         notes: form.notes,
         recordedBy: user?.uid || "",
+        recordedByName: profile?.displayName || "",
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       };

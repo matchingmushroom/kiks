@@ -122,6 +122,7 @@ export interface Sale {
   notes: string;
   saleDate: number;
   recordedBy: string;
+  recordedByName: string;
   createdAt: number;
   updatedAt: number;
 }
@@ -230,6 +231,7 @@ export interface Purchase {
   paidAmount?: number;
   notes?: string;
   recordedBy: string;
+  recordedByName: string;
   createdAt: number;
   updatedAt: number;
 }

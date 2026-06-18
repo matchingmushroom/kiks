@@ -216,7 +216,7 @@ export default function SaleDetailPage() {
 
                 <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
                   <p>Sale Date: {formatDateTime(sale.saleDate)}</p>
-                  <p>Recorded By: {sale.recordedBy || "—"}</p>
+                  <p>Recorded By: {(sale as any).recordedByName || sale.recordedBy || "—"}</p>
                 </div>
               </div>
             </div>

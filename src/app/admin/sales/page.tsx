@@ -251,6 +251,7 @@ function SalesContent() {
         notes: form.notes,
         saleDate: Timestamp.fromDate(new Date()),
         recordedBy: user?.uid || "",
+        recordedByName: profile?.displayName || "",
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       });
@@ -830,7 +831,7 @@ function SalesContent() {
 
               <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
                 <p>Sale Date: {formatDateTime(detailSale.saleDate)}</p>
-                <p>Recorded By: {detailSale.recordedBy || "—"}</p>
+                <p>Recorded By: {detailSale.recordedByName || detailSale.recordedBy || "—"}</p>
               </div>
             </div>
           </div>
