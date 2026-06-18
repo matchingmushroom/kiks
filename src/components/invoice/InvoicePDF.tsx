@@ -68,6 +68,8 @@ interface InvoicePDFProps {
   date: string;
   validUntil?: string;
   couponCode?: string;
+  couponDiscountText?: string;
+  couponTerms?: string;
 }
 
 export default function InvoicePDF(data: InvoicePDFProps) {
@@ -158,7 +160,7 @@ export default function InvoicePDF(data: InvoicePDFProps) {
           <View style={{ marginTop: 12, padding: 8, backgroundColor: "#eff6ff", borderRadius: 4, border: "1 solid #bfdbfe" }}>
             <Text style={{ fontSize: 9, fontWeight: "bold", color: "#1d4ed8", marginBottom: 2 }}>Coupon Issued</Text>
             <Text style={{ fontSize: 10, fontFamily: "Courier", color: "#1e40af" }}>{data.couponCode}</Text>
-            <Text style={{ fontSize: 8, color: "#6b7280", marginTop: 2 }}>Use this code on your next purchase for 10% off!</Text>
+            <Text style={{ fontSize: 8, color: "#6b7280", marginTop: 2 }}>{data.couponDiscountText || ""}{data.couponTerms ? ` · ${data.couponTerms}` : ""}</Text>
           </View>
         )}
 

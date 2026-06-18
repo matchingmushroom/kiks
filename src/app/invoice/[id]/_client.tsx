@@ -91,6 +91,11 @@ export default function PublicInvoicePage() {
     termsAndConditions: invoice.termsAndConditions,
     date: formatDate(invoice.createdAt as unknown as number),
     validUntil: invoice.validUntil ? formatDate(invoice.validUntil as unknown as number) : undefined,
+    couponCode: invoice.couponIssued?.code,
+    couponDiscountText: invoice.couponIssued?.discountType === "percentage"
+      ? `${invoice.couponIssued.discountValue}% off`
+      : invoice.couponIssued?.discountValue ? `Rs. ${invoice.couponIssued.discountValue} off` : undefined,
+    couponTerms: invoice.couponIssued?.terms,
   };
 
   return (
@@ -213,7 +218,12 @@ export default function PublicInvoicePage() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm">
                 <p className="font-medium text-blue-800 mb-1">Coupon Issued</p>
                 <p className="font-mono text-blue-700 font-bold">{invoice.couponIssued.code}</p>
-                <p className="text-blue-600 text-xs mt-1">Use this code on your next purchase for 10% off!</p>
+                <p className="text-blue-600 text-xs mt-1">
+                  {invoice.couponIssued.discountType === "percentage"
+                    ? `${invoice.couponIssued.discountValue}% off`
+                    : `Rs. ${invoice.couponIssued.discountValue} off`}
+                  {invoice.couponIssued.terms ? ` · ${invoice.couponIssued.terms}` : ""}
+                </p>
               </div>
             )}
 

@@ -368,7 +368,7 @@ function SalesContent() {
         relatedSaleId: saleRef.id,
         generatedBy: user?.uid || "",
         createdByName: profile?.displayName || "",
-        couponIssued: couponCode ? { code: couponCode, discountValue: form.couponType === "percentage" ? Math.min(form.couponValue, 100) : form.couponValue } : undefined,
+        couponIssued: couponCode ? { code: couponCode, discountValue: form.couponType === "percentage" ? Math.min(form.couponValue, 100) : form.couponValue, discountType: form.couponType, terms: "To be Used within 1 Months" } : undefined,
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       });

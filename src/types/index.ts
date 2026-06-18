@@ -158,7 +158,7 @@ export interface Invoice {
   relatedSaleId: string;
   generatedBy: string;
   createdByName: string;
-  couponIssued?: { code: string; discountValue: number };
+  couponIssued?: { code: string; discountValue: number; discountType?: string; terms?: string };
   createdAt: number;
   updatedAt: number;
 }
