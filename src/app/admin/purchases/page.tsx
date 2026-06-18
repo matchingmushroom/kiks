@@ -54,7 +54,7 @@ export default function AdminPurchasesPage() {
 
   // Inline product creation
   const [showNewProduct, setShowNewProduct] = useState(false);
-  const [newProductForm, setNewProductForm] = useState({ name: "", costPrice: 0, categoryId: "" });
+  const [newProductForm, setNewProductForm] = useState({ name: "", costPrice: 0, salesPrice: 0, categoryId: "" });
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [manualSupplier, setManualSupplier] = useState(false);
@@ -132,7 +132,7 @@ export default function AdminPurchasesPage() {
       name: newProductForm.name,
       description: "", design: "", categoryId: newProductForm.categoryId,
       images: [""], videoUrl: "",
-      price: newProductForm.costPrice, costPrice: newProductForm.costPrice,
+      price: newProductForm.salesPrice || newProductForm.costPrice, costPrice: newProductForm.costPrice,
       weight: 0, purity: "", metalType: "", stoneType: "None",
       stoneWeight: 0, makingCharge: 0, warranty: "", sku: "",
       quantityInStock: 0, isActive: true, isFeatured: false,
@@ -146,7 +146,7 @@ export default function AdminPurchasesPage() {
     const newProduct: Product = {
       id: prodRef.id, name: newProductForm.name, description: "",
       design: "", categoryId: newProductForm.categoryId,
-      images: [""], videoUrl: "", price: newProductForm.costPrice,
+      images: [""], videoUrl: "", price: newProductForm.salesPrice || newProductForm.costPrice,
       costPrice: newProductForm.costPrice, weight: 0, purity: "",
       metalType: "", stoneType: "None", stoneWeight: 0,
       makingCharge: 0, warranty: "", sku: "", quantityInStock: 0,
@@ -159,7 +159,7 @@ export default function AdminPurchasesPage() {
     addItem(newProduct);
     setProductSearch("");
     setShowNewProduct(false);
-    setNewProductForm({ name: "", costPrice: 0, categoryId: "" });
+    setNewProductForm({ name: "", costPrice: 0, salesPrice: 0, categoryId: "" });
   };
 
   const upsertCreditor = async (supplierName: string, supplierPhone: string | undefined, balanceChange: number, purchaseId?: string) => {
@@ -553,7 +553,7 @@ export default function AdminPurchasesPage() {
                         <X className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <div>
                         <label className="block text-xs text-muted-foreground mb-1">Name *</label>
                         <input type="text" value={newProductForm.name}
@@ -564,6 +564,12 @@ export default function AdminPurchasesPage() {
                         <label className="block text-xs text-muted-foreground mb-1">Cost Price (NPR)</label>
                         <input type="number" value={newProductForm.costPrice || ""}
                           onChange={(e) => setNewProductForm({ ...newProductForm, costPrice: Number(e.target.value) })}
+                          className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-muted-foreground mb-1">Sales Price (NPR)</label>
+                        <input type="number" value={newProductForm.salesPrice || ""}
+                          onChange={(e) => setNewProductForm({ ...newProductForm, salesPrice: Number(e.target.value) })}
                           className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                       </div>
                       <div>
