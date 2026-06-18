@@ -10,7 +10,7 @@ import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
-  addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit,
+  addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit, arrayRemove,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2 } from "lucide-react";
@@ -399,6 +399,24 @@ function SalesContent() {
         createdAt: Timestamp.fromDate(new Date()),
       });
     }
+    // Delete linked invoice
+    const invSnap = await getDocs(query(collection(db, "invoices"), where("relatedSaleId", "==", id)));
+    for (const inv of invSnap.docs) {
+      await deleteDoc(doc(db, "invoices", inv.id));
+    }
+    // Delete or detach debtor
+    const debtorSnap = await getDocs(query(collection(db, "debtors"), where("orderIds", "array-contains", id)));
+    for (const d of debtorSnap.docs) {
+      const debtorData = d.data();
+      if ((debtorData.orderIds?.length || 0) <= 1) {
+        await deleteDoc(doc(db, "debtors", d.id));
+      } else {
+        await updateDoc(doc(db, "debtors", d.id), {
+          orderIds: arrayRemove(id),
+        });
+      }
+    }
+    // Delete account transactions linked to this sale
     const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "sale"), where("referenceId", "==", id)));
     for (const tx of txSnap.docs) {
       await deleteDoc(doc(db, "accountTransactions", tx.id));
