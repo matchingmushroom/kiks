@@ -10,10 +10,10 @@ import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
-  addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, query, limit,
+  addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, Search, X, Save, CheckCircle, LayoutGrid, List, ExternalLink, Eye } from "lucide-react";
+import { Plus, Search, X, Save, CheckCircle, LayoutGrid, List, ExternalLink, Eye, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 interface LineItem {
@@ -389,6 +389,34 @@ function SalesContent() {
     setSaving(false);
   };
 
+  const handleDeleteSale = async (id: string) => {
+    if (!confirm("Delete this sale? Inventory will be adjusted.")) return;
+    const snap = await getDoc(doc(db, "sales", id));
+    if (!snap.exists()) return;
+    const sale = snap.data() as Sale;
+    for (const item of sale.items) {
+      const prodRef = doc(db, "products", item.productId);
+      const prodSnap = await getDoc(prodRef);
+      if (prodSnap.exists()) {
+        const currentStock = prodSnap.data().quantityInStock || 0;
+        await updateDoc(prodRef, { quantityInStock: currentStock + item.quantity });
+      }
+      await addDoc(collection(db, "inventoryLogs"), {
+        productId: item.productId,
+        changeType: "sale",
+        quantityChange: item.quantity,
+        reason: `Sale #${id} deleted`,
+        performedBy: user?.uid || "",
+        createdAt: Timestamp.fromDate(new Date()),
+      });
+    }
+    const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "sale"), where("referenceId", "==", id)));
+    for (const tx of txSnap.docs) {
+      await deleteDoc(doc(db, "accountTransactions", tx.id));
+    }
+    await deleteDoc(doc(db, "sales", id));
+  };
+
   if (loading) {
     return <div className="p-6 text-center text-muted-foreground">Loading...</div>;
   }
@@ -701,10 +729,16 @@ function SalesContent() {
                 </div>
                 <p className="text-xs text-muted-foreground">{s.items?.length || 0} items</p>
               </button>
-              <button onClick={() => setDetailSale(s)}
-                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
-                <Eye className="h-3 w-3" /> View Details
-              </button>
+              <div className="flex items-center justify-between">
+                <button onClick={() => setDetailSale(s)}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                  <Eye className="h-3 w-3" /> View Details
+                </button>
+                <button onClick={() => handleDeleteSale(s.id)}
+                  className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+                  <Trash2 className="h-3 w-3" /> Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -736,10 +770,16 @@ function SalesContent() {
                   </td>
                   <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(s.saleDate)}</td>
                   <td className="px-4 py-2.5 text-right">
-                    <button onClick={() => setDetailSale(s)}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
-                      <Eye className="h-3.5 w-3.5" /> View
-                    </button>
+                    <div className="inline-flex items-center gap-2">
+                      <button onClick={() => setDetailSale(s)}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                        <Eye className="h-3.5 w-3.5" /> View
+                      </button>
+                      <button onClick={() => handleDeleteSale(s.id)}
+                        className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
