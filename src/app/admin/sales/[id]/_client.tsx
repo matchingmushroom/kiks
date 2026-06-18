@@ -51,11 +51,11 @@ export default function SaleDetailPage() {
     return sum + qty * item.unitPrice;
   }, 0) || 0;
 
-  const paymentRatio = sale && sale.finalAmount > 0
-    ? Math.min(1, (sale.payment?.receivedAmount || 0) / sale.finalAmount)
-    : 0;
-
-  const refundAmount = totalReturnValue * paymentRatio;
+  const retTotal = sale?.totalAmount || 0;
+  const safeRetTotal = Math.max(retTotal, 1);
+  const retCashRatio = Math.min(1, (sale?.payment?.receivedAmount || 0) / safeRetTotal);
+  const retCreditRatio = Math.min(1, (sale?.payment?.balanceDue || 0) / safeRetTotal);
+  const refundAmount = totalReturnValue * retCashRatio;
 
   const handleReturn = async () => {
     if (!sale || totalReturnValue <= 0) return;
@@ -100,7 +100,7 @@ export default function SaleDetailPage() {
         });
 
         // Adjust debtor balance for the credit portion
-        const creditPortion = totalReturnValue - refundAmount;
+        const creditPortion = totalReturnValue * retCreditRatio;
         if (creditPortion > 0) {
           const debtorSnap = await getDocs(query(collection(db, "debtors"), where("orderIds", "array-contains", sale.id)));
           for (const d of debtorSnap.docs) {
@@ -308,8 +308,8 @@ export default function SaleDetailPage() {
 
                   <div className="flex items-center justify-between pt-3 border-t border-border">
                     <div className="text-sm space-y-0.5">
-                      {returnType === "refund" && paymentRatio < 1 && (
-                        <p className="text-xs text-muted-foreground">Items worth {formatCurrency(totalReturnValue)} · Paid {Math.round(paymentRatio * 100)}%</p>
+                      {returnType === "refund" && retCashRatio < 1 && (
+                        <p className="text-xs text-muted-foreground">Items worth {formatCurrency(totalReturnValue)} · Paid {Math.round(retCashRatio * 100)}%</p>
                       )}
                       <p>Refund Amount: <span className="font-bold text-secondary">{formatCurrency(refundAmount)}</span></p>
                     </div>

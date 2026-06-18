@@ -474,11 +474,11 @@ function SalesContent() {
     return sum + qty * item.unitPrice;
   }, 0) || 0;
 
-  const paymentRatio = returnSale && returnSale.finalAmount > 0
-    ? Math.min(1, (returnSale.payment?.receivedAmount || 0) / returnSale.finalAmount)
-    : 0;
-
-  const refundAmount = returnFullPrice * paymentRatio;
+  const returnTotal = returnSale?.totalAmount || 0;
+  const safeTotal = Math.max(returnTotal, 1);
+  const returnCashRatio = Math.min(1, (returnSale?.payment?.receivedAmount || 0) / safeTotal);
+  const returnCreditRatio = Math.min(1, (returnSale?.payment?.balanceDue || 0) / safeTotal);
+  const refundAmount = returnFullPrice * returnCashRatio;
 
   const handleReturn = async () => {
     if (!returnSale || returnFullPrice <= 0) return;
@@ -521,7 +521,7 @@ function SalesContent() {
         });
 
         // Adjust debtor balance for the credit portion of returned items
-        const creditPortion = returnFullPrice - refundAmount;
+        const creditPortion = returnFullPrice * returnCreditRatio;
         if (creditPortion > 0) {
           const debtorSnap = await getDocs(query(collection(db, "debtors"), where("orderIds", "array-contains", returnSale.id)));
           for (const d of debtorSnap.docs) {
@@ -1206,8 +1206,8 @@ function SalesContent() {
 
             <div className="flex items-center justify-between pt-3 border-t border-border">
               <div className="text-sm space-y-0.5">
-                {returnType === "refund" && paymentRatio < 1 && (
-                  <p className="text-xs text-muted-foreground">Items worth {formatCurrency(returnFullPrice)} · Paid {Math.round(paymentRatio * 100)}%</p>
+                {returnType === "refund" && returnCashRatio < 1 && (
+                  <p className="text-xs text-muted-foreground">Items worth {formatCurrency(returnFullPrice)} · Paid {Math.round(returnCashRatio * 100)}%</p>
                 )}
                 <p>Refund Amount: <span className="font-bold text-secondary">{formatCurrency(refundAmount)}</span></p>
               </div>
