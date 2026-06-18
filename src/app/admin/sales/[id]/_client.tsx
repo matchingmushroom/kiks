@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Sale } from "@/types";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import { doc, onSnapshot, getDoc, addDoc, collection, updateDoc, Timestamp } from "firebase/firestore";
+import { doc, onSnapshot, getDoc, addDoc, collection, updateDoc, Timestamp, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -51,6 +51,12 @@ export default function SaleDetailPage() {
     return sum + qty * item.unitPrice;
   }, 0) || 0;
 
+  const paymentRatio = sale && sale.finalAmount > 0
+    ? Math.min(1, (sale.payment?.receivedAmount || 0) / sale.finalAmount)
+    : 0;
+
+  const refundAmount = totalReturnValue * paymentRatio;
+
   const handleReturn = async () => {
     if (!sale || totalReturnValue <= 0) return;
     setSaving(true);
@@ -84,7 +90,7 @@ export default function SaleDetailPage() {
         await addDoc(collection(db, "accountTransactions"), {
           accountId: "cash_in_hand",
           type: "debit",
-          amount: totalReturnValue,
+          amount: refundAmount,
           description: `Sales return refund: ${sale.customer?.name}`,
           date: Timestamp.fromDate(new Date()),
           referenceType: "sales_return",
@@ -92,6 +98,38 @@ export default function SaleDetailPage() {
           recordedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
+
+        // Adjust debtor balance for the credit portion
+        const creditPortion = totalReturnValue - refundAmount;
+        if (creditPortion > 0) {
+          const debtorSnap = await getDocs(query(collection(db, "debtors"), where("orderIds", "array-contains", sale.id)));
+          for (const d of debtorSnap.docs) {
+            const data = d.data();
+            const newBalance = Math.max(0, (data.balanceDue || 0) - creditPortion);
+            await updateDoc(doc(db, "debtors", d.id), {
+              balanceDue: newBalance,
+              amountPaid: (data.amountPaid || 0) - refundAmount,
+              totalAmount: Math.max(0, (data.totalAmount || 0) - totalReturnValue),
+              status: newBalance <= 0 ? "cleared" : "active",
+              updatedAt: Timestamp.fromDate(new Date()),
+            });
+          }
+        }
+
+        // Update linked invoice
+        const invSnap = await getDocs(query(collection(db, "invoices"), where("relatedSaleId", "==", sale.id)));
+        for (const inv of invSnap.docs) {
+          const invData = inv.data();
+          const newReceived = Math.max(0, (invData.cashReceived || 0) - refundAmount);
+          const newBalance = Math.max(0, (invData.balanceDue || 0) - creditPortion);
+          await updateDoc(inv.ref, {
+            cashReceived: newReceived,
+            balanceDue: newBalance,
+            paymentStatus: newBalance <= 0 ? "full" : "partial",
+            totalAmount: Math.max(0, (invData.totalAmount || 0) - totalReturnValue),
+            updatedAt: Timestamp.fromDate(new Date()),
+          });
+        }
       }
 
       setShowReturn(false);
@@ -99,7 +137,7 @@ export default function SaleDetailPage() {
       if (returnType === "exchange") {
         router.push(`/admin/sales?returnDiscount=${totalReturnValue}&returnCustomer=${encodeURIComponent(sale.customer?.name || "")}&returnPhone=${encodeURIComponent(sale.customer?.phone || "")}`);
       } else {
-        alert(`Return processed. Refund amount: ${formatCurrency(totalReturnValue)}`);
+        alert(`Return processed. Refund amount: ${formatCurrency(refundAmount)}`);
       }
     } catch (e) {
       console.error("Return failed", e);
@@ -259,9 +297,12 @@ export default function SaleDetailPage() {
                   </div>
 
                   <div className="flex items-center justify-between pt-3 border-t border-border">
-                    <p className="text-sm">
-                      Return Value: <span className="font-bold text-secondary">{formatCurrency(totalReturnValue)}</span>
-                    </p>
+                    <div className="text-sm space-y-0.5">
+                      {returnType === "refund" && paymentRatio < 1 && (
+                        <p className="text-xs text-muted-foreground">Items worth {formatCurrency(totalReturnValue)} · Paid {Math.round(paymentRatio * 100)}%</p>
+                      )}
+                      <p>Refund Amount: <span className="font-bold text-secondary">{formatCurrency(refundAmount)}</span></p>
+                    </div>
                     <div className="flex gap-2">
                       <Button onClick={() => setShowReturn(false)} variant="outline">Cancel</Button>
                       <Button onClick={handleReturn} disabled={saving || totalReturnValue <= 0} variant="accent">

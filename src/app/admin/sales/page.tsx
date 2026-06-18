@@ -451,13 +451,19 @@ function SalesContent() {
     setReturnType("refund");
   };
 
-  const totalReturnValue = returnSale?.items?.reduce((sum, item, i) => {
+  const returnFullPrice = returnSale?.items?.reduce((sum, item, i) => {
     const qty = returnQtys[i] || 0;
     return sum + qty * item.unitPrice;
   }, 0) || 0;
 
+  const paymentRatio = returnSale && returnSale.finalAmount > 0
+    ? Math.min(1, (returnSale.payment?.receivedAmount || 0) / returnSale.finalAmount)
+    : 0;
+
+  const refundAmount = returnFullPrice * paymentRatio;
+
   const handleReturn = async () => {
-    if (!returnSale || totalReturnValue <= 0) return;
+    if (!returnSale || returnFullPrice <= 0) return;
     setSavingReturn(true);
     try {
       for (let i = 0; i < (returnSale.items?.length || 0); i++) {
@@ -487,7 +493,7 @@ function SalesContent() {
         await addDoc(collection(db, "accountTransactions"), {
           accountId: "cash_in_hand",
           type: "debit",
-          amount: totalReturnValue,
+          amount: refundAmount,
           description: `Sales return refund: ${returnSale.customer?.name}`,
           date: Timestamp.fromDate(new Date()),
           referenceType: "sales_return",
@@ -495,12 +501,44 @@ function SalesContent() {
           recordedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
+
+        // Adjust debtor balance for the credit portion of returned items
+        const creditPortion = returnFullPrice - refundAmount;
+        if (creditPortion > 0) {
+          const debtorSnap = await getDocs(query(collection(db, "debtors"), where("orderIds", "array-contains", returnSale.id)));
+          for (const d of debtorSnap.docs) {
+            const data = d.data();
+            const newBalance = Math.max(0, (data.balanceDue || 0) - creditPortion);
+            await updateDoc(doc(db, "debtors", d.id), {
+              balanceDue: newBalance,
+              amountPaid: (data.amountPaid || 0) - refundAmount,
+              totalAmount: Math.max(0, (data.totalAmount || 0) - returnFullPrice),
+              status: newBalance <= 0 ? "cleared" : "active",
+              updatedAt: Timestamp.fromDate(new Date()),
+            });
+          }
+        }
+
+        // Update linked invoice
+        const invSnap = await getDocs(query(collection(db, "invoices"), where("relatedSaleId", "==", returnSale.id)));
+        for (const inv of invSnap.docs) {
+          const invData = inv.data();
+          const newReceived = Math.max(0, (invData.cashReceived || 0) - refundAmount);
+          const newBalance = Math.max(0, (invData.balanceDue || 0) - creditPortion);
+          await updateDoc(inv.ref, {
+            cashReceived: newReceived,
+            balanceDue: newBalance,
+            paymentStatus: newBalance <= 0 ? "full" : "partial",
+            totalAmount: Math.max(0, (invData.totalAmount || 0) - returnFullPrice),
+            updatedAt: Timestamp.fromDate(new Date()),
+          });
+        }
       }
 
       setReturnSale(null);
 
       if (returnType === "exchange") {
-        router.push(`/admin/sales?returnDiscount=${totalReturnValue}&returnCustomer=${encodeURIComponent(returnSale.customer?.name || "")}&returnPhone=${encodeURIComponent(returnSale.customer?.phone || "")}`);
+        router.push(`/admin/sales?returnDiscount=${returnFullPrice}&returnCustomer=${encodeURIComponent(returnSale.customer?.name || "")}&returnPhone=${encodeURIComponent(returnSale.customer?.phone || "")}`);
       }
     } catch (e) {
       console.error("Return failed", e);
@@ -1057,12 +1095,15 @@ function SalesContent() {
             </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-border">
-              <p className="text-sm">
-                Return Value: <span className="font-bold text-secondary">{formatCurrency(totalReturnValue)}</span>
-              </p>
+              <div className="text-sm space-y-0.5">
+                {returnType === "refund" && paymentRatio < 1 && (
+                  <p className="text-xs text-muted-foreground">Items worth {formatCurrency(returnFullPrice)} · Paid {Math.round(paymentRatio * 100)}%</p>
+                )}
+                <p>Refund Amount: <span className="font-bold text-secondary">{formatCurrency(refundAmount)}</span></p>
+              </div>
               <div className="flex gap-2">
                 <Button onClick={() => setReturnSale(null)} variant="outline">Cancel</Button>
-                <Button onClick={handleReturn} disabled={savingReturn || totalReturnValue <= 0} variant="accent">
+                <Button onClick={handleReturn} disabled={savingReturn || returnFullPrice <= 0} variant="accent">
                   <Save className="h-4 w-4" /> {savingReturn ? "Processing..." : returnType === "refund" ? "Process Refund" : "Process Exchange"}
                 </Button>
               </div>
