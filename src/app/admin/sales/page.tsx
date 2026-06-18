@@ -34,7 +34,8 @@ const emptyForm = {
   totalAmount: 0, discountAmount: 0, finalAmount: 0,
   paymentMethod: "cash", receivedAmount: 0, balanceDue: 0,
   warrantyPeriod: "", warrantyTerms: "",
-  issueCoupon: false, notes: "",
+  couponType: "none" as "none" | "fixed" | "percentage",
+  couponValue: 0, notes: "",
 };
 
 function SalesContent() {
@@ -137,7 +138,8 @@ function SalesContent() {
               balanceDue: 0,
               warrantyPeriod: "",
               warrantyTerms: "",
-              issueCoupon: false,
+              couponType: "none",
+              couponValue: 0,
               notes: order.notes || "",
             });
           }
@@ -308,19 +310,21 @@ function SalesContent() {
       }
 
       let couponCode: string | null = null;
-      if (form.issueCoupon) {
+      if (form.couponType !== "none" && form.couponValue > 0) {
         couponCode = generateCouponCode();
+        const discountValue = form.couponType === "percentage" ? Math.min(form.couponValue, 100) : form.couponValue;
         await setDoc(doc(db, "coupons", couponCode), {
           code: couponCode,
-          discountType: "percentage",
-          discountValue: 10,
+          discountType: form.couponType === "percentage" ? "percentage" : "fixed",
+          discountValue,
           minPurchaseAmount: 0,
-          maxDiscount: 5000,
+          maxDiscount: 200,
           validFrom: Timestamp.fromDate(new Date()),
-          validUntil: Timestamp.fromDate(new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)),
+          validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
           usageLimit: 1,
           usedCount: 0,
           isActive: true,
+          terms: "To be Used within 1 Months",
           issuedToCustomer: { name: form.customerName, phone: form.customerPhone },
           issuedForOrderId: saleRef.id,
           createdAt: Timestamp.fromDate(new Date()),
@@ -344,7 +348,7 @@ function SalesContent() {
       const invRef = await addDoc(collection(db, "invoices"), {
         invoiceNumber,
         type: "invoice",
-        status: form.balanceDue > 0 ? "partially_paid" : "paid",
+        status: "draft",
         customer: { name: form.customerName, phone: form.customerPhone, address: form.customerAddress },
         items: itemsWithCost.map((item) => ({
           productId: item.productId, productName: item.productName, sku: item.sku,
@@ -364,7 +368,7 @@ function SalesContent() {
         relatedSaleId: saleRef.id,
         generatedBy: user?.uid || "",
         createdByName: profile?.displayName || "",
-        couponIssued: couponCode ? { code: couponCode, discountValue: 10 } : undefined,
+        couponIssued: couponCode ? { code: couponCode, discountValue: form.couponType === "percentage" ? Math.min(form.couponValue, 100) : form.couponValue } : undefined,
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       });
@@ -381,6 +385,7 @@ function SalesContent() {
 
       setSavedSale(true);
       setForm(emptyForm);
+      setShowForm(false);
       setOrderData(null);
       setTimeout(() => { setSavedSale(false); setSavedInvoiceId(null); }, 6000);
     } catch (e) {
@@ -669,12 +674,32 @@ function SalesContent() {
                   onChange={(e) => updateDiscount(Number(e.target.value))}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
-              <label className="flex items-center gap-2 text-sm pt-6 cursor-pointer">
-                <input type="checkbox" checked={form.issueCoupon}
-                  onChange={(e) => setForm({ ...form, issueCoupon: e.target.checked })}
-                  className="rounded border-border" />
-                Issue 10% coupon for next purchase
-              </label>
+              <div className="space-y-3">
+                <label className="block text-xs font-medium text-muted-foreground">Issue Coupon</label>
+                <select value={form.couponType}
+                  onChange={(e) => setForm({ ...form, couponType: e.target.value as "none" | "fixed" | "percentage" })}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                  <option value="none">None</option>
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount (NPR)</option>
+                </select>
+                {form.couponType !== "none" && (
+                  <input type="number" value={form.couponValue || ""} min={1}
+                    placeholder={form.couponType === "percentage" ? "Discount % (max 100)" : "Discount Amount (max Rs. 200)"}
+                    onChange={(e) => {
+                      let val = Number(e.target.value);
+                      if (form.couponType === "percentage") val = Math.min(val, 100);
+                      if (form.couponType === "fixed") val = Math.min(val, 200);
+                      setForm({ ...form, couponValue: Math.max(0, val) });
+                    }}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                )}
+                {form.couponType !== "none" && (
+                  <p className="text-xs text-muted-foreground">
+                    To be Used within 1 Month &middot; Max Discount: Rs. 200
+                  </p>
+                )}
+              </div>
             </div>
 
             <div>
