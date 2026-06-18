@@ -20,7 +20,8 @@ type Permission =
   | "manage_creditors"
   | "manage_suppliers"
   | "manage_customers"
-  | "manage_access_control";
+  | "manage_access_control"
+  | "manage_reconciliation";
 
 const rolePermissions: Record<UserRole, Permission[]> = {
   admin: [
@@ -44,6 +45,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "manage_suppliers",
     "manage_customers",
     "manage_access_control",
+    "manage_reconciliation",
   ],
   manager: [
     "manage_products",
@@ -62,6 +64,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     "manage_offers",
     "manage_suppliers",
     "manage_customers",
+    "manage_reconciliation",
   ],
   staff: [
     "manage_orders",
@@ -102,7 +105,7 @@ export function canAccessRoute(role: UserRole | undefined, route: string, userPe
     coupons: ["manage_coupons"],
     debtors: ["manage_debtors"],
     inventory: ["manage_inventory"],
-    reconciliation: ["manage_inventory"],
+    reconciliation: ["manage_reconciliation", "manage_inventory"],
     homepage: ["manage_homepage"],
     settings: ["manage_settings"],
     backup: ["manage_backup"],

@@ -14,6 +14,7 @@ const ALL_PERMISSIONS = [
   "manage_inventory", "manage_staff", "manage_homepage", "manage_settings",
   "manage_backup", "manage_purchases", "manage_expenses", "manage_offers",
   "manage_creditors", "manage_suppliers", "manage_customers",
+  "manage_reconciliation",
 ] as const;
 
 const PERMISSION_LABELS: Record<string, string> = {
@@ -26,7 +27,7 @@ const PERMISSION_LABELS: Record<string, string> = {
   manage_backup: "Backup", manage_purchases: "Purchases",
   manage_expenses: "Expenses", manage_offers: "Offers",
   manage_creditors: "Creditors", manage_suppliers: "Suppliers",
-  manage_customers: "Customers",
+  manage_customers: "Customers", manage_reconciliation: "Reconciliation",
 };
 
 interface UserCardProps {
