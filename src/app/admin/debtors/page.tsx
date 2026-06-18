@@ -4,7 +4,7 @@ import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Debtor } from "@/types";
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime, toDate } from "@/lib/utils";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -15,8 +15,9 @@ import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, Eye, LayoutGrid, List, AlertTriangle } from "lucide-react";
 
-function getDaysOverdue(dueDate: number): number {
-  return Math.floor((Date.now() - dueDate) / (1000 * 60 * 60 * 24));
+function getDaysOverdue(dueDate: unknown): number {
+  const d = toDate(dueDate);
+  return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 export default function AdminDebtorsPage() {
@@ -177,7 +178,7 @@ export default function AdminDebtorsPage() {
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {filtered.map((debtor) => {
-              const overdue = debtor.dueDate ? getDaysOverdue(debtor.dueDate as unknown as number) : 0;
+              const overdue = debtor.dueDate ? getDaysOverdue(debtor.dueDate) : 0;
               return (
                 <div key={debtor.id} onClick={() => setSelectedDebtor(debtor)}
                   className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
@@ -206,7 +207,7 @@ export default function AdminDebtorsPage() {
         ) : (
           <div className="space-y-3">
             {filtered.map((debtor) => {
-              const overdue = debtor.dueDate ? getDaysOverdue(debtor.dueDate as unknown as number) : 0;
+              const overdue = debtor.dueDate ? getDaysOverdue(debtor.dueDate) : 0;
               const isExpanded = expandedId === debtor.id;
 
               return (
