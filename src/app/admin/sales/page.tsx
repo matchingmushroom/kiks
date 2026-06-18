@@ -66,6 +66,7 @@ function SalesContent() {
   const [productSearch, setProductSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedSale, setSavedSale] = useState(false);
+  const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [saleError, setSaleError] = useState<string | null>(null);
   const [savedInvoiceId, setSavedInvoiceId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -310,7 +311,8 @@ function SalesContent() {
           updatedAt: Timestamp.fromDate(new Date()),
         });
         savedInvId = invRef.id;
-      } catch (e) {
+      } catch (e: any) {
+        setInvoiceError("Invoice auto-generation failed: " + (e?.message || "Unknown error"));
         console.error("Auto-invoice failed, sale was still recorded", e);
       }
 
@@ -515,7 +517,7 @@ function SalesContent() {
           <h1 className="text-2xl font-bold text-secondary">Sales</h1>
           <p className="text-sm text-muted-foreground">{filteredSales.length} of {sales.length} total</p>
         </div>
-        <Button onClick={() => { setShowForm(true); setForm({ ...emptyForm }); }} variant="accent">
+        <Button onClick={() => { setShowForm(true); setForm({ ...emptyForm }); setInvoiceError(null); }} variant="accent">
           <Plus className="h-4 w-4" /> Record Sale
         </Button>
       </div>
@@ -560,6 +562,13 @@ function SalesContent() {
       {saleError && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm text-red-700">
           <AlertTriangle className="h-5 w-5" /> {saleError}
+        </div>
+      )}
+
+      {invoiceError && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm text-yellow-800">
+          <AlertTriangle className="h-5 w-5" /> {invoiceError}
+          <button onClick={() => setInvoiceError(null)} className="ml-auto p-1 hover:bg-yellow-100 rounded"><X className="h-4 w-4" /></button>
         </div>
       )}
 
