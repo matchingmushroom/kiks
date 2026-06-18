@@ -299,7 +299,13 @@ export interface Creditor {
   id: string;
   supplierName: string;
   supplierPhone?: string;
-  currentBalance: number;
+  purchaseIds: string[];
+  totalAmount: number;
+  amountPaid: number;
+  balanceDue: number;
+  dueDate: number;
+  status: "active" | "cleared";
+  paymentHistory: { date: number; amount: number; method: string; notes: string }[];
   lastTransactionDate: number;
   notes?: string;
   createdAt: number;

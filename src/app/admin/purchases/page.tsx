@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
-import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier } from "@/types";
+import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc, setDoc, getDocs, query, where,
+  addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc, setDoc, getDocs, query, where, arrayUnion,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -162,26 +162,43 @@ export default function AdminPurchasesPage() {
     setNewProductForm({ name: "", costPrice: 0, categoryId: "" });
   };
 
-  const upsertCreditor = async (supplierName: string, supplierPhone: string | undefined, balanceChange: number) => {
+  const upsertCreditor = async (supplierName: string, supplierPhone: string | undefined, balanceChange: number, purchaseId?: string) => {
     const existing = await getDocs(query(collection(db, "creditors"), where("supplierName", "==", supplierName)));
+    const now = Timestamp.fromDate(new Date());
+    const dueDate = Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
     if (!existing.empty) {
       const cred = existing.docs[0];
-      const currentBalance = cred.data().currentBalance || 0;
+      const data = cred.data();
+      const oldBalance = (data as any).balanceDue ?? (data as any).currentBalance ?? 0;
+      const oldPaid = data.amountPaid ?? 0;
+      const oldTotal = data.totalAmount ?? 0;
+      const newBalance = oldBalance + balanceChange;
       await updateDoc(doc(db, "creditors", cred.id), {
-        currentBalance: currentBalance + balanceChange,
-        lastTransactionDate: Timestamp.fromDate(new Date()),
-        supplierPhone: supplierPhone || cred.data().supplierPhone,
-        updatedAt: Timestamp.fromDate(new Date()),
+        balanceDue: Math.max(0, newBalance),
+        amountPaid: balanceChange < 0 ? Math.max(0, oldPaid + balanceChange) : oldPaid,
+        totalAmount: balanceChange > 0 ? oldTotal + balanceChange : oldTotal,
+        status: newBalance <= 0 ? "cleared" : "active",
+        dueDate,
+        lastTransactionDate: now,
+        supplierPhone: supplierPhone || data.supplierPhone,
+        purchaseIds: purchaseId ? arrayUnion(purchaseId) : data.purchaseIds || [],
+        updatedAt: now,
       });
     } else {
       await addDoc(collection(db, "creditors"), {
         supplierName,
         supplierPhone: supplierPhone || "",
-        currentBalance: Math.max(0, balanceChange),
-        lastTransactionDate: Timestamp.fromDate(new Date()),
+        purchaseIds: purchaseId ? [purchaseId] : [],
+        totalAmount: Math.max(0, balanceChange),
+        amountPaid: 0,
+        balanceDue: Math.max(0, balanceChange),
+        dueDate,
+        status: "active",
+        paymentHistory: [],
+        lastTransactionDate: now,
         notes: "",
-        createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: Timestamp.fromDate(new Date()),
+        createdAt: now,
+        updatedAt: now,
       });
     }
   };
@@ -276,7 +293,7 @@ export default function AdminPurchasesPage() {
         if (form.paymentStatus !== "paid") {
           const balanceChange = form.paymentStatus === "unpaid" ? form.totalAmount : Math.max(0, form.totalAmount - (form.paidAmount || 0));
           if (balanceChange > 0) {
-            await upsertCreditor(form.supplierName, form.supplierPhone, balanceChange);
+            await upsertCreditor(form.supplierName, form.supplierPhone, balanceChange, ref.id);
           }
         }
       }
@@ -345,7 +362,7 @@ export default function AdminPurchasesPage() {
           }
         }
         if (returnModal.paymentStatus === "unpaid" || returnModal.paymentStatus === "partially_paid") {
-          await upsertCreditor(returnModal.supplierName, returnModal.supplierPhone, -returnValue);
+          await upsertCreditor(returnModal.supplierName, returnModal.supplierPhone, -returnValue, returnModal.id);
         }
       }
       setReturnModal(null);

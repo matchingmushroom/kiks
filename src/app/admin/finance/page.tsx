@@ -205,7 +205,7 @@ function BalanceSheetSection() {
 
     const cashBalance = accountBalances["cash_in_hand"] || 0;
     const bankBalance = accountBalances["bank_account"] || 0;
-    const creditorsBalance = creditors.reduce((sum, c) => sum + (c.currentBalance || 0), 0);
+    const creditorsBalance = creditors.reduce((sum, c) => sum + (c.balanceDue || 0), 0);
     const purchaseCreditors = purchases.filter((p) => {
       const d = (p.purchaseDate as unknown as { toMillis?: () => number })?.toMillis?.() || (p.purchaseDate as number);
       return d <= bsEnd && (p.paymentStatus === "unpaid" || p.paymentStatus === "partially_paid");
