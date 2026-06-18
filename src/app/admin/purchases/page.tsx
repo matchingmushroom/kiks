@@ -13,7 +13,7 @@ import {
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
-  Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List,
+  Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle,
 } from "lucide-react";
 
 const emptyForm = {
@@ -46,6 +46,8 @@ export default function AdminPurchasesPage() {
   const [form, setForm] = useState(emptyForm);
   const [productSearch, setProductSearch] = useState("");
   const [saving, setSaving] = useState(false);
+  const [purchaseSaved, setPurchaseSaved] = useState(false);
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [returnModal, setReturnModal] = useState<Purchase | null>(null);
   const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
@@ -185,8 +187,9 @@ export default function AdminPurchasesPage() {
   };
 
   const handleSave = async () => {
-    if (!form.supplierName || form.items.length === 0) return;
+    if (saving || !form.supplierName || form.items.length === 0) return;
     setSaving(true);
+    setPurchaseError(null);
     try {
       const purchaseData = {
         supplierName: form.supplierName,
@@ -278,11 +281,17 @@ export default function AdminPurchasesPage() {
         }
       }
 
-      setForm(emptyForm);
+      setForm({ ...emptyForm });
       setEditingId(null);
       setShowForm(false);
-    } catch (e) {
-      console.error("Purchase save failed", e);
+      setPurchaseSaved(true);
+      setTimeout(() => setPurchaseSaved(false), 6000);
+    } catch (e: any) {
+      setPurchaseError(e?.message || "Purchase failed. Please try again.");
+      setForm({ ...emptyForm });
+      setEditingId(null);
+      setShowForm(false);
+      setTimeout(() => setPurchaseError(null), 6000);
     }
     setSaving(false);
   };
@@ -386,11 +395,23 @@ export default function AdminPurchasesPage() {
               className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
               {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </button>
-            <Button onClick={() => { setShowForm(true); setForm(emptyForm); setEditingId(null); }} variant="accent">
+            <Button onClick={() => { setShowForm(true); setForm({ ...emptyForm }); setEditingId(null); }} variant="accent">
               <Plus className="h-4 w-4" /> New Purchase
             </Button>
           </div>
         </div>
+
+        {purchaseSaved && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm text-green-700">
+            <CheckCircle className="h-5 w-5" /> Purchase recorded successfully!
+          </div>
+        )}
+
+        {purchaseError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm text-red-700">
+            <AlertTriangle className="h-5 w-5" /> {purchaseError}
+          </div>
+        )}
 
         {showForm && (
           <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">

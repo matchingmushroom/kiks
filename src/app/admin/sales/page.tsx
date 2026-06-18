@@ -13,7 +13,7 @@ import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, Search, X, Save, CheckCircle, LayoutGrid, List, ExternalLink, Eye, Trash2 } from "lucide-react";
+import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 interface LineItem {
@@ -66,6 +66,7 @@ function SalesContent() {
   const [productSearch, setProductSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedSale, setSavedSale] = useState(false);
+  const [saleError, setSaleError] = useState<string | null>(null);
   const [savedInvoiceId, setSavedInvoiceId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [manualCustomer, setManualCustomer] = useState(false);
@@ -226,8 +227,9 @@ function SalesContent() {
   };
 
   const handleSave = async () => {
-    if (!form.customerName || form.items.length === 0) return;
+    if (saving || !form.customerName || form.items.length === 0) return;
     setSaving(true);
+    setSaleError(null);
     try {
       for (const item of form.items) {
         const product = products.find((p) => p.id === item.productId);
@@ -385,12 +387,16 @@ function SalesContent() {
       }
 
       setSavedSale(true);
-      setForm(emptyForm);
+      setForm({ ...emptyForm });
       setShowForm(false);
       setOrderData(null);
       setTimeout(() => { setSavedSale(false); setSavedInvoiceId(null); }, 6000);
-    } catch (e) {
-      console.error("Sale save failed", e);
+    } catch (e: any) {
+      setSaleError(e?.message || "Sale failed. Please try again.");
+      setForm({ ...emptyForm });
+      setShowForm(false);
+      setOrderData(null);
+      setTimeout(() => setSaleError(null), 6000);
     }
     setSaving(false);
   };
@@ -434,7 +440,7 @@ function SalesContent() {
           <h1 className="text-2xl font-bold text-secondary">Sales</h1>
           <p className="text-sm text-muted-foreground">{filteredSales.length} of {sales.length} total</p>
         </div>
-        <Button onClick={() => { setShowForm(true); setForm(emptyForm); }} variant="accent">
+        <Button onClick={() => { setShowForm(true); setForm({ ...emptyForm }); }} variant="accent">
           <Plus className="h-4 w-4" /> Record Sale
         </Button>
       </div>
@@ -476,10 +482,16 @@ function SalesContent() {
         </div>
       )}
 
+      {saleError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm text-red-700">
+          <AlertTriangle className="h-5 w-5" /> {saleError}
+        </div>
+      )}
+
       {orderId && orderData && !savedSale && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm text-blue-700">
           <span>Creating Sale from Order <strong>{orderData.orderNumber}</strong> — customer details, items, and notes pre-filled from the order.</span>
-          <button onClick={() => { setForm(emptyForm); setOrderData(null); }} className="ml-auto text-blue-500 hover:text-blue-700">
+          <button onClick={() => { setForm({ ...emptyForm }); setOrderData(null); }} className="ml-auto text-blue-500 hover:text-blue-700">
             <X className="h-4 w-4" />
           </button>
         </div>
