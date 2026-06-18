@@ -233,6 +233,7 @@ export default function AdminCouponsPage() {
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Issued To (Phone)</label>
                 <input type="text" value={form.issuedToPhone}
                   onChange={(e) => setForm({ ...form, issuedToPhone: e.target.value })}
+                  minLength={10}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div className="md:col-span-2">

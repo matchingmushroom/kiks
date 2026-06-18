@@ -431,6 +431,7 @@ export default function AdminPurchasesPage() {
                   {manualSupplier ? (
                     <input type="text" value={form.supplierPhone}
                       onChange={(e) => setForm({ ...form, supplierPhone: e.target.value })}
+                      minLength={6}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                   ) : (
                     <input type="text" value={form.supplierPhone} readOnly

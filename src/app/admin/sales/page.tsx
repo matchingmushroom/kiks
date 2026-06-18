@@ -535,6 +535,7 @@ function SalesContent() {
                   {manualCustomer ? (
                     <input type="tel" placeholder="Phone *" value={form.customerPhone}
                       onChange={(e) => setForm({ ...form, customerPhone: e.target.value })}
+                      minLength={10}
                       className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                   ) : (
                     <input type="tel" value={form.customerPhone} readOnly

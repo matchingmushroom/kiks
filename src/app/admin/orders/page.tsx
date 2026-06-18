@@ -489,6 +489,7 @@ export default function AdminOrdersPage() {
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Phone</label>
                 <input type="text" value={editForm.customerPhone}
                   onChange={(e) => setEditForm({ ...editForm, customerPhone: e.target.value })}
+                  minLength={10}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>

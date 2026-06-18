@@ -208,6 +208,7 @@ export default function NewInvoicePage() {
                 {manualCustomer ? (
                   <input type="tel" placeholder="Phone" value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
+                    minLength={10}
                     className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 ) : (
                   <input type="tel" value={customerPhone} readOnly
