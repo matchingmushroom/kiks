@@ -201,8 +201,9 @@ function SalesContent() {
       sku: product.sku || "",
       quantity: 1,
       unitPrice: product.price,
-      weight: product.weight,
-      makingCharge: product.makingCharge,
+      weight: product.weight || 0,
+      purity: product.purity || "",
+      makingCharge: product.makingCharge || 0,
       subtotal: product.price,
     };
     const items = [...form.items, newItem];
@@ -292,10 +293,11 @@ function SalesContent() {
           invoiceNumber, type: "invoice", status: "draft",
           customer: { name: form.customerName, phone: form.customerPhone, address: form.customerAddress },
           items: itemsWithCost.map((item) => ({
-            productId: item.productId, productName: item.productName, sku: item.sku,
-            quantity: item.quantity, unitPrice: item.unitPrice, weight: item.weight,
-            purity: item.purity, makingCharge: item.makingCharge, subtotal: item.subtotal,
-            description: "",
+            productId: item.productId, productName: item.productName,
+            sku: item.sku || "", description: "",
+            quantity: item.quantity, unitPrice: item.unitPrice,
+            weight: item.weight || 0, purity: item.purity || "",
+            makingCharge: item.makingCharge || 0, subtotal: item.subtotal,
           })),
           subtotal: form.totalAmount, discountAmount: form.discountAmount, totalAmount: form.finalAmount,
           paymentStatus: form.balanceDue > 0 ? "partial" : "full",
