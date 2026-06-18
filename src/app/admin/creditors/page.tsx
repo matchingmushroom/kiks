@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
-import { Creditor, Account } from "@/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { Creditor, Account, Purchase } from "@/types";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, LayoutGrid, List } from "lucide-react";
+import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, LayoutGrid, List, Eye } from "lucide-react";
 
 export default function AdminCreditorsPage() {
   const { data: creditors, loading } = useFirestore<Creditor>("creditors", {
@@ -27,6 +27,24 @@ export default function AdminCreditorsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [selectedCreditor, setSelectedCreditor] = useState<Creditor | null>(null);
   const [gridPayment, setGridPayment] = useState<{ amount: string; method: string; notes: string } | null>(null);
+  const [creditorPurchases, setCreditorPurchases] = useState<Purchase[]>([]);
+  const [loadingPurchases, setLoadingPurchases] = useState(false);
+
+  useEffect(() => {
+    if (!selectedCreditor) { setCreditorPurchases([]); return; }
+    const load = async () => {
+      setLoadingPurchases(true);
+      try {
+        const q = query(collection(db, "purchases"), where("supplierName", "==", selectedCreditor.supplierName));
+        const snap = await getDocs(q);
+        setCreditorPurchases(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Purchase)));
+      } catch (e) {
+        console.error("Failed to load purchases", e);
+      }
+      setLoadingPurchases(false);
+    };
+    load();
+  }, [selectedCreditor]);
 
   const activeCreditors = creditors.filter((c) => c.currentBalance > 0);
   const totalOutstanding = activeCreditors.reduce((s, c) => s + c.currentBalance, 0);
@@ -168,7 +186,7 @@ export default function AdminCreditorsPage() {
               <div key={c.id} className="bg-white border border-border rounded-xl shadow-sm">
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setSelectedCreditor(c)}>
                       <p className="font-medium text-secondary text-sm">{c.supplierName}</p>
                       {c.supplierPhone && <p className="text-xs text-muted-foreground">{c.supplierPhone}</p>}
                     </div>
@@ -177,6 +195,9 @@ export default function AdminCreditorsPage() {
                     }`}>
                       {c.currentBalance > 0 ? `Due ${formatCurrency(c.currentBalance)}` : "Cleared"}
                     </span>
+                    <button onClick={() => setSelectedCreditor(c)} className="p-1.5 text-muted-foreground hover:bg-muted rounded-lg" title="View details">
+                      <Eye className="h-4 w-4" />
+                    </button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     Last transaction: {formatDate(c.lastTransactionDate)}
@@ -232,7 +253,7 @@ export default function AdminCreditorsPage() {
           </div>
         )}
 
-        {/* Grid Detail Modal */}
+        {/* Creditor Detail Modal */}
         {selectedCreditor && (
           <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectedCreditor(null)}>
             <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
@@ -260,6 +281,36 @@ export default function AdminCreditorsPage() {
                   <p className="text-xs text-muted-foreground">Current Balance</p>
                   <p className="font-bold text-lg text-secondary">{formatCurrency(selectedCreditor.currentBalance)}</p>
                 </div>
+
+                {loadingPurchases ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Loading purchases...</p>
+                ) : creditorPurchases.length > 0 ? (
+                  <div>
+                    <h3 className="text-xs font-medium text-muted-foreground mb-2 uppercase">Purchases</h3>
+                    <div className="border border-border rounded-lg divide-y divide-border">
+                      <div className="flex items-center px-3 py-2 text-xs text-muted-foreground bg-muted/20 font-medium">
+                        <span className="flex-1">Date</span>
+                        <span className="w-24 text-right">Bill Amount</span>
+                        <span className="w-20 text-right">Paid</span>
+                        <span className="w-20 text-right">Due</span>
+                      </div>
+                      {creditorPurchases.map((p) => {
+                        const paid = p.paidAmount || 0;
+                        const due = Math.max(0, p.totalAmount - paid);
+                        return (
+                          <div key={p.id} className="flex items-center px-3 py-2 text-sm">
+                            <span className="flex-1 text-muted-foreground text-xs">{formatDate(p.purchaseDate)}</span>
+                            <span className="w-24 text-right font-medium">{formatCurrency(p.totalAmount)}</span>
+                            <span className="w-20 text-right text-green-600">{formatCurrency(paid)}</span>
+                            <span className="w-20 text-right text-red-600">{formatCurrency(due)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-4">No purchases recorded.</p>
+                )}
 
                 {selectedCreditor.currentBalance > 0 && (
                   <div className="border-t border-border pt-4">
