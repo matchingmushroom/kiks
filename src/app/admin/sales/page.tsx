@@ -261,131 +261,108 @@ function SalesContent() {
         updatedAt: Timestamp.fromDate(new Date()),
       });
 
-      for (const item of form.items) {
-        const prodRef = doc(db, "products", item.productId);
-        const prodSnap = await getDoc(prodRef);
-        if (prodSnap.exists()) {
-          const currentStock = prodSnap.data().quantityInStock || 0;
-          await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - item.quantity) });
-        }
-        await addDoc(collection(db, "inventoryLogs"), {
-          productId: item.productId,
-          changeType: "sale",
-          quantityChange: -item.quantity,
-          reason: `Sale to ${form.customerName}`,
-          performedBy: user?.uid || "",
-          createdAt: Timestamp.fromDate(new Date()),
-        });
-      }
+      // Auto-invoice on sale — created immediately after sale doc so it's always generated
+      let savedInvId: string | null = null;
+      try {
+        const now = new Date();
+        const year = now.getFullYear();
+        const invCounterDoc = doc(db, "counters", `invoices_${year}`);
+        const invCounterSnap = await getDoc(invCounterDoc);
+        let invSeq = 1;
+        if (invCounterSnap.exists()) invSeq = (invCounterSnap.data().lastNumber || 0) + 1;
+        await setDoc(invCounterDoc, { lastNumber: invSeq, year }, { merge: true });
+        const invoiceNumber = `INV-${year}-${String(invSeq).padStart(4, "0")}`;
 
-      if (form.receivedAmount > 0 && form.paymentMethod !== "credit") {
-        await addDoc(collection(db, "accountTransactions"), {
-          accountId: resolveAccount(form.paymentMethod),
-          type: "credit",
-          amount: form.receivedAmount,
-          description: `Sale to ${form.customerName}`,
-          date: Timestamp.fromDate(new Date()),
-          referenceType: "sale",
-          referenceId: saleRef.id,
-          recordedBy: user?.uid || "",
-          createdAt: Timestamp.fromDate(new Date()),
-        });
-      }
-
-      if (form.balanceDue > 0) {
-        const debtorData = {
-          customerName: form.customerName,
-          customerPhone: form.customerPhone,
-          customerAddress: form.customerAddress,
-          totalAmount: form.finalAmount,
-          amountPaid: form.receivedAmount,
-          balanceDue: form.balanceDue,
-          dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
-          orderIds: [saleRef.id],
-          status: "active",
-          paymentHistory: form.receivedAmount > 0
-            ? [{ date: Timestamp.fromDate(new Date()), amount: form.receivedAmount, method: form.paymentMethod, notes: "Initial payment" }]
-            : [],
-          createdAt: Timestamp.fromDate(new Date()),
-          updatedAt: Timestamp.fromDate(new Date()),
-        };
-        await addDoc(collection(db, "debtors"), debtorData);
-      }
-
-      let couponCode: string | null = null;
-      if (form.couponType !== "none" && form.couponValue > 0) {
-        couponCode = generateCouponCode();
-        const discountValue = form.couponType === "percentage" ? Math.min(form.couponValue, 100) : form.couponValue;
-        await setDoc(doc(db, "coupons", couponCode), {
-          code: couponCode,
-          discountType: form.couponType === "percentage" ? "percentage" : "fixed",
-          discountValue,
-          minPurchaseAmount: 0,
-          maxDiscount: 200,
-          validFrom: Timestamp.fromDate(new Date()),
+        const invRef = await addDoc(collection(db, "invoices"), {
+          invoiceNumber, type: "invoice", status: "draft",
+          customer: { name: form.customerName, phone: form.customerPhone, address: form.customerAddress },
+          items: itemsWithCost.map((item) => ({
+            productId: item.productId, productName: item.productName, sku: item.sku,
+            quantity: item.quantity, unitPrice: item.unitPrice, weight: item.weight,
+            purity: item.purity, makingCharge: item.makingCharge, subtotal: item.subtotal,
+          })),
+          subtotal: form.totalAmount, discountAmount: form.discountAmount, totalAmount: form.finalAmount,
+          paymentStatus: form.balanceDue > 0 ? "partial" : "full",
+          cashReceived: form.receivedAmount, balanceDue: form.balanceDue,
+          warranty: { period: form.warrantyPeriod, terms: form.warrantyTerms },
+          notes: form.notes,
+          termsAndConditions: "Goods once sold cannot be returned.",
           validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
-          usageLimit: 1,
-          usedCount: 0,
-          isActive: true,
-          terms: "To be Used within 1 Months",
-          issuedToCustomer: { name: form.customerName, phone: form.customerPhone },
-          issuedForOrderId: saleRef.id,
+          relatedSaleId: saleRef.id,
+          generatedBy: user?.uid || "",
+          createdByName: profile?.displayName || "",
           createdAt: Timestamp.fromDate(new Date()),
-          createdBy: user?.uid || "",
-        });
-      }
-
-      // Auto-invoice on sale
-      const now = new Date();
-      const year = now.getFullYear();
-      const invPrefix = "INV";
-      const invCounterDoc = doc(db, "counters", `invoices_${year}`);
-      const invCounterSnap = await getDoc(invCounterDoc);
-      let invSeq = 1;
-      if (invCounterSnap.exists()) {
-        invSeq = (invCounterSnap.data().lastNumber || 0) + 1;
-      }
-      await setDoc(invCounterDoc, { lastNumber: invSeq, year }, { merge: true });
-      const invoiceNumber = `${invPrefix}-${year}-${String(invSeq).padStart(4, "0")}`;
-
-      const invRef = await addDoc(collection(db, "invoices"), {
-        invoiceNumber,
-        type: "invoice",
-        status: "draft",
-        customer: { name: form.customerName, phone: form.customerPhone, address: form.customerAddress },
-        items: itemsWithCost.map((item) => ({
-          productId: item.productId, productName: item.productName, sku: item.sku,
-          quantity: item.quantity, unitPrice: item.unitPrice, weight: item.weight,
-          purity: item.purity, makingCharge: item.makingCharge, subtotal: item.subtotal,
-        })),
-        subtotal: form.totalAmount,
-        discountAmount: form.discountAmount,
-        totalAmount: form.finalAmount,
-        paymentStatus: form.balanceDue > 0 ? "partial" : "full",
-        cashReceived: form.receivedAmount,
-        balanceDue: form.balanceDue,
-        warranty: { period: form.warrantyPeriod, terms: form.warrantyTerms },
-        notes: form.notes,
-        termsAndConditions: "Goods once sold cannot be returned.",
-        validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
-        relatedSaleId: saleRef.id,
-        generatedBy: user?.uid || "",
-        createdByName: profile?.displayName || "",
-        couponIssued: couponCode ? { code: couponCode, discountValue: form.couponType === "percentage" ? Math.min(form.couponValue, 100) : form.couponValue, discountType: form.couponType, terms: "To be Used within 1 Months" } : undefined,
-        createdAt: Timestamp.fromDate(new Date()),
-        updatedAt: Timestamp.fromDate(new Date()),
-      });
-
-      setSavedInvoiceId(invRef.id);
-
-      // Auto-complete order when sale is from an order
-      if (orderId) {
-        await updateDoc(doc(db, "orders", orderId), {
-          status: "delivered",
           updatedAt: Timestamp.fromDate(new Date()),
         });
+        savedInvId = invRef.id;
+      } catch (e) {
+        console.error("Auto-invoice failed, sale was still recorded", e);
       }
 
+      for (const item of form.items) {
+        try {
+          const prodRef = doc(db, "products", item.productId);
+          const prodSnap = await getDoc(prodRef);
+          if (prodSnap.exists()) {
+            const currentStock = prodSnap.data().quantityInStock || 0;
+            await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - item.quantity) });
+          }
+          await addDoc(collection(db, "inventoryLogs"), {
+            productId: item.productId, changeType: "sale", quantityChange: -item.quantity,
+            reason: `Sale to ${form.customerName}`, performedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
+          });
+        } catch (e) { console.error("Stock update failed for item", item.productId, e); }
+      }
+
+      try {
+        if (form.receivedAmount > 0 && form.paymentMethod !== "credit") {
+          await addDoc(collection(db, "accountTransactions"), {
+            accountId: resolveAccount(form.paymentMethod), type: "credit", amount: form.receivedAmount,
+            description: `Sale to ${form.customerName}`, date: Timestamp.fromDate(new Date()),
+            referenceType: "sale", referenceId: saleRef.id, recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
+          });
+        }
+      } catch (e) { console.error("Account transaction failed", e); }
+
+      try {
+        if (form.balanceDue > 0) {
+          await addDoc(collection(db, "debtors"), {
+            customerName: form.customerName, customerPhone: form.customerPhone, customerAddress: form.customerAddress,
+            totalAmount: form.finalAmount, amountPaid: form.receivedAmount, balanceDue: form.balanceDue,
+            dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+            orderIds: [saleRef.id], status: "active",
+            paymentHistory: form.receivedAmount > 0
+              ? [{ date: Timestamp.fromDate(new Date()), amount: form.receivedAmount, method: form.paymentMethod, notes: "Initial payment" }]
+              : [],
+            createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
+          });
+        }
+      } catch (e) { console.error("Debtor creation failed", e); }
+
+      try {
+        if (form.couponType !== "none" && form.couponValue > 0) {
+          const couponCode = generateCouponCode();
+          const discountValue = form.couponType === "percentage" ? Math.min(form.couponValue, 100) : form.couponValue;
+          await setDoc(doc(db, "coupons", couponCode), {
+            code: couponCode, discountType: form.couponType === "percentage" ? "percentage" : "fixed",
+            discountValue, minPurchaseAmount: 0, maxDiscount: 200,
+            validFrom: Timestamp.fromDate(new Date()),
+            validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+            usageLimit: 1, usedCount: 0, isActive: true,
+            terms: "To be Used within 1 Months",
+            issuedToCustomer: { name: form.customerName, phone: form.customerPhone },
+            issuedForOrderId: saleRef.id, createdAt: Timestamp.fromDate(new Date()), createdBy: user?.uid || "",
+          });
+        }
+      } catch (e) { console.error("Coupon creation failed", e); }
+
+      try {
+        if (orderId) {
+          await updateDoc(doc(db, "orders", orderId), { status: "delivered", updatedAt: Timestamp.fromDate(new Date()) });
+        }
+      } catch (e) { console.error("Order status update failed", e); }
+
+      setSavedInvoiceId(savedInvId);
       setSavedSale(true);
       setForm({ ...emptyForm });
       setShowForm(false);
