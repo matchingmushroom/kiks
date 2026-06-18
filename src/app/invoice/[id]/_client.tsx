@@ -248,10 +248,26 @@ export default function PublicInvoicePage() {
               </div>
             )}
 
-            <div className="border-t border-border pt-6 text-center text-xs text-muted-foreground">
-              <p>Thank you for your business! &bull; {shopName}</p>
-              {shopAddress && <p>{shopAddress}</p>}
-            </div>
+            {invoice.couponIssued ? (
+              <div className="border-t border-border pt-6 mb-6 text-center">
+                <p className="text-sm font-medium text-blue-800 mb-1">Thank you for shopping with us!</p>
+                <p className="text-xs text-blue-600 mb-2">
+                  We appreciate your purchase. Use coupon code below on your next visit:
+                </p>
+                <p className="font-mono text-lg font-bold text-blue-700 tracking-wider mb-1">{invoice.couponIssued.code}</p>
+                <p className="text-xs text-blue-500">
+                  {invoice.couponIssued.discountType === "percentage"
+                    ? `${invoice.couponIssued.discountValue}% off`
+                    : `Rs. ${invoice.couponIssued.discountValue} off`}
+                  {invoice.couponIssued.terms ? ` · ${invoice.couponIssued.terms}` : ""}
+                </p>
+              </div>
+            ) : (
+              <div className="border-t border-border pt-6 text-center text-xs text-muted-foreground">
+                <p>Thank you for your business! &bull; {shopName}</p>
+                {shopAddress && <p>{shopAddress}</p>}
+              </div>
+            )}
           </div>
         </div>
       </div>

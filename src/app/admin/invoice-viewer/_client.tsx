@@ -169,18 +169,21 @@ function ViewerInner() {
               Amount in words: {amountInWords(invoice.totalAmount)}
             </div>
 
-            {invoice.couponIssued && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 text-sm">
-                <p className="font-medium text-blue-800 mb-1">Coupon Issued</p>
-                <p className="font-mono text-blue-700 font-bold">{invoice.couponIssued.code}</p>
-                <p className="text-blue-600 text-xs mt-1">
+            {invoice.couponIssued ? (
+              <div className="border-t border-border pt-6 mb-6 text-center">
+                <p className="text-sm font-medium text-blue-800 mb-1">Thank you for shopping with us!</p>
+                <p className="text-xs text-blue-600 mb-2">
+                  We appreciate your purchase. Use coupon code below on your next visit:
+                </p>
+                <p className="font-mono text-lg font-bold text-blue-700 tracking-wider mb-1">{invoice.couponIssued.code}</p>
+                <p className="text-xs text-blue-500">
                   {invoice.couponIssued.discountType === "percentage"
                     ? `${invoice.couponIssued.discountValue}% off`
                     : `Rs. ${invoice.couponIssued.discountValue} off`}
                   {invoice.couponIssued.terms ? ` · ${invoice.couponIssued.terms}` : ""}
                 </p>
               </div>
-            )}
+            ) : null}
 
             {invoice.warranty?.period && (
               <div className="bg-muted rounded-lg p-4 mb-4 text-sm">
