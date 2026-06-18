@@ -20,7 +20,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminInvoicesPage() {
-  const { data: invoices, loading } = useFirestore<Invoice>("invoices", {
+  const { data: invoices, loading, error } = useFirestore<Invoice>("invoices", {
     constraints: [orderBy("createdAt", "desc")],
   });
   const [search, setSearch] = useState("");
@@ -93,6 +93,10 @@ export default function AdminInvoicesPage() {
 
         {loading ? (
           <LoadingSpinner />
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+            Failed to load invoices: {error}
+          </div>
         ) : filtered.length === 0 ? (
           <p className="text-muted-foreground text-center py-12">No invoices found.</p>
         ) : viewMode === "grid" ? (

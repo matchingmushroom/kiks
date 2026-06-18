@@ -294,6 +294,7 @@ function SalesContent() {
             productId: item.productId, productName: item.productName, sku: item.sku,
             quantity: item.quantity, unitPrice: item.unitPrice, weight: item.weight,
             purity: item.purity, makingCharge: item.makingCharge, subtotal: item.subtotal,
+            description: "",
           })),
           subtotal: form.totalAmount, discountAmount: form.discountAmount, totalAmount: form.finalAmount,
           paymentStatus: form.balanceDue > 0 ? "partial" : "full",
