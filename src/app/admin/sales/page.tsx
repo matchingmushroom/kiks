@@ -10,7 +10,7 @@ import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
-  addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit, arrayRemove,
+  addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit, arrayRemove, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2 } from "lucide-react";
@@ -72,7 +72,17 @@ function SalesContent() {
   const [manualCustomer, setManualCustomer] = useState(false);
   const [orderData, setOrderData] = useState<Order | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(false);
-  const [detailSale, setDetailSale] = useState<Sale | null>(null);
+  const [detailSaleId, setDetailSaleId] = useState<string | null>(null);
+  const [detailSaleData, setDetailSaleData] = useState<Sale | null>(null);
+
+  // Live-update sale detail modal when the sale doc changes
+  useEffect(() => {
+    if (!detailSaleId) { setDetailSaleData(null); return; }
+    const unsub = onSnapshot(doc(db, "sales", detailSaleId), (snap) => {
+      if (snap.exists()) setDetailSaleData({ id: snap.id, ...snap.data() } as Sale);
+    });
+    return () => unsub();
+  }, [detailSaleId]);
 
   const filteredSales = useMemo(() => {
     let result = sales;
@@ -745,7 +755,7 @@ function SalesContent() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {filteredSales.map((s) => (
             <div key={s.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-              <button onClick={() => setDetailSale(s)} className="block space-y-2 w-full text-left">
+              <button onClick={() => setDetailSaleId(s.id)} className="block space-y-2 w-full text-left">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-secondary text-sm truncate">{s.customer?.name}</p>
@@ -764,7 +774,7 @@ function SalesContent() {
                 <p className="text-xs text-muted-foreground">{s.items?.length || 0} items</p>
               </button>
               <div className="flex items-center justify-between">
-                <button onClick={() => setDetailSale(s)}
+                <button onClick={() => setDetailSaleId(s.id)}
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                   <Eye className="h-3 w-3" /> View Details
                 </button>
@@ -805,7 +815,7 @@ function SalesContent() {
                   <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(s.saleDate)}</td>
                   <td className="px-4 py-2.5 text-right">
                     <div className="inline-flex items-center gap-2">
-                      <button onClick={() => setDetailSale(s)}
+                      <button onClick={() => setDetailSaleId(s.id)}
                         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                         <Eye className="h-3.5 w-3.5" /> View
                       </button>
@@ -822,12 +832,12 @@ function SalesContent() {
         </div>
       )}
 
-      {detailSale && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setDetailSale(null)}>
+      {detailSaleData && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setDetailSaleId(null)}>
           <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full my-8" onClick={(e) => e.stopPropagation()}>
             <div className="p-6 border-b border-border bg-muted/20 flex items-center justify-between">
               <h2 className="text-lg font-bold text-secondary">Sale Details</h2>
-              <button onClick={() => setDetailSale(null)} className="p-1 hover:bg-muted rounded">
+              <button onClick={() => setDetailSaleId(null)} className="p-1 hover:bg-muted rounded">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -835,9 +845,9 @@ function SalesContent() {
               <div>
                 <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Customer</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><span className="text-muted-foreground">Name:</span> <span className="font-medium ml-1">{detailSale.customer?.name}</span></div>
-                  <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium ml-1">{detailSale.customer?.phone}</span></div>
-                  {detailSale.customer?.address && <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="font-medium ml-1">{detailSale.customer.address}</span></div>}
+                  <div><span className="text-muted-foreground">Name:</span> <span className="font-medium ml-1">{detailSaleData.customer?.name}</span></div>
+                  <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium ml-1">{detailSaleData.customer?.phone}</span></div>
+                  {detailSaleData.customer?.address && <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="font-medium ml-1">{detailSaleData.customer.address}</span></div>}
                 </div>
               </div>
 
@@ -850,7 +860,7 @@ function SalesContent() {
                     <span className="w-24 text-right">Unit Price</span>
                     <span className="w-24 text-right">Subtotal</span>
                   </div>
-                  {detailSale.items?.map((item, i) => (
+                  {detailSaleData.items?.map((item, i) => (
                     <div key={i} className="flex items-center px-4 py-2.5 text-sm">
                       <span className="flex-1">{item.productName}</span>
                       <span className="w-16 text-center text-muted-foreground">×{item.quantity}</span>
@@ -860,7 +870,7 @@ function SalesContent() {
                   ))}
                   <div className="flex items-center justify-between px-4 py-3 text-sm font-bold bg-muted/10">
                     <span>Total</span>
-                    <span>{formatCurrency(detailSale.totalAmount || 0)}</span>
+                    <span>{formatCurrency(detailSaleData.totalAmount || 0)}</span>
                   </div>
                 </div>
               </div>
@@ -869,43 +879,43 @@ function SalesContent() {
                 <div>
                   <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Payment</h3>
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Method</span><span className="font-medium capitalize">{detailSale.payment?.method || "—"}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Received</span><span className="font-medium">{formatCurrency(detailSale.payment?.receivedAmount || 0)}</span></div>
-                    {(detailSale.payment?.balanceDue ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Balance Due</span><span className="font-medium text-red-600">{formatCurrency(detailSale.payment!.balanceDue)}</span></div>}
-                    {(detailSale.discountAmount ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-medium text-red-500">-{formatCurrency(detailSale.discountAmount!)}</span></div>}
-                    <div className="flex justify-between pt-1 border-t border-border"><span className="font-bold">Final Amount</span><span className="font-bold">{formatCurrency(detailSale.finalAmount)}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Method</span><span className="font-medium capitalize">{detailSaleData.payment?.method || "—"}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Received</span><span className="font-medium">{formatCurrency(detailSaleData.payment?.receivedAmount || 0)}</span></div>
+                    {(detailSaleData.payment?.balanceDue ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Balance Due</span><span className="font-medium text-red-600">{formatCurrency(detailSaleData.payment!.balanceDue)}</span></div>}
+                    {(detailSaleData.discountAmount ?? 0) > 0 && <div className="flex justify-between"><span className="text-muted-foreground">Discount</span><span className="font-medium text-red-500">-{formatCurrency(detailSaleData.discountAmount!)}</span></div>}
+                    <div className="flex justify-between pt-1 border-t border-border"><span className="font-bold">Final Amount</span><span className="font-bold">{formatCurrency(detailSaleData.finalAmount)}</span></div>
                   </div>
                 </div>
                 <div>
                   <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Warranty</h3>
                   <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Period</span><span className="font-medium">{detailSale.warranty?.period || "None"}</span></div>
-                    {detailSale.warranty?.terms && <div className="flex justify-between"><span className="text-muted-foreground">Terms</span><span className="font-medium">{detailSale.warranty.terms}</span></div>}
+                    <div className="flex justify-between"><span className="text-muted-foreground">Period</span><span className="font-medium">{detailSaleData.warranty?.period || "None"}</span></div>
+                    {detailSaleData.warranty?.terms && <div className="flex justify-between"><span className="text-muted-foreground">Terms</span><span className="font-medium">{detailSaleData.warranty.terms}</span></div>}
                   </div>
                 </div>
               </div>
 
-              {detailSale.couponIssued && (
+              {detailSaleData.couponIssued && (
                 <div>
                   <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Coupon Issued</h3>
                   <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-sm">
-                    <span className="font-mono font-medium text-blue-700">{detailSale.couponIssued.code}</span>
+                    <span className="font-mono font-medium text-blue-700">{detailSaleData.couponIssued.code}</span>
                     <span className="text-blue-500">•</span>
-                    <span className="text-blue-600">-{formatCurrency(detailSale.couponIssued.discountValue)}</span>
+                    <span className="text-blue-600">-{formatCurrency(detailSaleData.couponIssued.discountValue)}</span>
                   </div>
                 </div>
               )}
 
-              {detailSale.notes && (
+              {detailSaleData.notes && (
                 <div>
                   <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Notes</h3>
-                  <p className="text-sm bg-muted/20 p-3 rounded-lg">{detailSale.notes}</p>
+                  <p className="text-sm bg-muted/20 p-3 rounded-lg">{detailSaleData.notes}</p>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
-                <p>Sale Date: {formatDateTime(detailSale.saleDate)}</p>
-                <p>Recorded By: {detailSale.recordedByName || detailSale.recordedBy || "—"}</p>
+                <p>Sale Date: {formatDateTime(detailSaleData.saleDate)}</p>
+                <p>Recorded By: {detailSaleData.recordedByName || detailSaleData.recordedBy || "—"}</p>
               </div>
             </div>
           </div>

@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Sale } from "@/types";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
-import { doc, getDoc, addDoc, collection, updateDoc, Timestamp } from "firebase/firestore";
+import { doc, onSnapshot, getDoc, addDoc, collection, updateDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -27,18 +27,14 @@ export default function SaleDetailPage() {
   useEffect(() => {
     const id = params?.id as string;
     if (!id) return;
-    const fetchSale = async () => {
-      try {
-        const snap = await getDoc(doc(db, "sales", id));
-        if (snap.exists()) {
-          setSale({ id: snap.id, ...snap.data() } as Sale);
-        }
-      } catch (e) {
-        console.error("Failed to load sale", e);
+    setLoading(true);
+    const unsub = onSnapshot(doc(db, "sales", id), (snap) => {
+      if (snap.exists()) {
+        setSale({ id: snap.id, ...snap.data() } as Sale);
       }
       setLoading(false);
-    };
-    fetchSale();
+    }, () => setLoading(false));
+    return () => unsub();
   }, [params?.id]);
 
   const openReturn = () => {

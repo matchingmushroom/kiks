@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, Eye, LayoutGrid, List } from "lucide-react";
+import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, Eye, LayoutGrid, List, AlertTriangle } from "lucide-react";
 
 function getDaysOverdue(dueDate: number): number {
   return Math.floor((Date.now() - dueDate) / (1000 * 60 * 60 * 24));
@@ -31,6 +31,7 @@ export default function AdminDebtorsPage() {
   const [saving, setSaving] = useState(false);
   const [selectedDebtor, setSelectedDebtor] = useState<Debtor | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [syncError, setSyncError] = useState<string | null>(null);
 
   const filtered = debtors.filter((d) => {
     const matchSearch = !search ||
@@ -85,32 +86,39 @@ export default function AdminDebtorsPage() {
       });
 
       // Sync payment to linked sale(s) and invoice(s)
+      let syncErrMsg: string | null = null;
       for (const saleId of debtor.orderIds || []) {
-        const saleRef = doc(db, "sales", saleId);
-        const saleSnap = await getDoc(saleRef);
-        if (!saleSnap.exists()) continue;
-        const saleData = saleSnap.data();
-        const oldReceived = saleData.payment?.receivedAmount || 0;
-        const oldBalance = saleData.payment?.balanceDue || 0;
-        const newReceived = oldReceived + amount;
-        const newBalance = Math.max(0, oldBalance - amount);
-        await updateDoc(saleRef, {
-          "payment.receivedAmount": newReceived,
-          "payment.balanceDue": newBalance,
-          updatedAt: Timestamp.fromDate(new Date()),
-        });
-        // Update linked invoice
-        const invQ = query(collection(db, "invoices"), where("relatedSaleId", "==", saleId));
-        const invSnap = await getDocs(invQ);
-        invSnap.forEach(async (invDoc) => {
-          await updateDoc(invDoc.ref, {
-            cashReceived: newReceived,
-            balanceDue: newBalance,
-            paymentStatus: newBalance <= 0 ? "full" : "partial",
+        try {
+          const saleRef = doc(db, "sales", saleId);
+          const saleSnap = await getDoc(saleRef);
+          if (!saleSnap.exists()) continue;
+          const saleData = saleSnap.data();
+          const oldReceived = saleData.payment?.receivedAmount || 0;
+          const oldBalance = saleData.payment?.balanceDue || 0;
+          const newReceived = oldReceived + amount;
+          const newBalance = Math.max(0, oldBalance - amount);
+          await updateDoc(saleRef, {
+            "payment.receivedAmount": newReceived,
+            "payment.balanceDue": newBalance,
             updatedAt: Timestamp.fromDate(new Date()),
           });
-        });
+          // Update linked invoice
+          const invQ = query(collection(db, "invoices"), where("relatedSaleId", "==", saleId));
+          const invSnap = await getDocs(invQ);
+          for (const invDoc of invSnap.docs) {
+            await updateDoc(invDoc.ref, {
+              cashReceived: newReceived,
+              balanceDue: newBalance,
+              paymentStatus: newBalance <= 0 ? "full" : "partial",
+              updatedAt: Timestamp.fromDate(new Date()),
+            });
+          }
+        } catch (e) {
+          syncErrMsg = "Payment recorded but sale/invoice sync failed. Please update manually.";
+          console.error("Sale/invoice sync failed for sale", saleId, e);
+        }
       }
+      if (syncErrMsg) setSyncError(syncErrMsg);
 
       setPaymentForm(null);
     } catch (e) {
@@ -131,6 +139,12 @@ export default function AdminDebtorsPage() {
           </div>
         </div>
 
+        {syncError && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm text-yellow-800">
+            <AlertTriangle className="h-5 w-5 shrink-0" />{syncError}
+            <button onClick={() => setSyncError(null)} className="ml-auto p-1 hover:bg-yellow-100 rounded"><X className="h-4 w-4" /></button>
+          </div>
+        )}
         <div className="flex flex-wrap gap-3 mb-6">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
