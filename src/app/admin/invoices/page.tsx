@@ -113,7 +113,7 @@ export default function AdminInvoicesPage() {
                       </div>
                       <p className="text-xs text-muted-foreground truncate mt-0.5">{inv.customer?.name || "—"}</p>
                     </div>
-                    <Link href={`/admin/invoices/${inv.id}`}
+                    <Link href={`/admin/invoice-viewer?id=${inv.id}`}
                       className="inline-flex items-center gap-1 text-xs text-primary hover:underline shrink-0">
                       <Eye className="h-3 w-3" /> View
                     </Link>
@@ -160,7 +160,7 @@ export default function AdminInvoicesPage() {
                       </td>
                       <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(inv.createdAt)}</td>
                       <td className="px-4 py-2.5 text-sm text-right">
-                        <Link href={`/admin/invoices/${inv.id}`}
+                        <Link href={`/admin/invoice-viewer?id=${inv.id}`}
                           className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
                           <Eye className="h-3 w-3" /> View
                         </Link>

@@ -138,7 +138,7 @@ export default function NewInvoicePage() {
         updatedAt: Timestamp.fromDate(now),
       });
 
-      router.push(`/admin/invoices/${docRef.id}`);
+      router.push(`/admin/invoice-viewer?id=${docRef.id}`);
     } catch (e) {
       console.error("Save failed", e);
     }
