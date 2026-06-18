@@ -9,6 +9,7 @@ import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   updateDoc, doc, Timestamp, arrayUnion, addDoc, collection,
+  getDoc, query, where, getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -82,6 +83,34 @@ export default function AdminDebtorsPage() {
         recordedBy: user?.uid || "",
         createdAt: Timestamp.fromDate(new Date()),
       });
+
+      // Sync payment to linked sale(s) and invoice(s)
+      for (const saleId of debtor.orderIds || []) {
+        const saleRef = doc(db, "sales", saleId);
+        const saleSnap = await getDoc(saleRef);
+        if (!saleSnap.exists()) continue;
+        const saleData = saleSnap.data();
+        const oldReceived = saleData.payment?.receivedAmount || 0;
+        const oldBalance = saleData.payment?.balanceDue || 0;
+        const newReceived = oldReceived + amount;
+        const newBalance = Math.max(0, oldBalance - amount);
+        await updateDoc(saleRef, {
+          "payment.receivedAmount": newReceived,
+          "payment.balanceDue": newBalance,
+          updatedAt: Timestamp.fromDate(new Date()),
+        });
+        // Update linked invoice
+        const invQ = query(collection(db, "invoices"), where("relatedSaleId", "==", saleId));
+        const invSnap = await getDocs(invQ);
+        invSnap.forEach(async (invDoc) => {
+          await updateDoc(invDoc.ref, {
+            cashReceived: newReceived,
+            balanceDue: newBalance,
+            paymentStatus: newBalance <= 0 ? "full" : "partial",
+            updatedAt: Timestamp.fromDate(new Date()),
+          });
+        });
+      }
 
       setPaymentForm(null);
     } catch (e) {
