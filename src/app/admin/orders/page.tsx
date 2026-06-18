@@ -27,7 +27,7 @@ export default function AdminOrdersPage() {
   const { data: orders, loading } = useFirestore<Order>("orders", {
     constraints: [orderBy("createdAt", "desc")],
   });
-  const { data: allCoupons } = useFirestore<Coupon>("coupons");
+  const { data: allCoupons } = useFirestore<Coupon>("coupons", { realtime: false });
   const { settings } = useShopSettings();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");

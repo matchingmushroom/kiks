@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Product, InventoryLog, Category } from "@/types";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,9 +18,11 @@ export default function AdminInventoryPage() {
     constraints: [orderBy("name", "asc")],
   });
   const { data: logs } = useFirestore<InventoryLog>("inventoryLogs", {
-    constraints: [orderBy("createdAt", "desc")],
+    constraints: [orderBy("createdAt", "desc"), limit(100)],
   });
-  const { data: categories } = useFirestore<Category>("categories");
+  const { data: categories } = useFirestore<Category>("categories", {
+    realtime: false,
+  });
   const { user } = useAuth();
 
   const [search, setSearch] = useState("");

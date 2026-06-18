@@ -50,8 +50,21 @@ body {
     display: none !important;
   }
   body {
-    background: white;
-    color: black;
+    background: white !important;
+    color: black !important;
+  }
+  /* Remove backgrounds and shadows for clean print */
+  .bg-white, .bg-muted, .bg-gray-50 {
+    background: white !important;
+  }
+  .shadow-sm, .shadow-md, .shadow-lg {
+    box-shadow: none !important;
+  }
+  .rounded-xl, .rounded-lg {
+    border-radius: 0 !important;
+  }
+  .border-border {
+    border-color: #ddd !important;
   }
 }
 

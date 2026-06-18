@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useParams } from "next/navigation";
-import { useCollection } from "@/hooks/useCollection";
+import { useFirestore, where } from "@/hooks/useFirestore";
 import { Product, Category } from "@/types";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopHeader from "@/components/shop/ShopHeader";
@@ -11,16 +11,18 @@ export default function CategoryProductsPage() {
   const params = useParams();
   const categoryId = params.category as string;
 
-  const { data: categories, error: catError } = useCollection<Category>("categories", {
-    where: [["isActive", "==", true]],
+  const { data: categories, error: catError } = useFirestore<Category>("categories", {
+    constraints: [where("isActive", "==", true)],
+    realtime: false,
   });
   const category = categories.find((c) => c.id === categoryId);
 
-  const { data: products, loading, error: prodError } = useCollection<Product>("products", {
-    where: [
-      ["isActive", "==", true],
-      ["categoryId", "==", categoryId],
+  const { data: products, loading, error: prodError } = useFirestore<Product>("products", {
+    constraints: [
+      where("isActive", "==", true),
+      where("categoryId", "==", categoryId),
     ],
+    realtime: false,
   });
 
   return (

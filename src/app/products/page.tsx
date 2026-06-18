@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useCollection } from "@/hooks/useCollection";
+import { useFirestore, where } from "@/hooks/useFirestore";
 import { Product, Category } from "@/types";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopHeader from "@/components/shop/ShopHeader";
@@ -10,11 +10,13 @@ import ShopFooter from "@/components/shop/ShopFooter";
 export default function ProductsPage() {
   useEffect(() => { document.title = "Products - KIKS Collections"; }, []);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const { data: categories, error: catError } = useCollection<Category>("categories", {
-    where: [["isActive", "==", true]],
+  const { data: categories, error: catError } = useFirestore<Category>("categories", {
+    constraints: [where("isActive", "==", true)],
+    realtime: false,
   });
-  const { data: products, loading, error: prodError } = useCollection<Product>("products", {
-    where: [["isActive", "==", true]],
+  const { data: products, loading, error: prodError } = useFirestore<Product>("products", {
+    constraints: [where("isActive", "==", true)],
+    realtime: false,
   });
 
   const filtered = selectedCategory === "all"

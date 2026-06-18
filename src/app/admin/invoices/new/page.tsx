@@ -29,9 +29,11 @@ export default function NewInvoicePage() {
   const { profile } = useAuth();
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc")],
+    realtime: false,
   });
   const { data: allCustomers } = useFirestore<Customer>("customers", {
     constraints: [orderBy("name", "asc")],
+    realtime: false,
   });
 
   const [type, setType] = useState<"invoice" | "estimate">("invoice");

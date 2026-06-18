@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { HomeSection, Product as ProductType, Category } from "@/types";
-import { useCollection } from "@/hooks/useCollection";
+import { useFirestore, where } from "@/hooks/useFirestore";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
@@ -42,8 +42,9 @@ function HeroSection({ section }: { section: HomeSection }) {
 }
 
 function CategoryGridSection() {
-  const { data: categories, loading, error } = useCollection<Category>("categories", {
-    where: [["isActive", "==", true]],
+  const { data: categories, loading, error } = useFirestore<Category>("categories", {
+    constraints: [where("isActive", "==", true)],
+    realtime: false,
   });
 
   if (loading) return null;
@@ -77,11 +78,12 @@ function CategoryGridSection() {
 }
 
 function FeaturedProductsSection() {
-  const { data: products, loading, error } = useCollection<ProductType>("products", {
-    where: [
-      ["isActive", "==", true],
-      ["isFeatured", "==", true],
+  const { data: products, loading, error } = useFirestore<ProductType>("products", {
+    constraints: [
+      where("isActive", "==", true),
+      where("isFeatured", "==", true),
     ],
+    realtime: false,
   });
 
   if (loading) return null;
@@ -108,8 +110,9 @@ function FeaturedProductsSection() {
 }
 
 function NewArrivalsSection() {
-  const { data: products, loading, error } = useCollection<ProductType>("products", {
-    where: [["isActive", "==", true]],
+  const { data: products, loading, error } = useFirestore<ProductType>("products", {
+    constraints: [where("isActive", "==", true)],
+    realtime: false,
   });
 
   if (loading) return null;
@@ -163,8 +166,9 @@ function SectionRenderer({ section }: { section: HomeSection }) {
 }
 
 function HomeContent() {
-  const { data: sections, loading } = useCollection<HomeSection>("sections", {
-    where: [["isVisible", "==", true]],
+  const { data: sections, loading } = useFirestore<HomeSection>("sections", {
+    constraints: [where("isVisible", "==", true)],
+    realtime: false,
   });
 
   if (loading) {

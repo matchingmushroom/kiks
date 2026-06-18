@@ -55,6 +55,7 @@ function SalesContent() {
   });
   const { data: allCustomers } = useFirestore<Customer>("customers", {
     constraints: [orderBy("name", "asc")],
+    realtime: false,
   });
   const { user, profile } = useAuth();
 

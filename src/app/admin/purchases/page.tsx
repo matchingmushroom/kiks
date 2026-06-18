@@ -33,9 +33,11 @@ export default function AdminPurchasesPage() {
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
+    realtime: false,
   });
   const { data: allSuppliers } = useFirestore<Supplier>("suppliers", {
     constraints: [orderBy("name", "asc")],
+    realtime: false,
   });
   const { user, profile } = useAuth();
 

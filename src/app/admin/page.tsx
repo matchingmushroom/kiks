@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
@@ -8,7 +9,7 @@ import { formatCurrency, formatNumber } from "@/lib/utils";
 import Link from "next/link";
 import {
   Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
-  BarChart3, ShoppingCart, Clock,
+  BarChart3, ShoppingCart, Clock, RefreshCw,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -30,14 +31,16 @@ function getLast30Days() {
 
 export default function AdminDashboardPage() {
   const { profile } = useAuth();
-  const { data: sales } = useFirestore<Sale>("sales");
-  const { data: products } = useFirestore<Product>("products");
+  const { data: sales } = useFirestore<Sale>("sales", { realtime: false });
+  const { data: products } = useFirestore<Product>("products", { realtime: false });
   const { data: orders } = useFirestore<Order>("orders", {
     constraints: [orderBy("createdAt", "desc")],
+    realtime: false,
   });
-  const { data: categories } = useFirestore<Category>("categories");
+  const { data: categories } = useFirestore<Category>("categories", { realtime: false });
   const { data: debtors } = useFirestore<Debtor>("debtors", {
     constraints: [orderBy("balanceDue", "desc")],
+    realtime: false,
   });
 
   const isStaff = profile?.role === "staff";
@@ -132,11 +135,19 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="p-6">
-        <h1 className="text-2xl font-bold text-secondary mb-1">Dashboard</h1>
-        <p className="text-muted-foreground mb-6">
-          Welcome back, {profile?.displayName || "User"}
-          {isStaff && <span className="ml-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">Showing your data</span>}
-        </p>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-secondary mb-1">Dashboard</h1>
+            <p className="text-muted-foreground">
+              Welcome back, {profile?.displayName || "User"}
+              {isStaff && <span className="ml-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">Showing your data</span>}
+            </p>
+          </div>
+          <button onClick={() => window.location.reload()}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-3 py-1.5 border border-border rounded-lg hover:border-primary">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </button>
+        </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
           {stats.map((stat) => {

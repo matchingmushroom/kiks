@@ -214,7 +214,7 @@ export default function InvoiceDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 pb-12 no-print">
+      <div className="max-w-4xl mx-auto px-6 pb-12">
         <div className="bg-white rounded-xl border border-border shadow-sm overflow-hidden">
           <div className="p-8" id="invoice-template">
             <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-8 pb-6 border-b border-border">

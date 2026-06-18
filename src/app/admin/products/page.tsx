@@ -46,6 +46,7 @@ export default function AdminProductsPage() {
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
+    realtime: false,
   });
 
   const [search, setSearch] = useState("");
