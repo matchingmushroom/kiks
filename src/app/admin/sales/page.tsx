@@ -13,7 +13,7 @@ import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit, arrayRemove, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2 } from "lucide-react";
+import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 
 interface LineItem {
@@ -74,6 +74,10 @@ function SalesContent() {
   const [loadingOrder, setLoadingOrder] = useState(false);
   const [detailSaleId, setDetailSaleId] = useState<string | null>(null);
   const [detailSaleData, setDetailSaleData] = useState<Sale | null>(null);
+  const [returnSale, setReturnSale] = useState<Sale | null>(null);
+  const [returnQtys, setReturnQtys] = useState<Record<number, number>>({});
+  const [returnType, setReturnType] = useState<"refund" | "exchange">("refund");
+  const [savingReturn, setSavingReturn] = useState(false);
 
   // Live-update sale detail modal when the sale doc changes
   useEffect(() => {
@@ -434,6 +438,71 @@ function SalesContent() {
     await deleteDoc(doc(db, "sales", id));
   };
 
+  const openReturn = (sale: Sale) => {
+    setReturnSale(sale);
+    const initial: Record<number, number> = {};
+    sale.items?.forEach((_, i) => { initial[i] = 0; });
+    setReturnQtys(initial);
+    setReturnType("refund");
+  };
+
+  const totalReturnValue = returnSale?.items?.reduce((sum, item, i) => {
+    const qty = returnQtys[i] || 0;
+    return sum + qty * item.unitPrice;
+  }, 0) || 0;
+
+  const handleReturn = async () => {
+    if (!returnSale || totalReturnValue <= 0) return;
+    setSavingReturn(true);
+    try {
+      for (let i = 0; i < (returnSale.items?.length || 0); i++) {
+        const qty = returnQtys[i] || 0;
+        if (qty <= 0) continue;
+        const item = returnSale.items[i];
+        const prodRef = doc(db, "products", item.productId);
+        const prodSnap = await getDoc(prodRef);
+        if (prodSnap.exists()) {
+          const currentStock = prodSnap.data().quantityInStock || 0;
+          await updateDoc(prodRef, {
+            quantityInStock: currentStock + qty,
+            updatedAt: Timestamp.fromDate(new Date()),
+          });
+        }
+        await addDoc(collection(db, "inventoryLogs"), {
+          productId: item.productId,
+          changeType: "sales_return",
+          quantityChange: qty,
+          reason: `Return from sale #${returnSale.id}`,
+          performedBy: user?.uid || "",
+          createdAt: Timestamp.fromDate(new Date()),
+        });
+      }
+
+      if (returnType === "refund") {
+        await addDoc(collection(db, "accountTransactions"), {
+          accountId: "cash_in_hand",
+          type: "debit",
+          amount: totalReturnValue,
+          description: `Sales return refund: ${returnSale.customer?.name}`,
+          date: Timestamp.fromDate(new Date()),
+          referenceType: "sales_return",
+          referenceId: returnSale.id,
+          recordedBy: user?.uid || "",
+          createdAt: Timestamp.fromDate(new Date()),
+        });
+      }
+
+      setReturnSale(null);
+
+      if (returnType === "exchange") {
+        router.push(`/admin/sales?returnDiscount=${totalReturnValue}&returnCustomer=${encodeURIComponent(returnSale.customer?.name || "")}&returnPhone=${encodeURIComponent(returnSale.customer?.phone || "")}`);
+      }
+    } catch (e) {
+      console.error("Return failed", e);
+    }
+    setSavingReturn(false);
+  };
+
   if (loading) {
     return <div className="p-6 text-center text-muted-foreground">Loading...</div>;
   }
@@ -778,10 +847,16 @@ function SalesContent() {
                   className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                   <Eye className="h-3 w-3" /> View Details
                 </button>
-                <button onClick={() => handleDeleteSale(s.id)}
-                  className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
-                  <Trash2 className="h-3 w-3" /> Delete
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => openReturn(s)}
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                    <RotateCcw className="h-3 w-3" /> Return
+                  </button>
+                  <button onClick={() => handleDeleteSale(s.id)}
+                    className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+                    <Trash2 className="h-3 w-3" /> Delete
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -818,6 +893,10 @@ function SalesContent() {
                       <button onClick={() => setDetailSaleId(s.id)}
                         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                         <Eye className="h-3.5 w-3.5" /> View
+                      </button>
+                      <button onClick={() => openReturn(s)}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                        <RotateCcw className="h-3.5 w-3.5" /> Return
                       </button>
                       <button onClick={() => handleDeleteSale(s.id)}
                         className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
@@ -916,6 +995,64 @@ function SalesContent() {
               <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
                 <p>Sale Date: {formatDateTime(detailSaleData.saleDate)}</p>
                 <p>Recorded By: {detailSaleData.recordedByName || detailSaleData.recordedBy || "—"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {returnSale && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setReturnSale(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-secondary">Process Return</h2>
+              <button onClick={() => setReturnSale(null)} className="p-1 hover:bg-muted rounded">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-sm text-muted-foreground mb-4">Customer: {returnSale.customer?.name}</p>
+
+            <div className="space-y-3 mb-4">
+              {returnSale.items?.map((item, i) => (
+                <div key={i} className="flex items-center gap-3 border border-border rounded-lg p-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-secondary truncate">{item.productName}</p>
+                    <p className="text-xs text-muted-foreground">Sold: {item.quantity} × {formatCurrency(item.unitPrice)}</p>
+                  </div>
+                  <input type="number" min="0" max={item.quantity}
+                    value={returnQtys[i] || 0}
+                    onChange={(e) => {
+                      const val = Math.min(item.quantity, Math.max(0, Number(e.target.value)));
+                      setReturnQtys({ ...returnQtys, [i]: val });
+                    }}
+                    className="w-16 px-2 py-1 border border-border rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-4 mb-4">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" name="rt" checked={returnType === "refund"}
+                  onChange={() => setReturnType("refund")} className="text-primary" />
+                Refund
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" name="rt" checked={returnType === "exchange"}
+                  onChange={() => setReturnType("exchange")} className="text-primary" />
+                Exchange (discount on new bill)
+              </label>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-border">
+              <p className="text-sm">
+                Return Value: <span className="font-bold text-secondary">{formatCurrency(totalReturnValue)}</span>
+              </p>
+              <div className="flex gap-2">
+                <Button onClick={() => setReturnSale(null)} variant="outline">Cancel</Button>
+                <Button onClick={handleReturn} disabled={savingReturn || totalReturnValue <= 0} variant="accent">
+                  <Save className="h-4 w-4" /> {savingReturn ? "Processing..." : returnType === "refund" ? "Process Refund" : "Process Exchange"}
+                </Button>
               </div>
             </div>
           </div>
