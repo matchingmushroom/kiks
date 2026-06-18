@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
-import { Sale, Product, Order, Customer } from "@/types";
+import { Sale, Product, Order, Customer, Invoice } from "@/types";
 import { formatCurrency, formatDate, formatDateTime, generateCouponCode } from "@/lib/utils";
 import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -79,6 +79,8 @@ function SalesContent() {
   const [returnQtys, setReturnQtys] = useState<Record<number, number>>({});
   const [returnType, setReturnType] = useState<"refund" | "exchange">("refund");
   const [savingReturn, setSavingReturn] = useState(false);
+  const [invoicePreviewId, setInvoicePreviewId] = useState<string | null>(null);
+  const [invoicePreviewData, setInvoicePreviewData] = useState<Invoice | null>(null);
 
   // Live-update sale detail modal when the sale doc changes
   useEffect(() => {
@@ -88,6 +90,15 @@ function SalesContent() {
     });
     return () => unsub();
   }, [detailSaleId]);
+
+  // Live-fetch invoice data for preview modal
+  useEffect(() => {
+    if (!invoicePreviewId) { setInvoicePreviewData(null); return; }
+    const unsub = onSnapshot(doc(db, "invoices", invoicePreviewId), (snap) => {
+      if (snap.exists()) setInvoicePreviewData({ id: snap.id, ...snap.data() } as Invoice);
+    });
+    return () => unsub();
+  }, [invoicePreviewId]);
 
   const filteredSales = useMemo(() => {
     let result = sales;
@@ -591,10 +602,10 @@ function SalesContent() {
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm text-green-700">
           <CheckCircle className="h-5 w-5" /> Sale recorded successfully!
           {savedInvoiceId && (
-            <Link href={`/admin/invoices/${savedInvoiceId}`}
+            <button onClick={() => setInvoicePreviewId(savedInvoiceId)}
               className="ml-auto inline-flex items-center gap-1 text-green-800 font-medium hover:underline">
-              <ExternalLink className="h-4 w-4" /> View Invoice
-            </Link>
+              <Eye className="h-4 w-4" /> View Invoice
+            </button>
           )}
         </div>
       )}
@@ -1045,6 +1056,64 @@ function SalesContent() {
               <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
                 <p>Sale Date: {formatDateTime(detailSaleData.saleDate)}</p>
                 <p>Recorded By: {detailSaleData.recordedByName || detailSaleData.recordedBy || "—"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {invoicePreviewData && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setInvoicePreviewId(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-y-auto p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-secondary">{invoicePreviewData.invoiceNumber}</h2>
+              <button onClick={() => setInvoicePreviewId(null)} className="p-1 hover:bg-muted rounded">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Customer</p>
+                <p className="font-medium">{invoicePreviewData.customer?.name}</p>
+                <p className="text-xs text-muted-foreground">{invoicePreviewData.customer?.phone}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Items</p>
+                <div className="border border-border rounded-lg divide-y divide-border">
+                  {invoicePreviewData.items?.map((item, i) => (
+                    <div key={i} className="flex items-center justify-between px-3 py-2">
+                      <span className="flex-1 truncate">{item.productName}</span>
+                      <span className="text-muted-foreground mx-2">×{item.quantity}</span>
+                      <span className="font-medium">{formatCurrency(item.subtotal)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex justify-between font-bold pt-2 border-t border-border">
+                <span>Total</span>
+                <span>{formatCurrency(invoicePreviewData.totalAmount)}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground pt-2 border-t border-border">
+                <div>
+                  <p>Status</p>
+                  <p className="capitalize font-medium text-secondary">{invoicePreviewData.status}</p>
+                </div>
+                <div>
+                  <p>Payment</p>
+                  <p className="capitalize font-medium text-secondary">{invoicePreviewData.paymentStatus || "—"}</p>
+                </div>
+                {invoicePreviewData.cashReceived !== undefined && (
+                  <div>
+                    <p>Cash Received</p>
+                    <p className="font-medium text-secondary">{formatCurrency(invoicePreviewData.cashReceived)}</p>
+                  </div>
+                )}
+                {(invoicePreviewData.balanceDue ?? 0) > 0 && (
+                  <div>
+                    <p>Balance Due</p>
+                    <p className="font-medium text-red-600">{formatCurrency(invoicePreviewData.balanceDue!)}</p>
+                  </div>
+                )}
               </div>
             </div>
           </div>
