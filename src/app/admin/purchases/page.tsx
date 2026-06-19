@@ -8,13 +8,11 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc, setDoc, getDocs, query, where, arrayUnion,
+  addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc, setDoc, getDocs, query, where, arrayUnion, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import {
-  Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle,
-} from "lucide-react";
+import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw } from "lucide-react";
 
 const emptyForm = {
   supplierName: "", supplierPhone: "",
@@ -51,6 +49,8 @@ export default function AdminPurchasesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [returnModal, setReturnModal] = useState<Purchase | null>(null);
   const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
+  const [detailPurchaseId, setDetailPurchaseId] = useState<string | null>(null);
+  const [detailPurchaseData, setDetailPurchaseData] = useState<Purchase | null>(null);
 
   // Inline product creation
   const [showNewProduct, setShowNewProduct] = useState(false);
@@ -399,6 +399,15 @@ export default function AdminPurchasesPage() {
     await deleteDoc(doc(db, "purchases", id));
   };
 
+  // Live-update purchase detail modal
+  useEffect(() => {
+    if (!detailPurchaseId) { setDetailPurchaseData(null); return; }
+    const unsub = onSnapshot(doc(db, "purchases", detailPurchaseId), (snap) => {
+      if (snap.exists()) setDetailPurchaseData({ id: snap.id, ...snap.data() } as Purchase);
+    });
+    return () => unsub();
+  }, [detailPurchaseId]);
+
   return (
     <AdminLayout>
       <div className="p-6">
@@ -666,31 +675,41 @@ export default function AdminPurchasesPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {purchases.map((p) => (
               <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-secondary text-sm truncate">{p.supplierName}</p>
-                    {p.supplierPhone && <p className="text-xs text-muted-foreground">{p.supplierPhone}</p>}
+                <button onClick={() => setDetailPurchaseId(p.id)} className="block space-y-2 w-full text-left">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-secondary text-sm truncate">{p.supplierName}</p>
+                      {p.supplierPhone && <p className="text-xs text-muted-foreground">{p.supplierPhone}</p>}
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${
+                      p.paymentStatus === "paid" ? "bg-green-50 text-green-700" :
+                      p.paymentStatus === "partially_paid" ? "bg-amber-50 text-amber-700" :
+                      "bg-red-50 text-red-700"
+                    }`}>
+                      {p.paymentStatus.replace("_", " ")}
+                    </span>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${
-                    p.paymentStatus === "paid" ? "bg-green-50 text-green-700" :
-                    p.paymentStatus === "partially_paid" ? "bg-amber-50 text-amber-700" :
-                    "bg-red-50 text-red-700"
-                  }`}>
-                    {p.paymentStatus.replace("_", " ")}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-secondary">{formatCurrency(p.totalAmount)}</span>
-                  <span className="text-muted-foreground">{formatDate(p.purchaseDate)}</span>
-                </div>
-                <p className="text-xs text-muted-foreground">{p.items?.length || 0} items</p>
-                <div className="flex gap-2 pt-1">
-                  <Button onClick={() => openReturn(p)} size="sm" variant="outline" className="text-xs">
-                    <Undo2 className="h-3 w-3" /> Return
-                  </Button>
-                  <Button onClick={() => handleDelete(p.id)} size="sm" variant="outline" className="text-xs text-red-500">
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-secondary">{formatCurrency(p.totalAmount)}</span>
+                    <span className="text-muted-foreground">{formatDate(p.purchaseDate)}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{p.items?.length || 0} items</p>
+                </button>
+                <div className="flex items-center justify-between">
+                  <button onClick={() => setDetailPurchaseId(p.id)}
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                    <Eye className="h-3 w-3" /> View Details
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => openReturn(p)}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                      <RotateCcw className="h-3 w-3" /> Return
+                    </button>
+                    <button onClick={() => handleDelete(p.id)}
+                      className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+                      <Trash2 className="h-3 w-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -738,6 +757,89 @@ export default function AdminPurchasesPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {detailPurchaseData && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setDetailPurchaseId(null)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full my-8" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <h2 className="text-lg font-semibold text-secondary">{detailPurchaseData.supplierName}</h2>
+                <button onClick={() => setDetailPurchaseId(null)} className="p-1 hover:bg-muted rounded">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Supplier Phone</p>
+                    <p className="font-medium">{detailPurchaseData.supplierPhone || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Date</p>
+                    <p className="font-medium">{formatDate(detailPurchaseData.purchaseDate)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Payment Status</p>
+                    <span className={`inline-block text-xs px-2 py-0.5 rounded-full capitalize mt-0.5 ${
+                      detailPurchaseData.paymentStatus === "paid" ? "bg-green-50 text-green-700" :
+                      detailPurchaseData.paymentStatus === "partially_paid" ? "bg-amber-50 text-amber-700" :
+                      "bg-red-50 text-red-700"
+                    }`}>
+                      {detailPurchaseData.paymentStatus.replace("_", " ")}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Payment Method</p>
+                    <p className="font-medium capitalize">{detailPurchaseData.paymentMethod || "—"}</p>
+                  </div>
+                  {(detailPurchaseData.paidAmount ?? 0) > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Paid Amount</p>
+                      <p className="font-medium">{formatCurrency(detailPurchaseData.paidAmount!)}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h3 className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-3">Items</h3>
+                  <div className="border border-border rounded-lg divide-y divide-border">
+                    <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground bg-muted/20 font-medium">
+                      <span className="flex-1">Product</span>
+                      <span className="w-16 text-center">Qty</span>
+                      <span className="w-20 text-right">Buy Price</span>
+                      <span className="w-20 text-right">Sales Price</span>
+                      <span className="w-20 text-right">Subtotal</span>
+                    </div>
+                    {detailPurchaseData.items?.map((item, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-2.5 text-sm">
+                        <span className="flex-1 truncate">{item.productName}</span>
+                        <span className="w-16 text-center">{item.quantity}</span>
+                        <span className="w-20 text-right">{formatCurrency(item.unitCost)}</span>
+                        <span className="w-20 text-right">{formatCurrency(item.salesPrice || 0)}</span>
+                        <span className="w-20 text-right font-medium">{formatCurrency(item.subtotal)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground">Total</p>
+                  <p className="text-lg font-bold text-secondary">{formatCurrency(detailPurchaseData.totalAmount)}</p>
+                </div>
+
+                {detailPurchaseData.notes && (
+                  <div className="text-sm">
+                    <p className="text-xs text-muted-foreground mb-1">Notes</p>
+                    <p>{detailPurchaseData.notes}</p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-4">
+                  <p>Recorded by: {detailPurchaseData.recordedByName || detailPurchaseData.recordedBy || "—"}</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
