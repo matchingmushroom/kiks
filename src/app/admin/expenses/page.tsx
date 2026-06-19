@@ -49,7 +49,7 @@ export default function AdminExpensesPage() {
     constraints: [orderBy("date", "desc")],
   });
   const { data: templates } = useFirestore<RecurringExpenseTemplate>("recurringExpenses", { realtime: false });
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   // Merge hardcoded heads with unique custom heads from existing expenses
   const allHeads = useMemo(() => {
@@ -69,6 +69,7 @@ export default function AdminExpensesPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const canExport = profile?.role !== "staff";
 
   const [showRecurringForm, setShowRecurringForm] = useState(false);
   const [editingRecurringId, setEditingRecurringId] = useState<string | null>(null);
@@ -361,29 +362,31 @@ export default function AdminExpensesPage() {
                 <option value="">All Heads</option>
                 {allHeads.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
-              <select value={reportRange} onChange={(e) => setReportRange(e.target.value as any)}
-                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                <option value="all">All Time</option>
-                <option value="ytd">Year to Date</option>
-                <option value="mtd">Month to Day</option>
-                <option value="custom">Custom</option>
-              </select>
-              {reportRange === "custom" && (
-                <>
-                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                    className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                  <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                    className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                </>
-              )}
-              <button onClick={handleDownloadCSV}
-                className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5">
-                <Download className="h-4 w-4" /> CSV
-              </button>
-              <button onClick={handleSendEmail} disabled={sendingEmail}
-                className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5 disabled:opacity-50">
-                <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send"}
-              </button>
+              {canExport && (<>
+                <select value={reportRange} onChange={(e) => setReportRange(e.target.value as any)}
+                  className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                  <option value="all">All Time</option>
+                  <option value="ytd">Year to Date</option>
+                  <option value="mtd">Month to Day</option>
+                  <option value="custom">Custom</option>
+                </select>
+                {reportRange === "custom" && (
+                  <>
+                    <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                      className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                      className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </>
+                )}
+                <button onClick={handleDownloadCSV}
+                  className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5">
+                  <Download className="h-4 w-4" /> CSV
+                </button>
+                <button onClick={handleSendEmail} disabled={sendingEmail}
+                  className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5 disabled:opacity-50">
+                  <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send"}
+                </button>
+              </>)}
             </div>
 
             {showForm && (

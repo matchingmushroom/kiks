@@ -25,7 +25,7 @@ export default function AdminDebtorsPage() {
   const { data: debtors, loading } = useFirestore<Debtor>("debtors", {
     constraints: [orderBy("createdAt", "desc")],
   });
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("active");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -38,6 +38,7 @@ export default function AdminDebtorsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const canExport = profile?.role !== "staff";
 
   const filtered = useMemo(() => {
     let result = debtors.filter((d) => {
@@ -202,29 +203,31 @@ export default function AdminDebtorsPage() {
             <option value="">All Status</option>
             <option value="cleared">Cleared</option>
           </select>
-          <select value={reportRange} onChange={(e) => setReportRange(e.target.value as any)}
-            className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-            <option value="all">All Time</option>
-            <option value="ytd">Year to Date</option>
-            <option value="mtd">Month to Day</option>
-            <option value="custom">Custom</option>
-          </select>
-          {reportRange === "custom" && (
-            <>
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            </>
-          )}
-          <button onClick={handleDownloadCSV}
-            className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5">
-            <Download className="h-4 w-4" /> CSV
-          </button>
-          <button onClick={handleSendEmail} disabled={sendingEmail}
-            className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5 disabled:opacity-50">
-            <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send"}
-          </button>
+          {canExport && (<>
+            <select value={reportRange} onChange={(e) => setReportRange(e.target.value as any)}
+              className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="all">All Time</option>
+              <option value="ytd">Year to Date</option>
+              <option value="mtd">Month to Day</option>
+              <option value="custom">Custom</option>
+            </select>
+            {reportRange === "custom" && (
+              <>
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                  className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                  className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </>
+            )}
+            <button onClick={handleDownloadCSV}
+              className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5">
+              <Download className="h-4 w-4" /> CSV
+            </button>
+            <button onClick={handleSendEmail} disabled={sendingEmail}
+              className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5 disabled:opacity-50">
+              <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send"}
+            </button>
+          </>)}
           <div className="flex items-center gap-1">
             <button onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
