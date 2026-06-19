@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Product, InventoryLog, Category } from "@/types";
-import { formatCurrency, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDateTime, toDate } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   addDoc, collection, updateDoc, doc, Timestamp, getDoc,
@@ -58,7 +58,7 @@ export default function AdminInventoryPage() {
       end = new Date(dateTo).getTime() + 86400000;
     }
     if (start > 0 || end < Infinity) {
-      result = result.filter((p) => { const d = p.createdAt as number; return d >= start && d <= end; });
+      result = result.filter((p) => { const d = toDate(p.createdAt).getTime(); return d >= start && d <= end; });
     }
     return result;
   }, [products, search, stockFilter, reportRange, dateFrom, dateTo]);

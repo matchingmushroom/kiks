@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Creditor } from "@/types";
-import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime, toDate } from "@/lib/utils";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -50,7 +50,7 @@ export default function AdminCreditorsPage() {
       end = new Date(dateTo).getTime() + 86400000;
     }
     if (start > 0 || end < Infinity) {
-      result = result.filter((c) => { const d = c.lastTransactionDate as number; return d >= start && d <= end; });
+      result = result.filter((c) => { const d = toDate(c.lastTransactionDate).getTime(); return d >= start && d <= end; });
     }
     return result;
   }, [creditors, search, statusFilter, reportRange, dateFrom, dateTo]);

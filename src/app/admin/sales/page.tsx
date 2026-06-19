@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Sale, Product, Order, Customer, Invoice } from "@/types";
-import { formatCurrency, formatDate, formatDateTime, generateCouponCode } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime, generateCouponCode, toDate } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -138,7 +138,7 @@ function SalesContent() {
     }
     if (start > 0 || end < Infinity) {
       result = result.filter((s) => {
-        const d = s.saleDate as number;
+        const d = toDate(s.saleDate).getTime();
         return d >= start && d <= end;
       });
     }

@@ -5,7 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Order, Coupon } from "@/types";
-import { formatCurrency, formatDateTime, formatNumber } from "@/lib/utils";
+import { formatCurrency, formatDateTime, formatNumber, toDate } from "@/lib/utils";
 import { updateDoc, doc, Timestamp, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,7 @@ export default function AdminOrdersPage() {
       end = new Date(dateTo).getTime() + 86400000;
     }
     if (start > 0 || end < Infinity) {
-      result = result.filter((o) => { const d = o.createdAt as number; return d >= start && d <= end; });
+      result = result.filter((o) => { const d = toDate(o.createdAt).getTime(); return d >= start && d <= end; });
     }
     return result;
   }, [orders, search, statusFilter, reportRange, dateFrom, dateTo]);

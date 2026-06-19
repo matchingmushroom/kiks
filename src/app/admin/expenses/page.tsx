@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Expense, ExpenseHead, RecurringExpenseTemplate } from "@/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, toDate } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -96,7 +96,7 @@ export default function AdminExpensesPage() {
       end = new Date(dateTo).getTime() + 86400000;
     }
     if (start > 0 || end < Infinity) {
-      result = result.filter((e) => { const d = e.date as number; return d >= start && d <= end; });
+      result = result.filter((e) => { const d = toDate(e.date).getTime(); return d >= start && d <= end; });
     }
     return result;
   }, [expenses, search, headFilter, reportRange, dateFrom, dateTo]);

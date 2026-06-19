@@ -55,7 +55,7 @@ export default function AdminDebtorsPage() {
       end = new Date(dateTo).getTime() + 86400000;
     }
     if (start > 0 || end < Infinity) {
-      result = result.filter((d) => { const dt = d.createdAt as number; return dt >= start && dt <= end; });
+      result = result.filter((d) => { const dt = toDate(d.createdAt).getTime(); return dt >= start && dt <= end; });
     }
     return result;
   }, [debtors, search, statusFilter, reportRange, dateFrom, dateTo]);

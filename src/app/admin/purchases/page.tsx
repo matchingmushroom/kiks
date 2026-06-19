@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor } from "@/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, toDate } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -493,7 +493,7 @@ export default function AdminPurchasesPage() {
       end = new Date(dateTo).getTime() + 86400000;
     }
     if (start > 0 || end < Infinity) {
-      return purchases.filter((p) => { const d = p.purchaseDate as number; return d >= start && d <= end; });
+      return purchases.filter((p) => { const d = toDate(p.purchaseDate).getTime(); return d >= start && d <= end; });
     }
     return purchases;
   }, [purchases, reportRange, dateFrom, dateTo]);
