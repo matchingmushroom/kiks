@@ -44,7 +44,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     { label: "Type", value: product.productType },
     { label: "Ideal For", value: Array.isArray(product.idealFor) ? product.idealFor.join(", ") : product.idealFor },
     { label: "Occasion", value: Array.isArray(product.occasion) ? product.occasion.join(", ") : product.occasion },
-    { label: "Net Quantity", value: product.netQuantity ? String(product.netQuantity) : null },
     { label: "Warranty", value: product.warranty },
   ].filter(s => s.value && s.value !== "");
 
