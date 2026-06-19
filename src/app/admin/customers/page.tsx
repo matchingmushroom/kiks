@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Customer } from "@/types";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatDateTime } from "@/lib/utils";
 import {
-  addDoc, updateDoc, deleteDoc, doc, collection, Timestamp,
+  addDoc, updateDoc, deleteDoc, doc, collection, Timestamp, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List, Eye } from "lucide-react";
 
 const emptyForm = {
   name: "", phone: "", email: "", address: "", notes: "",
@@ -27,10 +27,26 @@ export default function AdminCustomersPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [detailCustomerId, setDetailCustomerId] = useState<string | null>(null);
+  const [detailCustomerData, setDetailCustomerData] = useState<Customer | null>(null);
 
-  const filtered = customers.filter((c) =>
-    !search || c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search) || c.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  useEffect(() => {
+    if (!detailCustomerId) { setDetailCustomerData(null); return; }
+    const unsub = onSnapshot(doc(db, "customers", detailCustomerId), (snap) => {
+      if (snap.exists()) setDetailCustomerData({ id: snap.id, ...snap.data() } as Customer);
+    });
+    return () => unsub();
+  }, [detailCustomerId]);
+
+  const filtered = useMemo(() => {
+    if (!search) return customers;
+    const q = search.toLowerCase();
+    return customers.filter((c) =>
+      c.name.toLowerCase().includes(q) ||
+      c.phone?.includes(q) ||
+      c.email?.toLowerCase().includes(q)
+    );
+  }, [customers, search]);
 
   const openAdd = () => {
     setForm(emptyForm);
@@ -85,7 +101,7 @@ export default function AdminCustomersPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-secondary">Customers</h1>
-            <p className="text-sm text-muted-foreground">{customers.length} total</p>
+            <p className="text-sm text-muted-foreground">{filtered.length} of {customers.length} total</p>
           </div>
           <Button onClick={openAdd} variant="accent"><Plus className="h-4 w-4" /> Add Customer</Button>
         </div>
@@ -166,22 +182,32 @@ export default function AdminCustomersPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {filtered.map((c) => (
               <div key={c.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-secondary text-sm truncate">{c.name}</p>
-                    {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                <button onClick={() => setDetailCustomerId(c.id)} className="block space-y-2 w-full text-left">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-secondary text-sm truncate">{c.name}</p>
+                      {c.phone && <p className="text-xs text-muted-foreground">{c.phone}</p>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button onClick={() => openEdit(c)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                      <Edit2 className="h-3.5 w-3.5" />
+                  {c.email && <p className="text-xs text-muted-foreground truncate">{c.email}</p>}
+                  {c.address && <p className="text-xs text-muted-foreground truncate">{c.address}</p>}
+                </button>
+                <div className="flex items-center justify-between pt-1">
+                  <button onClick={() => setDetailCustomerId(c.id)}
+                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                    <Eye className="h-3 w-3" /> View Details
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => openEdit(c)}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                      <Edit2 className="h-3 w-3" /> Edit
                     </button>
-                    <button onClick={() => handleDelete(c.id, c.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
-                      <Trash2 className="h-3.5 w-3.5" />
+                    <button onClick={() => handleDelete(c.id, c.name)}
+                      className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+                      <Trash2 className="h-3 w-3" /> Delete
                     </button>
                   </div>
                 </div>
-                {c.email && <p className="text-xs text-muted-foreground truncate">{c.email}</p>}
-                {c.address && <p className="text-xs text-muted-foreground truncate">{c.address}</p>}
               </div>
             ))}
           </div>
@@ -205,17 +231,61 @@ export default function AdminCustomersPage() {
                     <td className="px-4 py-2.5 text-muted-foreground">{c.email || "—"}</td>
                     <td className="px-4 py-2.5 text-muted-foreground truncate max-w-[200px]">{c.address || "—"}</td>
                     <td className="px-4 py-2.5 text-right">
-                      <button onClick={() => openEdit(c)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={() => handleDelete(c.id, c.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="inline-flex items-center gap-2">
+                        <button onClick={() => setDetailCustomerId(c.id)}
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                          <Eye className="h-3.5 w-3.5" /> View
+                        </button>
+                        <button onClick={() => openEdit(c)}
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                          <Edit2 className="h-3.5 w-3.5" /> Edit
+                        </button>
+                        <button onClick={() => handleDelete(c.id, c.name)}
+                          className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {detailCustomerData && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setDetailCustomerId(null)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full my-8" onClick={(e) => e.stopPropagation()}>
+              <div className="p-6 border-b border-border bg-muted/20 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-secondary">Customer Details</h2>
+                <button onClick={() => setDetailCustomerId(null)} className="p-1 hover:bg-muted rounded">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Basic Info</h3>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div><span className="text-muted-foreground">Name:</span> <span className="font-medium ml-1">{detailCustomerData.name}</span></div>
+                    <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium ml-1">{detailCustomerData.phone || "—"}</span></div>
+                    {detailCustomerData.email && <div><span className="text-muted-foreground">Email:</span> <span className="font-medium ml-1">{detailCustomerData.email}</span></div>}
+                    {detailCustomerData.address && <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="font-medium ml-1">{detailCustomerData.address}</span></div>}
+                  </div>
+                </div>
+
+                {detailCustomerData.notes && (
+                  <div>
+                    <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Notes</h3>
+                    <p className="text-sm bg-muted/20 p-3 rounded-lg">{detailCustomerData.notes}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
+                  <p>Created: {detailCustomerData.createdAt ? formatDate(detailCustomerData.createdAt) : "—"}</p>
+                  <p>Updated: {detailCustomerData.updatedAt ? formatDateTime(detailCustomerData.updatedAt) : "—"}</p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
