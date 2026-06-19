@@ -2,6 +2,7 @@ import { getDocs, collection } from "firebase/firestore";
 import { db } from "./firebase";
 import JSZip from "jszip";
 import type { Sale, Purchase, Order, Product, Debtor, Creditor, Expense } from "@/types";
+import { toDate } from "@/lib/utils";
 
 function fmt(n: unknown): string {
   if (n === null || n === undefined) return "";
@@ -196,7 +197,7 @@ export function exportSalesCSV(sales: Sale[]): string {
   const headers = "id,saleDate,Customer Name,Customer Phone,Items,Total Amount,Discount,Final Amount,Payment Method,Received,Balance Due,Warranty,Coupon Code,Notes,Recorded By";
   const rows = sales.map((s) => [
     esc(s.id),
-    esc(new Date(s.saleDate).toISOString().slice(0, 10)),
+    esc(toDate(s.saleDate).toISOString().slice(0, 10)),
     esc(s.customer?.name),
     esc(s.customer?.phone),
     esc(itemsSummary(s.items)),
@@ -218,7 +219,7 @@ export function exportPurchasesCSV(purchases: Purchase[]): string {
   const headers = "id,purchaseDate,Supplier,Phone,Items,Total Amount,Paid,Balance Due,Payment Status,Notes,Recorded By";
   const rows = purchases.map((p) => [
     esc(p.id),
-    esc(new Date(p.purchaseDate).toISOString().slice(0, 10)),
+    esc(toDate(p.purchaseDate).toISOString().slice(0, 10)),
     esc(p.supplierName),
     esc(p.supplierPhone),
     esc(itemsSummary(p.items)),
@@ -237,7 +238,7 @@ export function exportOrdersCSV(orders: Order[]): string {
   const rows = orders.map((o) => [
     esc(o.id),
     esc(o.orderNumber),
-    esc(new Date(o.createdAt).toISOString().slice(0, 10)),
+    esc(toDate(o.createdAt).toISOString().slice(0, 10)),
     esc(o.customer?.name),
     esc(o.customer?.phone),
     esc(itemsSummary(o.items)),
@@ -277,7 +278,7 @@ export function exportDebtorsCSV(debtors: Debtor[]): string {
     fmt(d.totalAmount),
     fmt(d.amountPaid),
     fmt(d.balanceDue),
-    esc(new Date(d.dueDate).toISOString().slice(0, 10)),
+    esc(toDate(d.dueDate).toISOString().slice(0, 10)),
     esc(d.status),
   ].join(",")).join("\n");
   return `${headers}\n${rows}`;
@@ -292,9 +293,9 @@ export function exportCreditorsCSV(creditors: Creditor[]): string {
     fmt(c.totalAmount),
     fmt(c.amountPaid),
     fmt(c.balanceDue),
-    esc(new Date(c.dueDate).toISOString().slice(0, 10)),
+    esc(toDate(c.dueDate).toISOString().slice(0, 10)),
     esc(c.status),
-    esc(c.lastTransactionDate ? new Date(c.lastTransactionDate).toISOString().slice(0, 10) : ""),
+    esc(c.lastTransactionDate ? toDate(c.lastTransactionDate).toISOString().slice(0, 10) : ""),
   ].join(",")).join("\n");
   return `${headers}\n${rows}`;
 }
@@ -303,7 +304,7 @@ export function exportExpensesCSV(expenses: Expense[]): string {
   const headers = "id,Date,Title,Amount,Head,Payment Method,Description,Recorded By";
   const rows = expenses.map((e) => [
     esc(e.id),
-    esc(new Date(e.date).toISOString().slice(0, 10)),
+    esc(toDate(e.date).toISOString().slice(0, 10)),
     esc(e.title),
     fmt(e.amount),
     esc(e.head),
