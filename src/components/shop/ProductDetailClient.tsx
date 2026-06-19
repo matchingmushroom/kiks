@@ -40,8 +40,8 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     { label: "Plating Type", value: product.plating },
     { label: "Color", value: product.color },
     { label: "Type", value: product.productType },
-    { label: "Ideal For", value: product.idealFor },
-    { label: "Occasion", value: product.occasion },
+    { label: "Ideal For", value: Array.isArray(product.idealFor) ? product.idealFor.join(", ") : product.idealFor },
+    { label: "Occasion", value: Array.isArray(product.occasion) ? product.occasion.join(", ") : product.occasion },
     { label: "Net Quantity", value: product.netQuantity ? String(product.netQuantity) : null },
     { label: "Warranty", value: product.warranty },
   ].filter(s => s.value && s.value !== "");

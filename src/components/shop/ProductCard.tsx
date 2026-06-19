@@ -81,6 +81,16 @@ export default function ProductCard({ product }: ProductCardProps) {
           {product.name}
         </h3>
         <p className="text-sm text-muted-foreground">{product.weight}g</p>
+        {(Array.isArray(product.idealFor) ? product.idealFor : [product.idealFor].filter(Boolean)).length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {(Array.isArray(product.idealFor) ? product.idealFor : [product.idealFor]).filter(Boolean).map((tag) => (
+              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-600">{tag}</span>
+            ))}
+            {(Array.isArray(product.occasion) ? product.occasion : [product.occasion]).filter(Boolean).map((tag) => (
+              <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-pink-50 text-pink-600">{tag}</span>
+            ))}
+          </div>
+        )}
         <div className="flex items-center justify-between mt-2">
           <div>
             {badge === "price_dropped" || badge === "offer" ? (

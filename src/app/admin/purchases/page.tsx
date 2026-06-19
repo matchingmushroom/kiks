@@ -137,8 +137,8 @@ export default function AdminPurchasesPage() {
       stoneWeight: 0, makingCharge: 0, warranty: "", sku: "",
       quantityInStock: 0, isActive: true, isFeatured: false,
       badge: "", brand: "", modelNo: "", baseMaterial: "",
-      plating: "", color: "", productType: "", idealFor: "",
-      netQuantity: 1, occasion: "",
+      plating: "", color: "", productType: "", idealFor: [] as string[],
+      netQuantity: 1, occasion: [] as string[],
       createdAt: Timestamp.fromDate(new Date()),
       updatedAt: Timestamp.fromDate(new Date()),
     });
@@ -152,8 +152,8 @@ export default function AdminPurchasesPage() {
       makingCharge: 0, warranty: "", sku: "", quantityInStock: 0,
       isActive: true, isFeatured: false, badge: "none",
       originalPrice: 0, brand: "", modelNo: "", baseMaterial: "",
-      plating: "", color: "", productType: "", idealFor: "",
-      netQuantity: 1, occasion: "",
+      plating: "", color: "", productType: "", idealFor: [] as string[],
+      netQuantity: 1, occasion: [] as string[],
       createdAt: Date.now(), updatedAt: Date.now(),
     };
     addItem(newProduct);

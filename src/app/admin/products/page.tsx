@@ -37,7 +37,7 @@ const emptyProduct = {
   sku: "", quantityInStock: 1, isActive: true, isFeatured: false,
   badge: "none" as ProductBadge, originalPrice: 0,
   brand: "", modelNo: "", baseMaterial: "", plating: "",
-  color: "", productType: "", idealFor: "", netQuantity: 1, occasion: "",
+  color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[],
 };
 
 export default function AdminProductsPage() {
@@ -91,7 +91,9 @@ export default function AdminProductsPage() {
       badge: p.badge || "none", originalPrice: p.originalPrice || 0,
       brand: p.brand || "", modelNo: p.modelNo || "", baseMaterial: p.baseMaterial || "",
       plating: p.plating || "", color: p.color || "", productType: p.productType || "",
-      idealFor: p.idealFor || "", netQuantity: p.netQuantity || 1, occasion: p.occasion || "",
+      idealFor: Array.isArray(p.idealFor) ? p.idealFor : (p.idealFor ? [p.idealFor] : []),
+      netQuantity: p.netQuantity || 1,
+      occasion: Array.isArray(p.occasion) ? p.occasion : (p.occasion ? [p.occasion] : []),
     });
     setEditingId(p.id);
     setShowForm(true);
@@ -425,11 +427,22 @@ export default function AdminProductsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Ideal For</label>
-                    <select value={form.idealFor} onChange={(e) => setForm({ ...form, idealFor: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                      {IDEAL_FOR_OPTIONS.map((f) => (<option key={f} value={f}>{f || "Select"}</option>))}
-                    </select>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Ideal For (select all that apply)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {IDEAL_FOR_OPTIONS.filter(Boolean).map((f) => (
+                        <label key={f} className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+                          <input type="checkbox" checked={form.idealFor.includes(f)}
+                            onChange={() => setForm({
+                              ...form,
+                              idealFor: form.idealFor.includes(f)
+                                ? form.idealFor.filter((x: string) => x !== f)
+                                : [...form.idealFor, f],
+                            })}
+                            className="accent-primary" />
+                          {f}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Net Quantity</label>
@@ -439,11 +452,22 @@ export default function AdminProductsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Occasion</label>
-                    <select value={form.occasion} onChange={(e) => setForm({ ...form, occasion: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                      {OCCASION_OPTIONS.map((c) => (<option key={c} value={c}>{c || "Select"}</option>))}
-                    </select>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Occasion (select all that apply)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {OCCASION_OPTIONS.filter(Boolean).map((c) => (
+                        <label key={c} className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+                          <input type="checkbox" checked={form.occasion.includes(c)}
+                            onChange={() => setForm({
+                              ...form,
+                              occasion: form.occasion.includes(c)
+                                ? form.occasion.filter((x: string) => x !== c)
+                                : [...form.occasion, c],
+                            })}
+                            className="accent-primary" />
+                          {c}
+                        </label>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>

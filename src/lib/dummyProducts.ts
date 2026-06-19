@@ -53,9 +53,9 @@ interface DummyProduct {
   plating: string;
   color: string;
   productType: string;
-  idealFor: string;
+  idealFor: string[];
   netQuantity: number;
-  occasion: string;
+  occasion: string[];
   createdAt: unknown;
   updatedAt: unknown;
 }
@@ -70,7 +70,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 50, warranty: "6 months", sku: "SKU-VIV-001", quantityInStock: 25,
     isActive: true, isFeatured: true, brand: "Vivanta", modelNo: "MOD-VIV-2401",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "Multicolor",
-    productType: "Jewel Set", idealFor: "Women", netQuantity: 5, occasion: "Wedding",
+    productType: "Jewel Set", idealFor: ["Women"], netQuantity: 5, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -82,7 +82,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 30, warranty: "3 months", sku: "SKU-TON-002", quantityInStock: 40,
     isActive: true, isFeatured: false, brand: "TONOLIKA JEWELLERY", modelNo: "MOD-TON-2402",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Gold",
-    productType: "Jewel Set", idealFor: "Women", netQuantity: 1, occasion: "Party",
+    productType: "Jewel Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -94,7 +94,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 25, warranty: "No warranty", sku: "SKU-TAG-003", quantityInStock: 15,
     isActive: true, isFeatured: false, brand: "TAGADO", modelNo: "MOD-TAG-2403",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Gold",
-    productType: "Jewel Set", idealFor: "Women", netQuantity: 1, occasion: "Wedding",
+    productType: "Jewel Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -106,7 +106,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 40, warranty: "6 months", sku: "SKU-RIE-004", quantityInStock: 30,
     isActive: true, isFeatured: true, brand: "RIENTA JWL", modelNo: "MOD-RIE-2404",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "Gold",
-    productType: "Mangalsutra Set", idealFor: "Women", netQuantity: 1, occasion: "Wedding",
+    productType: "Mangalsutra Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -118,7 +118,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 60, warranty: "1 year", sku: "SKU-JB-005", quantityInStock: 20,
     isActive: true, isFeatured: false, brand: "J B JEWELLS", modelNo: "MOD-JB-2405",
     baseMaterial: "Alloy", plating: "Silver-plated", color: "Multicolor",
-    productType: "Necklace", idealFor: "Women", netQuantity: 1, occasion: "Party",
+    productType: "Necklace", idealFor: ["Women"], netQuantity: 1, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -130,7 +130,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 45, warranty: "6 months", sku: "SKU-OCH-006", quantityInStock: 18,
     isActive: true, isFeatured: true, brand: "OChori", modelNo: "MOD-OCH-2406",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Gold",
-    productType: "Jewel Set", idealFor: "Women", netQuantity: 1, occasion: "Wedding",
+    productType: "Jewel Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -142,7 +142,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 35, warranty: "3 months", sku: "SKU-BRA-007", quantityInStock: 22,
     isActive: true, isFeatured: false, brand: "brado jewellery", modelNo: "MOD-BRA-2407",
     baseMaterial: "Brass", plating: "Gold-plated", color: "White",
-    productType: "Jewel Set", idealFor: "Women", netQuantity: 1, occasion: "Wedding",
+    productType: "Jewel Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -154,7 +154,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 80, warranty: "1 year", sku: "SKU-KEY-008", quantityInStock: 12,
     isActive: true, isFeatured: false, brand: "KEYMAX", modelNo: "MOD-KEY-2408",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "Green",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Party",
+    productType: "Earrings", idealFor: ["Women"], netQuantity: 1, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -166,7 +166,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 40, warranty: "6 months", sku: "SKU-THE-009", quantityInStock: 28,
     isActive: true, isFeatured: true, brand: "TheSanga", modelNo: "MOD-THE-2409",
     baseMaterial: "Brass", plating: "Rose Gold-plated", color: "Pink",
-    productType: "Jewel Set", idealFor: "Women", netQuantity: 1, occasion: "Engagement",
+    productType: "Jewel Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Engagement"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -178,7 +178,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 15, warranty: "3 months", sku: "SKU-BRI-010", quantityInStock: 35,
     isActive: true, isFeatured: false, brand: "BRILLIANT BEADS JEWELS", modelNo: "MOD-BRI-2410",
     baseMaterial: "Alloy", plating: "Rhodium", color: "White",
-    productType: "Nosepin", idealFor: "Women", netQuantity: 3, occasion: "Everyday",
+    productType: "Nosepin", idealFor: ["Women"], netQuantity: 3, occasion: ["Everyday"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -190,7 +190,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 55, warranty: "6 months", sku: "SKU-OMK-011", quantityInStock: 15,
     isActive: true, isFeatured: false, brand: "OmKrishiv", modelNo: "MOD-OMK-2411",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Gold",
-    productType: "Bangles", idealFor: "Women", netQuantity: 6, occasion: "Wedding",
+    productType: "Bangles", idealFor: ["Women"], netQuantity: 6, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -202,7 +202,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 20, warranty: "No warranty", sku: "SKU-SHR-012", quantityInStock: 50,
     isActive: true, isFeatured: false, brand: "Shree Ju", modelNo: "MOD-SHR-2412",
     baseMaterial: "Brass", plating: "Silver-plated", color: "Silver",
-    productType: "Chain", idealFor: "Unisex", netQuantity: 1, occasion: "Everyday",
+    productType: "Chain", idealFor: ["Unisex"], netQuantity: 1, occasion: ["Everyday"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -214,7 +214,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 35, warranty: "3 months", sku: "SKU-EVA-013", quantityInStock: 20,
     isActive: true, isFeatured: false, brand: "evashoppy", modelNo: "MOD-EVA-2413",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Gold",
-    productType: "Pendant Set", idealFor: "Women", netQuantity: 1, occasion: "Party",
+    productType: "Pendant Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -226,7 +226,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 25, warranty: "3 months", sku: "SKU-AVR-014", quantityInStock: 32,
     isActive: true, isFeatured: true, brand: "AVR JEWELS", modelNo: "MOD-AVR-2414",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "Pink",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Dailywear",
+    productType: "Earrings", idealFor: ["Women"], netQuantity: 1, occasion: ["Dailywear"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -238,7 +238,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 30, warranty: "6 months", sku: "SKU-MAM-015", quantityInStock: 45,
     isActive: true, isFeatured: false, brand: "MAME CREATION", modelNo: "MOD-MAM-2415",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Gold",
-    productType: "Chain", idealFor: "Unisex", netQuantity: 1, occasion: "Everyday",
+    productType: "Chain", idealFor: ["Unisex"], netQuantity: 1, occasion: ["Everyday"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -250,7 +250,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 25, warranty: "1 year", sku: "SKU-KON-016", quantityInStock: 25,
     isActive: true, isFeatured: false, brand: "KONASA", modelNo: "MOD-KON-2416",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Green",
-    productType: "Brooch", idealFor: "Women", netQuantity: 1, occasion: "Workwear",
+    productType: "Brooch", idealFor: ["Women"], netQuantity: 1, occasion: ["Workwear"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -262,7 +262,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 65, warranty: "6 months", sku: "SKU-ZEN-017", quantityInStock: 10,
     isActive: true, isFeatured: true, brand: "ZENEME", modelNo: "MOD-ZEN-2417",
     baseMaterial: "Brass", plating: "Matte", color: "Green",
-    productType: "Jewel Set", idealFor: "Women", netQuantity: 1, occasion: "Party",
+    productType: "Jewel Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -274,7 +274,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 75, warranty: "1 year", sku: "SKU-SOU-018", quantityInStock: 8,
     isActive: true, isFeatured: false, brand: "Soumi store", modelNo: "MOD-SOU-2418",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "Gold",
-    productType: "Necklace", idealFor: "Women", netQuantity: 1, occasion: "Wedding",
+    productType: "Necklace", idealFor: ["Women"], netQuantity: 1, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -286,7 +286,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 30, warranty: "6 months", sku: "SKU-RAR-019", quantityInStock: 30,
     isActive: true, isFeatured: false, brand: "RARE ONE STUDIO", modelNo: "MOD-RAR-2419",
     baseMaterial: "Stainless Steel", plating: "Gold-plated", color: "Gold",
-    productType: "Bracelet", idealFor: "Unisex", netQuantity: 1, occasion: "Dailywear",
+    productType: "Bracelet", idealFor: ["Unisex"], netQuantity: 1, occasion: ["Dailywear"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -298,7 +298,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 25, warranty: "No warranty", sku: "SKU-DIV-020", quantityInStock: 20,
     isActive: true, isFeatured: false, brand: "Divine rudras", modelNo: "MOD-DIV-2420",
     baseMaterial: "Brass", plating: "Matte", color: "Brown",
-    productType: "Pendant Set", idealFor: "Men", netQuantity: 1, occasion: "Everyday",
+    productType: "Pendant Set", idealFor: ["Men"], netQuantity: 1, occasion: ["Everyday"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -310,7 +310,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 30, warranty: "3 months", sku: "SKU-VIV-021", quantityInStock: 35,
     isActive: true, isFeatured: false, brand: "Vivanta", modelNo: "MOD-VIV-2421",
     baseMaterial: "Alloy", plating: "Silver-plated", color: "White",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Workwear",
+    productType: "Earrings", idealFor: ["Women"], netQuantity: 1, occasion: ["Workwear"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -322,7 +322,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 28, warranty: "No warranty", sku: "SKU-TAG-022", quantityInStock: 18,
     isActive: true, isFeatured: false, brand: "TAGADO", modelNo: "MOD-TAG-2422",
     baseMaterial: "Copper", plating: "Antique", color: "Gold",
-    productType: "Bracelet", idealFor: "Women", netQuantity: 4, occasion: "Everyday",
+    productType: "Bracelet", idealFor: ["Women"], netQuantity: 4, occasion: ["Everyday"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -334,7 +334,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 20, warranty: "3 months", sku: "SKU-OCH-023", quantityInStock: 40,
     isActive: true, isFeatured: true, brand: "OChori", modelNo: "MOD-OCH-2423",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "Blue",
-    productType: "Ring", idealFor: "Women", netQuantity: 5, occasion: "Party",
+    productType: "Ring", idealFor: ["Women"], netQuantity: 5, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -346,7 +346,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 15, warranty: "No warranty", sku: "SKU-TON-024", quantityInStock: 55,
     isActive: true, isFeatured: false, brand: "TONOLIKA JEWELLERY", modelNo: "MOD-TON-2424",
     baseMaterial: "Plastic", plating: "Gold-plated", color: "Gold",
-    productType: "Necklace", idealFor: "Women", netQuantity: 1, occasion: "Dailywear",
+    productType: "Necklace", idealFor: ["Women"], netQuantity: 1, occasion: ["Dailywear"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -358,7 +358,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 20, warranty: "3 months", sku: "SKU-VIV-025", quantityInStock: 30,
     isActive: true, isFeatured: false, brand: "Vivanta", modelNo: "MOD-VIV-2425",
     baseMaterial: "Alloy", plating: "Silver-plated", color: "Multicolor",
-    productType: "Jewel Set", idealFor: "Girls", netQuantity: 1, occasion: "Gift",
+    productType: "Jewel Set", idealFor: ["Girls"], netQuantity: 1, occasion: ["Gift"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -370,7 +370,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 30, warranty: "6 months", sku: "SKU-RIE-026", quantityInStock: 25,
     isActive: true, isFeatured: false, brand: "RIENTA JWL", modelNo: "MOD-RIE-2426",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "Red",
-    productType: "Mangalsutra Set", idealFor: "Women", netQuantity: 1, occasion: "Wedding",
+    productType: "Mangalsutra Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -382,7 +382,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 45, warranty: "1 year", sku: "SKU-JB-027", quantityInStock: 22,
     isActive: true, isFeatured: false, brand: "J B JEWELLS", modelNo: "MOD-JB-2427",
     baseMaterial: "Alloy", plating: "Rhodium", color: "Blue",
-    productType: "Ring", idealFor: "Women", netQuantity: 1, occasion: "Engagement",
+    productType: "Ring", idealFor: ["Women"], netQuantity: 1, occasion: ["Engagement"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -394,7 +394,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 35, warranty: "3 months", sku: "SKU-THE-028", quantityInStock: 16,
     isActive: true, isFeatured: false, brand: "TheSanga", modelNo: "MOD-THE-2428",
     baseMaterial: "Brass", plating: "Antique", color: "Silver",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Party",
+    productType: "Earrings", idealFor: ["Women"], netQuantity: 1, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -406,7 +406,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 50, warranty: "1 year", sku: "SKU-KEY-029", quantityInStock: 20,
     isActive: true, isFeatured: true, brand: "KEYMAX", modelNo: "MOD-KEY-2429",
     baseMaterial: "Stainless Steel", plating: "Silver-plated", color: "Silver",
-    productType: "Chain", idealFor: "Men", netQuantity: 1, occasion: "Gift",
+    productType: "Chain", idealFor: ["Men"], netQuantity: 1, occasion: ["Gift"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -418,7 +418,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 15, warranty: "No warranty", sku: "SKU-LOV-030", quantityInStock: 40,
     isActive: true, isFeatured: false, brand: "LoveGift", modelNo: "MOD-LOV-2430",
     baseMaterial: "Brass", plating: "Polished", color: "Gold",
-    productType: "Pendant Set", idealFor: "Unisex", netQuantity: 1, occasion: "Everyday",
+    productType: "Pendant Set", idealFor: ["Unisex"], netQuantity: 1, occasion: ["Everyday"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -430,7 +430,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 35, warranty: "3 months", sku: "SKU-VIV-031", quantityInStock: 35,
     isActive: true, isFeatured: false, brand: "Vivanta", modelNo: "MOD-VIV-2431",
     baseMaterial: "Alloy", plating: "Rose Gold-plated", color: "Pink",
-    productType: "Hair Accessory", idealFor: "Women", netQuantity: 4, occasion: "Wedding",
+    productType: "Hair Accessory", idealFor: ["Women"], netQuantity: 4, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -442,7 +442,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 60, warranty: "6 months", sku: "SKU-ATA-032", quantityInStock: 12,
     isActive: true, isFeatured: true, brand: "Atasi International", modelNo: "MOD-ATA-2432",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "White",
-    productType: "Jewel Set", idealFor: "Women", netQuantity: 1, occasion: "Wedding",
+    productType: "Jewel Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -454,7 +454,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 35, warranty: "3 months", sku: "SKU-BRA-033", quantityInStock: 14,
     isActive: true, isFeatured: false, brand: "brado jewellery", modelNo: "MOD-BRA-2433",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Multicolor",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Party",
+    productType: "Earrings", idealFor: ["Women"], netQuantity: 1, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -466,7 +466,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 25, warranty: "3 months", sku: "SKU-OMK-034", quantityInStock: 20,
     isActive: true, isFeatured: false, brand: "OmKrishiv", modelNo: "MOD-OMK-2434",
     baseMaterial: "Copper", plating: "Silver-plated", color: "Silver",
-    productType: "Anklet", idealFor: "Women", netQuantity: 2, occasion: "Everyday",
+    productType: "Anklet", idealFor: ["Women"], netQuantity: 2, occasion: ["Everyday"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -478,7 +478,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 55, warranty: "6 months", sku: "SKU-ZEN-035", quantityInStock: 15,
     isActive: true, isFeatured: true, brand: "ZENEME", modelNo: "MOD-ZEN-2435",
     baseMaterial: "Alloy", plating: "Matte", color: "Gold",
-    productType: "Necklace", idealFor: "Women", netQuantity: 1, occasion: "Workwear",
+    productType: "Necklace", idealFor: ["Women"], netQuantity: 1, occasion: ["Workwear"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -490,7 +490,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 25, warranty: "3 months", sku: "SKU-AVR-036", quantityInStock: 28,
     isActive: true, isFeatured: false, brand: "AVR JEWELS", modelNo: "MOD-AVR-2436",
     baseMaterial: "Alloy", plating: "Silver-plated", color: "Purple",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Party",
+    productType: "Earrings", idealFor: ["Women"], netQuantity: 1, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -502,7 +502,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 85, warranty: "1 year", sku: "SKU-SOU-037", quantityInStock: 8,
     isActive: true, isFeatured: false, brand: "Soumi store", modelNo: "MOD-SOU-2437",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "Red",
-    productType: "Necklace", idealFor: "Women", netQuantity: 1, occasion: "Wedding",
+    productType: "Necklace", idealFor: ["Women"], netQuantity: 1, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -514,7 +514,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 40, warranty: "6 months", sku: "SKU-MAM-038", quantityInStock: 18,
     isActive: true, isFeatured: false, brand: "MAME CREATION", modelNo: "MOD-MAM-2438",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "Gold",
-    productType: "Cufflinks", idealFor: "Men", netQuantity: 1, occasion: "Workwear",
+    productType: "Cufflinks", idealFor: ["Men"], netQuantity: 1, occasion: ["Workwear"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -526,7 +526,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 35, warranty: "3 months", sku: "SKU-KON-039", quantityInStock: 12,
     isActive: true, isFeatured: false, brand: "KONASA", modelNo: "MOD-KON-2439",
     baseMaterial: "Copper", plating: "Antique", color: "Silver",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Party",
+    productType: "Earrings", idealFor: ["Women"], netQuantity: 1, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -538,7 +538,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 45, warranty: "6 months", sku: "SKU-RAR-040", quantityInStock: 14,
     isActive: true, isFeatured: true, brand: "RARE ONE STUDIO", modelNo: "MOD-RAR-2440",
     baseMaterial: "Brass", plating: "Matte", color: "Gold",
-    productType: "Necklace", idealFor: "Women", netQuantity: 1, occasion: "Workwear",
+    productType: "Necklace", idealFor: ["Women"], netQuantity: 1, occasion: ["Workwear"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -550,7 +550,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 18, warranty: "No warranty", sku: "SKU-DIV-041", quantityInStock: 45,
     isActive: true, isFeatured: false, brand: "Divine rudras", modelNo: "MOD-DIV-2441",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Gold",
-    productType: "Pendant Set", idealFor: "Unisex", netQuantity: 1, occasion: "Everyday",
+    productType: "Pendant Set", idealFor: ["Unisex"], netQuantity: 1, occasion: ["Everyday"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -562,7 +562,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 55, warranty: "6 months", sku: "SKU-ATA-042", quantityInStock: 10,
     isActive: true, isFeatured: false, brand: "Atasi International", modelNo: "MOD-ATA-2442",
     baseMaterial: "Alloy", plating: "Rhodium", color: "Pink",
-    productType: "Jewel Set", idealFor: "Women", netQuantity: 1, occasion: "Engagement",
+    productType: "Jewel Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Engagement"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -574,7 +574,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 22, warranty: "3 months", sku: "SKU-SHR-043", quantityInStock: 22,
     isActive: true, isFeatured: false, brand: "Shree Ju", modelNo: "MOD-SHR-2443",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Gold",
-    productType: "Anklet", idealFor: "Women", netQuantity: 1, occasion: "Festive",
+    productType: "Anklet", idealFor: ["Women"], netQuantity: 1, occasion: ["Festive"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -586,7 +586,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 20, warranty: "3 months", sku: "SKU-BRI-044", quantityInStock: 38,
     isActive: true, isFeatured: false, brand: "BRILLIANT BEADS JEWELS", modelNo: "MOD-BRI-2444",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "White",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Workwear",
+    productType: "Earrings", idealFor: ["Women"], netQuantity: 1, occasion: ["Workwear"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -598,7 +598,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 40, warranty: "6 months", sku: "SKU-EVA-045", quantityInStock: 16,
     isActive: true, isFeatured: false, brand: "evashoppy", modelNo: "MOD-EVA-2445",
     baseMaterial: "Alloy", plating: "Gold-plated", color: "White",
-    productType: "Necklace", idealFor: "Women", netQuantity: 1, occasion: "Engagement",
+    productType: "Necklace", idealFor: ["Women"], netQuantity: 1, occasion: ["Engagement"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -610,7 +610,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 20, warranty: "No warranty", sku: "SKU-LOV-046", quantityInStock: 30,
     isActive: true, isFeatured: true, brand: "LoveGift", modelNo: "MOD-LOV-2446",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Gold",
-    productType: "Pendant Set", idealFor: "Unisex", netQuantity: 2, occasion: "Gift",
+    productType: "Pendant Set", idealFor: ["Unisex"], netQuantity: 2, occasion: ["Gift"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -622,7 +622,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 30, warranty: "3 months", sku: "SKU-SYG-047", quantityInStock: 25,
     isActive: true, isFeatured: false, brand: "SYGA", modelNo: "MOD-SYG-2447",
     baseMaterial: "Alloy", plating: "Silver-plated", color: "Multicolor",
-    productType: "Jewel Set", idealFor: "Girls", netQuantity: 5, occasion: "Gift",
+    productType: "Jewel Set", idealFor: ["Girls"], netQuantity: 5, occasion: ["Gift"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -634,7 +634,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 25, warranty: "6 months", sku: "SKU-KON-048", quantityInStock: 20,
     isActive: true, isFeatured: false, brand: "KONASA", modelNo: "MOD-KON-2448",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Black",
-    productType: "Ring", idealFor: "Men", netQuantity: 1, occasion: "Party",
+    productType: "Ring", idealFor: ["Men"], netQuantity: 1, occasion: ["Party"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -646,7 +646,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 28, warranty: "3 months", sku: "SKU-BRA-049", quantityInStock: 24,
     isActive: true, isFeatured: false, brand: "brado jewellery", modelNo: "MOD-BRA-2449",
     baseMaterial: "Alloy", plating: "Silver-plated", color: "Blue",
-    productType: "Earrings", idealFor: "Women", netQuantity: 1, occasion: "Dailywear",
+    productType: "Earrings", idealFor: ["Women"], netQuantity: 1, occasion: ["Dailywear"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
   {
@@ -658,7 +658,7 @@ const products: Omit<DummyProduct, "categoryId">[] = [
     makingCharge: 95, warranty: "1 year", sku: "SKU-OCH-050", quantityInStock: 5,
     isActive: true, isFeatured: true, brand: "OChori", modelNo: "MOD-OCH-2450",
     baseMaterial: "Brass", plating: "Gold-plated", color: "Gold",
-    productType: "Jewel Set", idealFor: "Women", netQuantity: 1, occasion: "Wedding",
+    productType: "Jewel Set", idealFor: ["Women"], netQuantity: 1, occasion: ["Wedding"],
     createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
   },
 ];

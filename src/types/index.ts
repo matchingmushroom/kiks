@@ -51,9 +51,9 @@ export interface Product {
   plating: string;
   color: string;
   productType: string;
-  idealFor: string;
+  idealFor: string[];
   netQuantity: number;
-  occasion: string;
+  occasion: string[];
   createdAt: number;
   updatedAt: number;
 }
