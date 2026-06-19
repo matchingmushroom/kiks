@@ -12,7 +12,25 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw } from "lucide-react";
+import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw, ChevronDown } from "lucide-react";
+
+const PRODUCT_TYPES = ["", "Jewel Set", "Necklace", "Earrings", "Bracelet", "Ring", "Mangalsutra Set", "Pendant Set", "Chain", "Bangles", "Nosepin", "Anklet", "Brooch", "Hair Accessory", "Cufflinks"];
+const IDEAL_FOR_OPTIONS = ["Women", "Men", "Girls", "Boys", "Unisex", "Women & Girls", "Men & Boys"];
+const OCCASION_OPTIONS = ["Party", "Wedding", "Engagement", "Everyday", "Gift", "Workwear", "Dailywear", "Festive"];
+const NET_QTY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 50, 100];
+const METAL_TYPES = ["", "Gold", "Silver", "Platinum", "Alloy", "Copper", "Brass", "Steel", "Other"];
+const STONE_TYPES = ["None", "Diamond", "Ruby", "Emerald", "Sapphire", "Pearl", "Crystal", "Cubic Zirconia", "Multicolor Stone", "Other"];
+
+interface NewProductForm {
+  name: string; categoryId: string; sku: string;
+  brand: string; modelNo: string; baseMaterial: string;
+  plating: string; color: string; productType: string;
+  idealFor: string[]; occasion: string[]; netQuantity: number;
+  costPrice: number; salesPrice: number;
+  weight: number; purity: string; metalType: string;
+  stoneType: string; stoneWeight: number; makingCharge: number;
+  warranty: string;
+}
 
 const emptyForm = {
   supplierName: "", supplierPhone: "",
@@ -54,7 +72,7 @@ export default function AdminPurchasesPage() {
 
   // Inline product creation
   const [showNewProduct, setShowNewProduct] = useState(false);
-  const [newProductForm, setNewProductForm] = useState({ name: "", costPrice: 0, salesPrice: 0, categoryId: "" });
+  const [newProductForm, setNewProductForm] = useState<NewProductForm>({ name: "", categoryId: "", sku: "", brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], occasion: [], netQuantity: 1, costPrice: 0, salesPrice: 0, weight: 0, purity: "", metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "" });
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [manualSupplier, setManualSupplier] = useState(false);
@@ -128,38 +146,33 @@ export default function AdminPurchasesPage() {
 
   const handleCreateProduct = async () => {
     if (!newProductForm.name || !newProductForm.categoryId) return;
-    const prodRef = await addDoc(collection(db, "products"), {
-      name: newProductForm.name,
-      description: "", design: "", categoryId: newProductForm.categoryId,
+    const f = newProductForm;
+    const prodData = {
+      name: f.name, description: "", design: "", categoryId: f.categoryId,
       images: [""], videoUrl: "",
-      price: newProductForm.salesPrice || newProductForm.costPrice, costPrice: newProductForm.costPrice,
-      weight: 0, purity: "", metalType: "", stoneType: "None",
-      stoneWeight: 0, makingCharge: 0, warranty: "", sku: "",
+      price: f.salesPrice || f.costPrice, costPrice: f.costPrice,
+      weight: f.weight, purity: f.purity, metalType: f.metalType,
+      stoneType: f.stoneType, stoneWeight: f.stoneWeight,
+      makingCharge: f.makingCharge, warranty: f.warranty, sku: f.sku,
       quantityInStock: 0, isActive: true, isFeatured: false,
-      badge: "", brand: "", modelNo: "", baseMaterial: "",
-      plating: "", color: "", productType: "", idealFor: [] as string[],
-      netQuantity: 1, occasion: [] as string[],
+      badge: "", brand: f.brand, modelNo: f.modelNo, baseMaterial: f.baseMaterial,
+      plating: f.plating, color: f.color, productType: f.productType,
+      idealFor: f.idealFor, netQuantity: f.netQuantity, occasion: f.occasion,
       createdAt: Timestamp.fromDate(new Date()),
       updatedAt: Timestamp.fromDate(new Date()),
-    });
-    // Refetch won't happen until useFirestore updates, so manually add
+    };
+    const prodRef = await addDoc(collection(db, "products"), prodData);
     const newProduct: Product = {
-      id: prodRef.id, name: newProductForm.name, description: "",
-      design: "", categoryId: newProductForm.categoryId,
-      images: [""], videoUrl: "", price: newProductForm.salesPrice || newProductForm.costPrice,
-      costPrice: newProductForm.costPrice, weight: 0, purity: "",
-      metalType: "", stoneType: "None", stoneWeight: 0,
-      makingCharge: 0, warranty: "", sku: "", quantityInStock: 0,
-      isActive: true, isFeatured: false, badge: "none",
-      originalPrice: 0, brand: "", modelNo: "", baseMaterial: "",
-      plating: "", color: "", productType: "", idealFor: [] as string[],
-      netQuantity: 1, occasion: [] as string[],
+      id: prodRef.id, ...prodData,
+      price: f.salesPrice || f.costPrice,
+      originalPrice: 0, badge: "none",
+      quantityInStock: 0, isActive: true, isFeatured: false,
       createdAt: Date.now(), updatedAt: Date.now(),
     };
     addItem(newProduct);
     setProductSearch("");
     setShowNewProduct(false);
-    setNewProductForm({ name: "", costPrice: 0, salesPrice: 0, categoryId: "" });
+    setNewProductForm({ name: "", categoryId: "", sku: "", brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], occasion: [], netQuantity: 1, costPrice: 0, salesPrice: 0, weight: 0, purity: "", metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "" });
   };
 
   const upsertCreditor = async (supplierName: string, supplierPhone: string | undefined, balanceChange: number, purchaseId?: string) => {
@@ -555,61 +568,235 @@ export default function AdminPurchasesPage() {
                 )}
 
                 {showNewProduct && (
-                  <div className="bg-muted/50 border border-border rounded-lg p-4 space-y-3">
+                  <div className="bg-muted/50 border border-border rounded-lg p-4 space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-medium text-secondary">New Product</h4>
                       <button onClick={() => setShowNewProduct(false)} className="p-1 hover:bg-muted rounded">
                         <X className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                      <div>
-                        <label className="block text-xs text-muted-foreground mb-1">Name *</label>
-                        <input type="text" value={newProductForm.name}
-                          onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
-                          className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-muted-foreground mb-1">Cost Price (NPR)</label>
-                        <input type="number" value={newProductForm.costPrice || ""}
-                          onChange={(e) => setNewProductForm({ ...newProductForm, costPrice: Number(e.target.value) })}
-                          className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-muted-foreground mb-1">Sales Price (NPR)</label>
-                        <input type="number" value={newProductForm.salesPrice || ""}
-                          onChange={(e) => setNewProductForm({ ...newProductForm, salesPrice: Number(e.target.value) })}
-                          className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-muted-foreground mb-1">Category *</label>
-                        <div className="flex gap-2">
-                          <select value={newProductForm.categoryId}
-                            onChange={(e) => {
-                              if (e.target.value === "__new__") {
-                                setShowNewCategory(true);
-                              } else {
-                                setNewProductForm({ ...newProductForm, categoryId: e.target.value });
-                              }
-                            }}
-                            className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                            <option value="">Select</option>
-                            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            <option value="__new__">+ Add new category</option>
-                          </select>
+
+                    {/* Basic Info */}
+                    <div>
+                      <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Basic Info</h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Name *</label>
+                          <input type="text" value={newProductForm.name}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                         </div>
-                        {showNewCategory && (
-                          <div className="flex gap-2 mt-2">
-                            <input type="text" placeholder="Category name" value={newCategoryName}
-                              onChange={(e) => setNewCategoryName(e.target.value)}
-                              className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                            <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()} size="sm" variant="accent">
-                              <Tags className="h-3.5 w-3.5" /> Add
-                            </Button>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Category *</label>
+                          <div className="flex gap-2">
+                            <select value={newProductForm.categoryId}
+                              onChange={(e) => {
+                                if (e.target.value === "__new__") {
+                                  setShowNewCategory(true);
+                                } else {
+                                  setNewProductForm({ ...newProductForm, categoryId: e.target.value });
+                                }
+                              }}
+                              className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                              <option value="">Select</option>
+                              {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                              <option value="__new__">+ Add new category</option>
+                            </select>
                           </div>
-                        )}
+                          {showNewCategory && (
+                            <div className="flex gap-2 mt-2">
+                              <input type="text" placeholder="Category name" value={newCategoryName}
+                                onChange={(e) => setNewCategoryName(e.target.value)}
+                                className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                              <Button onClick={handleCreateCategory} disabled={!newCategoryName.trim()} size="sm" variant="accent">
+                                <Tags className="h-3.5 w-3.5" /> Add
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">SKU</label>
+                          <input type="text" value={newProductForm.sku}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, sku: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Brand</label>
+                          <input type="text" value={newProductForm.brand}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, brand: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Model Number</label>
+                          <input type="text" value={newProductForm.modelNo}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, modelNo: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
                       </div>
                     </div>
+
+                    {/* Details */}
+                    <div>
+                      <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Details</h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Base Material</label>
+                          <input type="text" value={newProductForm.baseMaterial}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, baseMaterial: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Plating Type</label>
+                          <input type="text" value={newProductForm.plating}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, plating: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Color</label>
+                          <input type="text" value={newProductForm.color}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, color: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Product Type</label>
+                          <select value={newProductForm.productType}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, productType: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            {PRODUCT_TYPES.map((t) => (<option key={t} value={t}>{t || "Select"}</option>))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Net Quantity</label>
+                          <select value={newProductForm.netQuantity}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, netQuantity: Number(e.target.value) })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            {NET_QTY_OPTIONS.map((n) => (<option key={n} value={n}>{n}</option>))}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Ideal For</label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {IDEAL_FOR_OPTIONS.map((f) => (
+                              <label key={f} className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+                                <input type="checkbox" checked={newProductForm.idealFor.includes(f)}
+                                  onChange={() => setNewProductForm({
+                                    ...newProductForm,
+                                    idealFor: newProductForm.idealFor.includes(f)
+                                      ? newProductForm.idealFor.filter((x) => x !== f)
+                                      : [...newProductForm.idealFor, f],
+                                  })}
+                                  className="accent-primary" />
+                                {f}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Occasion</label>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {OCCASION_OPTIONS.map((c) => (
+                              <label key={c} className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
+                                <input type="checkbox" checked={newProductForm.occasion.includes(c)}
+                                  onChange={() => setNewProductForm({
+                                    ...newProductForm,
+                                    occasion: newProductForm.occasion.includes(c)
+                                      ? newProductForm.occasion.filter((x) => x !== c)
+                                      : [...newProductForm.occasion, c],
+                                  })}
+                                  className="accent-primary" />
+                                {c}
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Pricing */}
+                    <div>
+                      <h5 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Pricing</h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Cost Price (NPR)</label>
+                          <input type="number" value={newProductForm.costPrice || ""}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, costPrice: Number(e.target.value) })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Sales Price (NPR)</label>
+                          <input type="number" value={newProductForm.salesPrice || ""}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, salesPrice: Number(e.target.value) })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Additional Details */}
+                    <div>
+                      <details className="group">
+                        <summary className="text-xs font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer list-none flex items-center gap-1 select-none">
+                          <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
+                          Additional Details
+                        </summary>
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-xs text-muted-foreground mb-1">Weight (g)</label>
+                            <input type="number" step="0.01" value={newProductForm.weight || ""}
+                              onChange={(e) => setNewProductForm({ ...newProductForm, weight: Number(e.target.value) })}
+                              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-muted-foreground mb-1">Purity (Kt)</label>
+                            <input type="text" value={newProductForm.purity}
+                              onChange={(e) => setNewProductForm({ ...newProductForm, purity: e.target.value })}
+                              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-muted-foreground mb-1">Metal Type</label>
+                            <select value={newProductForm.metalType}
+                              onChange={(e) => setNewProductForm({ ...newProductForm, metalType: e.target.value })}
+                              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                              {METAL_TYPES.map((m) => (<option key={m} value={m}>{m || "Select"}</option>))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
+                          <div>
+                            <label className="block text-xs text-muted-foreground mb-1">Stone Type</label>
+                            <select value={newProductForm.stoneType}
+                              onChange={(e) => setNewProductForm({ ...newProductForm, stoneType: e.target.value })}
+                              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                              {STONE_TYPES.map((s) => (<option key={s} value={s}>{s}</option>))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs text-muted-foreground mb-1">Stone Weight (g)</label>
+                            <input type="number" step="0.01" value={newProductForm.stoneWeight || ""}
+                              onChange={(e) => setNewProductForm({ ...newProductForm, stoneWeight: Number(e.target.value) })}
+                              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-muted-foreground mb-1">Making Charge (NPR)</label>
+                            <input type="number" value={newProductForm.makingCharge || ""}
+                              onChange={(e) => setNewProductForm({ ...newProductForm, makingCharge: Number(e.target.value) })}
+                              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <label className="block text-xs text-muted-foreground mb-1">Warranty</label>
+                          <input type="text" value={newProductForm.warranty}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, warranty: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                      </details>
+                    </div>
+
                     <Button onClick={handleCreateProduct} disabled={!newProductForm.name || !newProductForm.categoryId} variant="accent" size="sm">
                       <PackagePlus className="h-3.5 w-3.5" /> Create & Add to Purchase
                     </Button>
