@@ -29,7 +29,8 @@ var CONFIG_DOC = "shop_settings/emailBackupConfig";
  */
 function doPost(e) {
   try {
-    var data = JSON.parse(e.postData.contents);
+    var raw = e.postData && e.postData.contents ? e.postData.contents : (e.parameter && e.parameter.payload ? e.parameter.payload : null);
+    var data = JSON.parse(raw);
 
     if (data.action === "uploadImage" && data.imageBase64 && data.filename) {
       var decoded = Utilities.base64Decode(data.imageBase64);
@@ -38,9 +39,10 @@ function doPost(e) {
         ? DriveApp.getFolderById(data.driveFolderId)
         : DriveApp.getRootFolder();
       var file = folder.createFile(blob);
-      return ContentService
-        .createTextOutput(JSON.stringify({ status: "ok", fileId: file.getId(), name: file.getName() }))
-        .setMimeType(ContentService.MimeType.JSON);
+      var result = JSON.stringify({ status: "ok", fileId: file.getId(), name: file.getName() });
+      return HtmlService.createHtmlOutput(
+        '<html><body><script>parent.postMessage(' + result + ', "*");</script></body></html>'
+      );
     }
 
     if (data.action === "sendReport" && data.csv && data.module) {

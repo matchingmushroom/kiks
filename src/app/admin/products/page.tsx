@@ -210,30 +210,47 @@ export default function AdminProductsPage() {
       }
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          resolve(result.split(",")[1]);
-        };
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
-      const res = await fetch(cfg.gasWebhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({
-          action: "uploadImage",
-          imageBase64: base64,
-          filename: file.name,
-          mimeType: file.type,
-          driveFolderId: cfg.imageDriveFolderId || undefined,
-        }),
+
+      const fileId = await new Promise<string>((resolve, reject) => {
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.name = "uploadFrame";
+        document.body.appendChild(iframe);
+
+        const timeout = setTimeout(() => { reject(new Error("Upload timed out")); cleanup(); }, 60000);
+        const cleanup = () => { clearTimeout(timeout); window.removeEventListener("message", handler); document.body.removeChild(iframe); };
+        const handler = (e: MessageEvent) => {
+          if (e.data?.status === "ok" && e.data?.fileId) { cleanup(); resolve(e.data.fileId); }
+          else if (e.data?.status === "error") { cleanup(); reject(new Error(e.data.message || "Upload failed")); }
+        };
+        window.addEventListener("message", handler);
+
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = cfg.gasWebhookUrl;
+        form.target = "uploadFrame";
+        form.style.display = "none";
+        const ta = document.createElement("textarea");
+        ta.name = "payload";
+        ta.value = JSON.stringify({
+          action: "uploadImage", imageBase64: base64, filename: file.name,
+          mimeType: file.type, driveFolderId: cfg.imageDriveFolderId || undefined,
+        });
+        form.appendChild(ta);
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
       });
-      const text = await res.text();
-      const data = JSON.parse(text);
-      if (data.status !== "ok") throw new Error(data.message || "Upload failed");
-      const driveUrl = `https://drive.google.com/thumbnail?id=${data.fileId}&sz=w1000`;
-      const images = form.images.filter(Boolean);
-      images.push(driveUrl, "");
+
+      const driveUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+      const images = [...form.images];
+      const emptyIdx = images.indexOf("");
+      if (emptyIdx !== -1) images[emptyIdx] = driveUrl;
+      else images.push(driveUrl, "");
       setForm({ ...form, images });
     } catch (e: any) {
       console.error("Upload failed", e);
