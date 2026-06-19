@@ -230,6 +230,8 @@ export interface Purchase {
   paymentStatus: "paid" | "unpaid" | "partially_paid";
   paymentMethod?: string;
   paidAmount?: number;
+  billNo?: string;
+  billDate?: string;
   notes?: string;
   recordedBy: string;
   recordedByName: string;

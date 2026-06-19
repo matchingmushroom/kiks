@@ -50,7 +50,7 @@ const emptyForm = {
   items: [] as PurchaseItemType[],
   totalAmount: 0,
   paymentStatus: "unpaid" as "paid" | "unpaid" | "partially_paid",
-  paymentMethod: "", paidAmount: 0, notes: "",
+  paymentMethod: "", paidAmount: 0, billNo: "", billDate: "", notes: "",
 };
 
 export default function AdminPurchasesPage() {
@@ -293,6 +293,8 @@ export default function AdminPurchasesPage() {
         paymentStatus: form.paymentStatus,
         paymentMethod: form.paymentMethod,
         paidAmount: form.paidAmount,
+        billNo: form.billNo,
+        billDate: form.billDate,
         notes: form.notes,
         recordedBy: user?.uid || "",
         recordedByName: profile?.displayName || "",
@@ -1055,6 +1057,20 @@ export default function AdminPurchasesPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Bill No</label>
+                  <input type="text" value={form.billNo} onChange={(e) => setForm({ ...form, billNo: e.target.value })}
+                    placeholder="e.g. INV-2024-001"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Bill Date</label>
+                  <input type="date" value={form.billDate} onChange={(e) => setForm({ ...form, billDate: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
                 <input type="text" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
@@ -1234,6 +1250,23 @@ export default function AdminPurchasesPage() {
                   <p className="text-sm text-muted-foreground">Total</p>
                   <p className="text-lg font-bold text-secondary">{formatCurrency(detailPurchaseData.totalAmount)}</p>
                 </div>
+
+                {(detailPurchaseData.billNo || detailPurchaseData.billDate) && (
+                  <div className="grid grid-cols-2 gap-3 text-sm border-t border-border pt-4">
+                    {detailPurchaseData.billNo && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Bill No</p>
+                        <p className="font-medium">{detailPurchaseData.billNo}</p>
+                      </div>
+                    )}
+                    {detailPurchaseData.billDate && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Bill Date</p>
+                        <p className="font-medium">{detailPurchaseData.billDate}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {detailPurchaseData.notes && (
                   <div className="text-sm">
