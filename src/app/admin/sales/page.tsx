@@ -383,13 +383,13 @@ function SalesContent() {
             validFrom: Timestamp.fromDate(new Date()),
             validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
             usageLimit: 1, usedCount: 0, isActive: true,
-            terms: "To be Used within 1 Months",
+            terms: "To be Used within 1 Months for purchase through our websites https://kiks.gpt.com.np during checkout or at our store's checkout counter",
             issuedToCustomer: { name: form.customerName, phone: form.customerPhone },
             issuedForOrderId: saleRef.id, createdAt: Timestamp.fromDate(new Date()), createdBy: user?.uid || "",
           });
           if (savedInvId) {
             await updateDoc(doc(db, "invoices", savedInvId), {
-              couponIssued: { code: couponCode, discountValue, discountType, terms: "To be Used within 1 Months" },
+              couponIssued: { code: couponCode, discountValue, discountType, terms: "To be Used within 1 Months for purchase through our websites https://kiks.gpt.com.np during checkout or at our store's checkout counter" },
               updatedAt: Timestamp.fromDate(new Date()),
             });
           }
