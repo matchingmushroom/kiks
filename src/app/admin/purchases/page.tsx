@@ -154,14 +154,15 @@ export default function AdminPurchasesPage() {
       return;
     }
     const costPrice = product.costPrice || Math.round(product.price * 0.5);
+    const qty = product.netQuantity || 1;
     const newItem: PurchaseItemType = {
       productId: product.id,
       productName: product.name,
       sku: product.sku || "",
-      quantity: product.netQuantity || 1,
+      quantity: qty,
       unitCost: costPrice,
       salesPrice: product.price,
-      subtotal: costPrice,
+      subtotal: qty * costPrice,
     };
     const items = [...form.items, newItem];
     const total = items.reduce((s, i) => s + i.subtotal, 0);
