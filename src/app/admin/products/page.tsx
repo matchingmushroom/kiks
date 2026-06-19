@@ -570,7 +570,7 @@ export default function AdminProductsPage() {
                             className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                           <div className="flex items-center gap-1 shrink-0">
                             {url && (
-                              <img src={url.replace(/drive\.google\.com\/file\/d\/([^/?#&]+)/, "drive.google.com/uc?export=view&id=$1")} alt=""
+                              <img src={url.includes("drive.google.com") ? url.replace(/.*[?&]id=([^&]+).*/, "https://drive.google.com/thumbnail?id=$1&sz=w400").replace(/.*\/d\/([^/?#&]+).*/, "https://drive.google.com/thumbnail?id=$1&sz=w400") : url} alt=""
                                 className="w-10 h-10 object-cover rounded border border-border"
                                 onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
                             )}

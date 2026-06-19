@@ -10,9 +10,14 @@ import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 import Link from "next/link";
 
+function extractGoogleDriveId(url: string): string | null {
+  const m = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^/?#&]+)/);
+  return m ? m[1] : null;
+}
+
 function fixImageUrl(url: string): string {
-  const gd = url.match(/drive\.google\.com\/file\/d\/([^/?#&]+)/);
-  if (gd) return `https://drive.google.com/uc?export=view&id=${gd[1]}`;
+  const gd = extractGoogleDriveId(url);
+  if (gd) return `https://drive.google.com/thumbnail?id=${gd}&sz=w1000`;
   const match = url.match(/images\.unsplash\.com\/photo-([^?]+)/);
   if (match) return `https://unsplash.com/photos/${match[1]}/download?w=400`;
   return url;

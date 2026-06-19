@@ -19,9 +19,14 @@ const BADGE_STYLES: Record<ProductBadge, { bg: string; label: string }> = {
   offer: { bg: "bg-amber-500", label: "Offer" },
 };
 
+function extractGoogleDriveId(url: string): string | null {
+  const m = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^/?#&]+)/);
+  return m ? m[1] : null;
+}
+
 function imgUrl(url: string): string {
-  const gd = url.match(/drive\.google\.com\/file\/d\/([^/?#&]+)/);
-  if (gd) return `https://drive.google.com/uc?export=view&id=${gd[1]}`;
+  const gd = extractGoogleDriveId(url);
+  if (gd) return `https://drive.google.com/thumbnail?id=${gd}&sz=w1000`;
   return url.replace(/images\.unsplash\.com\/photo-([^?]+)/, "https://unsplash.com/photos/$1/download?w=400");
 }
 
