@@ -152,7 +152,7 @@ export default function AdminPurchasesPage() {
       productId: product.id,
       productName: product.name,
       sku: product.sku || "",
-      quantity: 1,
+      quantity: product.netQuantity || 1,
       unitCost: costPrice,
       salesPrice: product.price,
       subtotal: costPrice,
