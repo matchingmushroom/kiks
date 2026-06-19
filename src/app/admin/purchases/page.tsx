@@ -12,14 +12,25 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw, ChevronDown } from "lucide-react";
+import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw, ChevronDown, PlusCircle } from "lucide-react";
 
-const PRODUCT_TYPES = ["", "Jewel Set", "Necklace", "Earrings", "Bracelet", "Ring", "Mangalsutra Set", "Pendant Set", "Chain", "Bangles", "Nosepin", "Anklet", "Brooch", "Hair Accessory", "Cufflinks"];
-const IDEAL_FOR_OPTIONS = ["Women", "Men", "Girls", "Boys", "Unisex", "Women & Girls", "Men & Boys"];
-const OCCASION_OPTIONS = ["Party", "Wedding", "Engagement", "Everyday", "Gift", "Workwear", "Dailywear", "Festive"];
-const NET_QTY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 15, 20, 25, 30, 50, 100];
-const METAL_TYPES = ["", "Gold", "Silver", "Platinum", "Alloy", "Copper", "Brass", "Steel", "Other"];
-const STONE_TYPES = ["None", "Diamond", "Ruby", "Emerald", "Sapphire", "Pearl", "Crystal", "Cubic Zirconia", "Multicolor Stone", "Other"];
+interface FieldOptions {
+  baseMaterial: string[];
+  plating: string[];
+  color: string[];
+  productType: string[];
+  idealFor: string[];
+  occasion: string[];
+}
+
+const DEFAULT_FIELD_OPTIONS: FieldOptions = {
+  baseMaterial: ["Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"],
+  plating: ["Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"],
+  color: ["Gold", "Silver", "Multicolor", "White", "Pink", "Green", "Red", "Blue", "Black", "Rose Gold", "Purple", "Peach", "Cream", "Brown", "Copper", "Bronze"],
+  productType: ["Jewel Set", "Necklace", "Earrings", "Bracelet", "Ring", "Mangalsutra Set", "Pendant Set", "Chain", "Bangles", "Nosepin", "Anklet", "Brooch", "Hair Accessory", "Cufflinks"],
+  idealFor: ["Women", "Men", "Girls", "Boys", "Unisex", "Women & Girls", "Men & Boys"],
+  occasion: ["Party", "Wedding", "Engagement", "Everyday", "Gift", "Workwear", "Dailywear", "Festive"],
+};
 
 interface NewProductForm {
   name: string; categoryId: string; sku: string;
@@ -76,6 +87,49 @@ export default function AdminPurchasesPage() {
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [manualSupplier, setManualSupplier] = useState(false);
+
+  // Dynamic field options from Firestore
+  const [fieldOptions, setFieldOptions] = useState<FieldOptions>(DEFAULT_FIELD_OPTIONS);
+  const [newOptionField, setNewOptionField] = useState<string | null>(null);
+  const [newOptionValue, setNewOptionValue] = useState("");
+
+  useEffect(() => {
+    const loadOptions = async () => {
+      try {
+        const snap = await getDoc(doc(db, "fieldOptions", "config"));
+        if (snap.exists()) {
+          const data = snap.data() as Partial<FieldOptions>;
+          setFieldOptions((prev) => ({ ...prev, ...data }));
+        }
+      } catch (e) {
+        console.error("Failed to load field options", e);
+      }
+    };
+    loadOptions();
+  }, []);
+
+  const addFieldOption = async (field: keyof FieldOptions, value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    const current = fieldOptions[field];
+    if (current.includes(trimmed)) {
+      setNewOptionField(null);
+      setNewOptionValue("");
+      return;
+    }
+    const updated = [...current, trimmed];
+    setFieldOptions((prev) => ({ ...prev, [field]: updated }));
+    try {
+      await setDoc(doc(db, "fieldOptions", "config"), { [field]: updated }, { merge: true });
+    } catch (e) {
+      console.error("Failed to save field option", e);
+    }
+    setNewOptionField(null);
+    setNewOptionValue("");
+  };
+
+  const METAL_TYPES = ["", "Gold", "Silver", "Platinum", "Alloy", "Copper", "Brass", "Steel", "Other"];
+  const STONE_TYPES = ["None", "Diamond", "Ruby", "Emerald", "Sapphire", "Pearl", "Crystal", "Cubic Zirconia", "Multicolor Stone", "Other"];
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase())
@@ -643,46 +697,110 @@ export default function AdminPurchasesPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div>
                           <label className="block text-xs text-muted-foreground mb-1">Base Material</label>
-                          <input type="text" value={newProductForm.baseMaterial}
-                            onChange={(e) => setNewProductForm({ ...newProductForm, baseMaterial: e.target.value })}
-                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                          <select value={newProductForm.baseMaterial}
+                            onChange={(e) => {
+                              if (e.target.value === "__new__") { setNewOptionField("baseMaterial"); setNewOptionValue(""); }
+                              else { setNewProductForm({ ...newProductForm, baseMaterial: e.target.value }); }
+                            }}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            <option value="">Select</option>
+                            {fieldOptions.baseMaterial.map((o) => (<option key={o} value={o}>{o}</option>))}
+                            <option value="__new__">+ Add new</option>
+                          </select>
+                          {newOptionField === "baseMaterial" && (
+                            <div className="flex gap-2 mt-2">
+                              <input type="text" placeholder="New base material" value={newOptionValue}
+                                onChange={(e) => setNewOptionValue(e.target.value)}
+                                className="flex-1 px-2 py-1 border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary" />
+                              <Button onClick={() => { addFieldOption("baseMaterial", newOptionValue); setNewProductForm({ ...newProductForm, baseMaterial: newOptionValue }); }} size="sm" variant="accent">
+                                <Plus className="h-3 w-3" /> Add
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-xs text-muted-foreground mb-1">Plating Type</label>
-                          <input type="text" value={newProductForm.plating}
-                            onChange={(e) => setNewProductForm({ ...newProductForm, plating: e.target.value })}
-                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                          <select value={newProductForm.plating}
+                            onChange={(e) => {
+                              if (e.target.value === "__new__") { setNewOptionField("plating"); setNewOptionValue(""); }
+                              else { setNewProductForm({ ...newProductForm, plating: e.target.value }); }
+                            }}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            <option value="">Select</option>
+                            {fieldOptions.plating.map((o) => (<option key={o} value={o}>{o}</option>))}
+                            <option value="__new__">+ Add new</option>
+                          </select>
+                          {newOptionField === "plating" && (
+                            <div className="flex gap-2 mt-2">
+                              <input type="text" placeholder="New plating type" value={newOptionValue}
+                                onChange={(e) => setNewOptionValue(e.target.value)}
+                                className="flex-1 px-2 py-1 border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary" />
+                              <Button onClick={() => { addFieldOption("plating", newOptionValue); setNewProductForm({ ...newProductForm, plating: newOptionValue }); }} size="sm" variant="accent">
+                                <Plus className="h-3 w-3" /> Add
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-xs text-muted-foreground mb-1">Color</label>
-                          <input type="text" value={newProductForm.color}
-                            onChange={(e) => setNewProductForm({ ...newProductForm, color: e.target.value })}
-                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                          <select value={newProductForm.color}
+                            onChange={(e) => {
+                              if (e.target.value === "__new__") { setNewOptionField("color"); setNewOptionValue(""); }
+                              else { setNewProductForm({ ...newProductForm, color: e.target.value }); }
+                            }}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            <option value="">Select</option>
+                            {fieldOptions.color.map((o) => (<option key={o} value={o}>{o}</option>))}
+                            <option value="__new__">+ Add new</option>
+                          </select>
+                          {newOptionField === "color" && (
+                            <div className="flex gap-2 mt-2">
+                              <input type="text" placeholder="New color" value={newOptionValue}
+                                onChange={(e) => setNewOptionValue(e.target.value)}
+                                className="flex-1 px-2 py-1 border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary" />
+                              <Button onClick={() => { addFieldOption("color", newOptionValue); setNewProductForm({ ...newProductForm, color: newOptionValue }); }} size="sm" variant="accent">
+                                <Plus className="h-3 w-3" /> Add
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                         <div>
                           <label className="block text-xs text-muted-foreground mb-1">Product Type</label>
                           <select value={newProductForm.productType}
-                            onChange={(e) => setNewProductForm({ ...newProductForm, productType: e.target.value })}
+                            onChange={(e) => {
+                              if (e.target.value === "__new__") { setNewOptionField("productType"); setNewOptionValue(""); }
+                              else { setNewProductForm({ ...newProductForm, productType: e.target.value }); }
+                            }}
                             className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                            {PRODUCT_TYPES.map((t) => (<option key={t} value={t}>{t || "Select"}</option>))}
+                            <option value="">Select</option>
+                            {fieldOptions.productType.map((t) => (<option key={t} value={t}>{t}</option>))}
+                            <option value="__new__">+ Add new</option>
                           </select>
+                          {newOptionField === "productType" && (
+                            <div className="flex gap-2 mt-2">
+                              <input type="text" placeholder="New product type" value={newOptionValue}
+                                onChange={(e) => setNewOptionValue(e.target.value)}
+                                className="flex-1 px-2 py-1 border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary" />
+                              <Button onClick={() => { addFieldOption("productType", newOptionValue); setNewProductForm({ ...newProductForm, productType: newOptionValue }); }} size="sm" variant="accent">
+                                <Plus className="h-3 w-3" /> Add
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-xs text-muted-foreground mb-1">Net Quantity</label>
-                          <select value={newProductForm.netQuantity}
+                          <input type="number" min={1} value={newProductForm.netQuantity || ""}
                             onChange={(e) => setNewProductForm({ ...newProductForm, netQuantity: Number(e.target.value) })}
-                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                            {NET_QTY_OPTIONS.map((n) => (<option key={n} value={n}>{n}</option>))}
-                          </select>
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                         </div>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                         <div>
                           <label className="block text-xs text-muted-foreground mb-1">Ideal For</label>
                           <div className="flex flex-wrap gap-2 mt-1">
-                            {IDEAL_FOR_OPTIONS.map((f) => (
+                            {fieldOptions.idealFor.map((f) => (
                               <label key={f} className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
                                 <input type="checkbox" checked={newProductForm.idealFor.includes(f)}
                                   onChange={() => setNewProductForm({
@@ -695,12 +813,26 @@ export default function AdminPurchasesPage() {
                                 {f}
                               </label>
                             ))}
+                            <button onClick={() => { setNewOptionField("idealFor"); setNewOptionValue(""); }}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                              <PlusCircle className="h-3 w-3" /> Add new
+                            </button>
                           </div>
+                          {newOptionField === "idealFor" && (
+                            <div className="flex gap-2 mt-2">
+                              <input type="text" placeholder="New ideal for" value={newOptionValue}
+                                onChange={(e) => setNewOptionValue(e.target.value)}
+                                className="flex-1 px-2 py-1 border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary" />
+                              <Button onClick={() => { addFieldOption("idealFor", newOptionValue); }} size="sm" variant="accent">
+                                <Plus className="h-3 w-3" /> Add
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-xs text-muted-foreground mb-1">Occasion</label>
                           <div className="flex flex-wrap gap-2 mt-1">
-                            {OCCASION_OPTIONS.map((c) => (
+                            {fieldOptions.occasion.map((c) => (
                               <label key={c} className="inline-flex items-center gap-1.5 text-sm cursor-pointer">
                                 <input type="checkbox" checked={newProductForm.occasion.includes(c)}
                                   onChange={() => setNewProductForm({
@@ -713,7 +845,21 @@ export default function AdminPurchasesPage() {
                                 {c}
                               </label>
                             ))}
+                            <button onClick={() => { setNewOptionField("occasion"); setNewOptionValue(""); }}
+                              className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                              <PlusCircle className="h-3 w-3" /> Add new
+                            </button>
                           </div>
+                          {newOptionField === "occasion" && (
+                            <div className="flex gap-2 mt-2">
+                              <input type="text" placeholder="New occasion" value={newOptionValue}
+                                onChange={(e) => setNewOptionValue(e.target.value)}
+                                className="flex-1 px-2 py-1 border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary" />
+                              <Button onClick={() => { addFieldOption("occasion", newOptionValue); }} size="sm" variant="accent">
+                                <Plus className="h-3 w-3" /> Add
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
