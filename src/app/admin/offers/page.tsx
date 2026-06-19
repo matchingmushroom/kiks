@@ -5,9 +5,10 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Offer, Product, Category } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { generateId } from "@/lib/id-generator";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  addDoc, collection, updateDoc, doc, Timestamp, deleteDoc, getDocs, query, where,
+  setDoc, collection, updateDoc, doc, Timestamp, deleteDoc, getDocs, query, where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -198,7 +199,8 @@ export default function AdminOffersPage() {
       if (editingId) {
         await updateDoc(doc(db, "offers", editingId), offerData);
       } else {
-        const offerRef = await addDoc(collection(db, "offers"), {
+        const offerId = await generateId("OFFR");
+        await setDoc(doc(db, "offers", offerId), {
           ...offerData,
           createdBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),

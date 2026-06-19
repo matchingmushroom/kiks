@@ -6,6 +6,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Sale, Product, Order, Customer, Invoice } from "@/types";
 import { formatCurrency, formatDate, formatDateTime, generateCouponCode } from "@/lib/utils";
+import { generateId } from "@/lib/id-generator";
 import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -273,7 +274,8 @@ function SalesContent() {
         const product = products.find((p) => p.id === item.productId);
         return { ...item, costPriceAtSale: product?.costPrice || 0 };
       });
-      const saleRef = await addDoc(collection(db, "sales"), {
+      const saleId = await generateId("SALE");
+      await setDoc(doc(db, "sales", saleId), {
         orderId: orderId || "",
         saleType: form.balanceDue > 0 ? (form.receivedAmount > 0 ? "partial" : "credit") : "cash",
         customer: { name: form.customerName, phone: form.customerPhone, address: form.customerAddress, email: "" },
@@ -304,7 +306,8 @@ function SalesContent() {
         await setDoc(invCounterDoc, { lastNumber: invSeq, year }, { merge: true });
         const invoiceNumber = `INV-${year}-${String(invSeq).padStart(4, "0")}`;
 
-        const invRef = await addDoc(collection(db, "invoices"), {
+        const invId = await generateId("INV");
+        await setDoc(doc(db, "invoices", invId), {
           invoiceNumber, type: "invoice", status: "draft",
           customer: { name: form.customerName, phone: form.customerPhone, address: form.customerAddress },
           items: itemsWithCost.map((item) => ({
@@ -321,13 +324,13 @@ function SalesContent() {
           notes: form.notes,
           termsAndConditions: "Goods once sold cannot be returned.",
           validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
-          relatedSaleId: saleRef.id,
+          relatedSaleId: saleId,
           generatedBy: user?.uid || "",
           createdByName: profile?.displayName || "",
           createdAt: Timestamp.fromDate(new Date()),
           updatedAt: Timestamp.fromDate(new Date()),
         });
-        savedInvId = invRef.id;
+        savedInvId = invId;
       } catch (e: any) {
         setInvoiceError("Invoice auto-generation failed: " + (e?.message || "Unknown error"));
         console.error("Auto-invoice failed, sale was still recorded", e);
@@ -353,18 +356,19 @@ function SalesContent() {
           await addDoc(collection(db, "accountTransactions"), {
             accountId: resolveAccount(form.paymentMethod), type: "credit", amount: form.receivedAmount,
             description: `Sale to ${form.customerName}`, date: Timestamp.fromDate(new Date()),
-            referenceType: "sale", referenceId: saleRef.id, recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
+            referenceType: "sale", referenceId: saleId, recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
           });
         }
       } catch (e) { console.error("Account transaction failed", e); }
 
       try {
         if (form.balanceDue > 0) {
-          await addDoc(collection(db, "debtors"), {
+          const debtorId = await generateId("DEBT");
+          await setDoc(doc(db, "debtors", debtorId), {
             customerName: form.customerName, customerPhone: form.customerPhone, customerAddress: form.customerAddress,
             totalAmount: form.finalAmount, amountPaid: form.receivedAmount, balanceDue: form.balanceDue,
             dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
-            orderIds: [saleRef.id], status: "active",
+            orderIds: [saleId], status: "active",
             paymentHistory: form.receivedAmount > 0
               ? [{ date: Timestamp.fromDate(new Date()), amount: form.receivedAmount, method: form.paymentMethod, notes: "Initial payment" }]
               : [],
@@ -385,7 +389,7 @@ function SalesContent() {
             usageLimit: 1, usedCount: 0, isActive: true,
             terms: "To be Used within 1 Months for purchase through our websites https://kiks.gpt.com.np during checkout or at our store's checkout counter",
             issuedToCustomer: { name: form.customerName, phone: form.customerPhone },
-            issuedForOrderId: saleRef.id, createdAt: Timestamp.fromDate(new Date()), createdBy: user?.uid || "",
+            issuedForOrderId: saleId, createdAt: Timestamp.fromDate(new Date()), createdBy: user?.uid || "",
           });
           if (savedInvId) {
             await updateDoc(doc(db, "invoices", savedInvId), {

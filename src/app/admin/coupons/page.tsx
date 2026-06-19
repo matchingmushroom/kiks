@@ -5,9 +5,8 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Coupon } from "@/types";
 import { formatCurrency, formatDate, generateCouponCode, toDate } from "@/lib/utils";
-import {
-  addDoc, updateDoc, deleteDoc, doc, collection, Timestamp,
-} from "firebase/firestore";
+import { generateId } from "@/lib/id-generator";
+import { setDoc, updateDoc, deleteDoc, doc, collection, Timestamp, query, where, getDocs, getDoc, orderBy as fsOrderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Plus, Edit2, Trash2, X, Save, Copy, CheckCircle, Search, LayoutGrid, List } from "lucide-react";
@@ -99,7 +98,8 @@ export default function AdminCouponsPage() {
       if (editingId) {
         await updateDoc(doc(db, "coupons", editingId), data);
       } else {
-        await addDoc(collection(db, "coupons"), {
+        const cupId = await generateId("CUPN");
+        await setDoc(doc(db, "coupons", cupId), {
           ...data,
           usedCount: 0,
           issuedForOrderId: "",

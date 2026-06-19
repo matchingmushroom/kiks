@@ -5,8 +5,9 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Supplier } from "@/types";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import { generateId } from "@/lib/id-generator";
 import {
-  addDoc, updateDoc, deleteDoc, doc, collection, Timestamp, onSnapshot,
+  setDoc, updateDoc, deleteDoc, doc, collection, Timestamp, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -78,7 +79,8 @@ export default function AdminSuppliersPage() {
       if (editingId) {
         await updateDoc(doc(db, "suppliers", editingId), data);
       } else {
-        await addDoc(collection(db, "suppliers"), {
+        const supId = await generateId("SUPP");
+        await setDoc(doc(db, "suppliers", supId), {
           ...data, createdAt: Timestamp.fromDate(new Date()),
         });
       }

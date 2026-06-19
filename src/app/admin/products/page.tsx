@@ -5,8 +5,9 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Product, ProductBadge, Category } from "@/types";
 import { formatCurrency } from "@/lib/utils";
+import { generateId } from "@/lib/id-generator";
 import {
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -120,7 +121,8 @@ export default function AdminProductsPage() {
       if (editingId) {
         await updateDoc(doc(db, "products", editingId), data);
       } else {
-        await addDoc(collection(db, "products"), {
+        const prodId = await generateId("PROD");
+        await setDoc(doc(db, "products", prodId), {
           ...data,
           createdAt: Timestamp.fromDate(new Date()),
         });
@@ -167,7 +169,8 @@ export default function AdminProductsPage() {
     try {
       const dummyProducts = generateDummyProducts(categories.map(c => ({ id: c.id, name: c.name })));
       for (const p of dummyProducts) {
-        await addDoc(collection(db, "products"), p);
+        const prodId = await generateId("PROD");
+        await setDoc(doc(db, "products", prodId), p);
       }
       alert(`Added ${dummyProducts.length} dummy products across ${categories.length} categories successfully.`);
     } catch (e) {

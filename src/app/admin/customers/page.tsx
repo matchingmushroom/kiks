@@ -5,8 +5,9 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Customer } from "@/types";
 import { formatDate, formatDateTime } from "@/lib/utils";
+import { generateId } from "@/lib/id-generator";
 import {
-  addDoc, updateDoc, deleteDoc, doc, collection, Timestamp, onSnapshot,
+  setDoc, updateDoc, deleteDoc, doc, collection, Timestamp, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -75,7 +76,8 @@ export default function AdminCustomersPage() {
       if (editingId) {
         await updateDoc(doc(db, "customers", editingId), data);
       } else {
-        await addDoc(collection(db, "customers"), {
+        const custId = await generateId("CUST");
+        await setDoc(doc(db, "customers", custId), {
           ...data, createdAt: Timestamp.fromDate(new Date()),
         });
       }

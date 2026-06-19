@@ -5,7 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Category } from "@/types";
 import {
-  addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
+import { generateId } from "@/lib/id-generator";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, X, LayoutGrid, List } from "lucide-react";
 
@@ -56,7 +57,8 @@ export default function AdminCategoriesPage() {
       if (editingId) {
         await updateDoc(doc(db, "categories", editingId), data);
       } else {
-        await addDoc(collection(db, "categories"), { ...data, createdAt: Timestamp.fromDate(new Date()) });
+        const catId = await generateId("CAT");
+        await setDoc(doc(db, "categories", catId), { ...data, createdAt: Timestamp.fromDate(new Date()) });
       }
       setShowForm(false);
     } catch (e) {

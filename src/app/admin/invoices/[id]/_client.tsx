@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { generateId } from "@/lib/id-generator";
 import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, Timestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Invoice } from "@/types";
@@ -80,7 +81,8 @@ export default function InvoiceDetailPage() {
       await setDoc(counterDoc, { lastNumber: seq, year }, { merge: true });
       const invoiceNum = `INV-${year}-${String(seq).padStart(4, "0")}`;
 
-      await addDoc(collection(db, "invoices"), {
+      const invId = await generateId("INV");
+      await setDoc(doc(db, "invoices", invId), {
         ...invoice,
         id: undefined,
         type: "invoice",

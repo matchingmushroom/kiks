@@ -5,6 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Expense, ExpenseHead, RecurringExpenseTemplate } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -137,7 +138,8 @@ export default function AdminExpensesPage() {
           });
         }
       } else {
-        const expenseRef = await addDoc(collection(db, "expenses"), {
+        const expenseId = await generateId("EXP");
+        await setDoc(doc(db, "expenses", expenseId), {
           ...data, createdAt: Timestamp.fromDate(new Date()),
         });
         await addDoc(collection(db, "accountTransactions"), {
@@ -147,7 +149,7 @@ export default function AdminExpensesPage() {
           description: `Expense: ${form.title}`,
           date: Timestamp.fromDate(new Date(form.date)),
           referenceType: "expense",
-          referenceId: expenseRef.id,
+          referenceId: expenseId,
           recordedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
@@ -175,7 +177,8 @@ export default function AdminExpensesPage() {
       const now = Timestamp.fromDate(new Date());
       for (const t of templates) {
         if (!t.isActive || t.nextDueDate > Date.now()) continue;
-        const expenseRef = await addDoc(collection(db, "expenses"), {
+        const expenseId = await generateId("EXP");
+        await setDoc(doc(db, "expenses", expenseId), {
           title: t.title,
           amount: t.amount,
           head: t.head,
@@ -195,7 +198,7 @@ export default function AdminExpensesPage() {
           description: `Recurring: ${t.title}`,
           date: now,
           referenceType: "expense",
-          referenceId: expenseRef.id,
+          referenceId: expenseId,
           recordedBy: user?.uid || "",
           createdAt: now,
         });
@@ -236,7 +239,8 @@ export default function AdminExpensesPage() {
       if (editingRecurringId) {
         await updateDoc(doc(db, "recurringExpenses", editingRecurringId), data);
       } else {
-        await addDoc(collection(db, "recurringExpenses"), {
+        const recId = await generateId("RECEXP");
+        await setDoc(doc(db, "recurringExpenses", recId), {
           ...data, createdAt: Timestamp.fromDate(new Date()),
         });
       }

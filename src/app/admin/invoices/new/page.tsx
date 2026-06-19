@@ -7,6 +7,7 @@ import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Product, Customer } from "@/types";
 import { formatCurrency } from "@/lib/utils";
+import { generateId } from "@/lib/id-generator";
 import { Button } from "@/components/ui/button";
 import { addDoc, collection, setDoc, doc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -115,7 +116,8 @@ export default function NewInvoicePage() {
 
       const invoiceNumber = `${prefix}-${year}-${String(seq).padStart(4, "0")}`;
 
-      const docRef = await addDoc(collection(db, "invoices"), {
+      const invId = await generateId("INV");
+      await setDoc(doc(db, "invoices", invId), {
         invoiceNumber,
         type,
         status: "draft",
@@ -138,7 +140,7 @@ export default function NewInvoicePage() {
         updatedAt: Timestamp.fromDate(now),
       });
 
-      router.push(`/admin/invoice-viewer?id=${docRef.id}`);
+      router.push(`/admin/invoice-viewer?id=${invId}`);
     } catch (e) {
       console.error("Save failed", e);
     }

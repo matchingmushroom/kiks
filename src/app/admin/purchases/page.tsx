@@ -5,6 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -186,14 +187,13 @@ export default function AdminPurchasesPage() {
 
   const handleCreateCategory = async () => {
     if (!newCategoryName.trim()) return;
-    const catRef = await addDoc(collection(db, "categories"), {
+    const catId = await generateId("CAT");
+    await setDoc(doc(db, "categories", catId), {
       name: newCategoryName.trim(),
-      description: "",
-      image: "",
-      order: categories.length,
-      isActive: true,
+      description: "", image: "", order: categories.length, isActive: true,
+      createdAt: Timestamp.fromDate(new Date()),
     });
-    setNewProductForm({ ...newProductForm, categoryId: catRef.id });
+    setNewProductForm({ ...newProductForm, categoryId: catId });
     setNewCategoryName("");
     setShowNewCategory(false);
   };
@@ -215,9 +215,10 @@ export default function AdminPurchasesPage() {
       createdAt: Timestamp.fromDate(new Date()),
       updatedAt: Timestamp.fromDate(new Date()),
     };
-    const prodRef = await addDoc(collection(db, "products"), prodData);
+    const prodId = await generateId("PROD");
+    await setDoc(doc(db, "products", prodId), prodData);
     const newProduct: Product = {
-      id: prodRef.id, ...prodData,
+      id: prodId, ...prodData,
       price: f.salesPrice || f.costPrice,
       originalPrice: 0, badge: "none",
       quantityInStock: 0, isActive: true, isFeatured: false,
@@ -252,7 +253,8 @@ export default function AdminPurchasesPage() {
         updatedAt: now,
       });
     } else {
-      await addDoc(collection(db, "creditors"), {
+      const credId = await generateId("CRED");
+      await setDoc(doc(db, "creditors", credId), {
         supplierName,
         supplierPhone: supplierPhone || "",
         purchaseIds: purchaseId ? [purchaseId] : [],
@@ -317,7 +319,8 @@ export default function AdminPurchasesPage() {
           await deleteDoc(doc(db, "accountTransactions", txSnap.docs[0].id));
         }
       } else {
-        const ref = await addDoc(collection(db, "purchases"), purchaseData);
+        const purchaseId = await generateId("PURC");
+        await setDoc(doc(db, "purchases", purchaseId), purchaseData);
         for (const item of form.items) {
           const prodRef = doc(db, "products", item.productId);
           const prodSnap = await getDoc(prodRef);
@@ -352,7 +355,7 @@ export default function AdminPurchasesPage() {
             description: `Purchase from ${form.supplierName}`,
             date: Timestamp.fromDate(new Date()),
             referenceType: "purchase",
-            referenceId: ref.id,
+            referenceId: purchaseId,
             recordedBy: user?.uid || "",
             createdAt: Timestamp.fromDate(new Date()),
           });
@@ -360,7 +363,7 @@ export default function AdminPurchasesPage() {
         if (form.paymentStatus !== "paid") {
           const balanceChange = form.paymentStatus === "unpaid" ? form.totalAmount : Math.max(0, form.totalAmount - (form.paidAmount || 0));
           if (balanceChange > 0) {
-            await upsertCreditor(form.supplierName, form.supplierPhone, balanceChange, ref.id);
+            await upsertCreditor(form.supplierName, form.supplierPhone, balanceChange, purchaseId);
           }
         }
       }
