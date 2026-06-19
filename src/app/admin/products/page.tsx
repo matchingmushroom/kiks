@@ -219,7 +219,7 @@ export default function AdminProductsPage() {
       });
       const res = await fetch(cfg.gasWebhookUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
           action: "uploadImage",
           imageBase64: base64,
@@ -228,15 +228,16 @@ export default function AdminProductsPage() {
           driveFolderId: cfg.imageDriveFolderId || undefined,
         }),
       });
-      const data = await res.json();
+      const text = await res.text();
+      const data = JSON.parse(text);
       if (data.status !== "ok") throw new Error(data.message || "Upload failed");
       const driveUrl = `https://drive.google.com/thumbnail?id=${data.fileId}&sz=w1000`;
       const images = form.images.filter(Boolean);
       images.push(driveUrl, "");
       setForm({ ...form, images });
-    } catch (e) {
+    } catch (e: any) {
       console.error("Upload failed", e);
-      alert("Failed to upload image");
+      alert("Failed to upload image: " + (e.message || e));
     }
     setUploading(false);
   };

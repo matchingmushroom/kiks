@@ -619,7 +619,7 @@ function SalesContent() {
       const period = `${new Date().toISOString().slice(0, 10)}`;
       const res = await fetch(cfg.gasWebhookUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({
           action: "sendReport",
           module: "sales",

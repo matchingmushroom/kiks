@@ -292,7 +292,7 @@ export default function AdminExpensesPage() {
       const csv = exportExpensesCSV(filtered);
       const period = new Date().toISOString().slice(0, 10);
       const res = await fetch(cfg.gasWebhookUrl, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ action: "sendReport", module: "expenses", csv, filename: `expenses-${period}.csv`, period, emailTo: cfg.emailTo || "", driveFolderId: cfg.driveFolderId || "" }),
       });
       const data = await res.json();
