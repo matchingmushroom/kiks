@@ -29,7 +29,7 @@ var CONFIG_DOC = "shop_settings/emailBackupConfig";
  */
 function doPost(e) {
   try {
-    var raw = e.postData && e.postData.contents ? e.postData.contents : (e.parameter && e.parameter.payload ? e.parameter.payload : null);
+    var raw = e.parameter && e.parameter.payload ? e.parameter.payload : (e.postData && e.postData.contents ? e.postData.contents : null);
     var data = JSON.parse(raw);
 
     if (data.action === "uploadImage" && data.imageBase64 && data.filename) {
