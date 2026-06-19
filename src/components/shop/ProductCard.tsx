@@ -50,7 +50,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link
-      href={`/product/${product.id}`}
+      href={`/product-viewer?id=${product.id}`}
       className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all"
     >
       <div className="aspect-square bg-muted relative overflow-hidden">
