@@ -31,6 +31,18 @@ function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
 
+    if (data.action === "uploadImage" && data.imageBase64 && data.filename) {
+      var decoded = Utilities.base64Decode(data.imageBase64);
+      var blob = Utilities.newBlob(decoded, data.mimeType || "image/jpeg", data.filename);
+      var folder = data.driveFolderId
+        ? DriveApp.getFolderById(data.driveFolderId)
+        : DriveApp.getRootFolder();
+      var file = folder.createFile(blob);
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", fileId: file.getId(), name: file.getName() }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (data.action === "sendReport" && data.csv && data.module) {
       var blob = Utilities.newBlob(data.csv, "text/csv", data.filename || (data.module + ".csv"));
 

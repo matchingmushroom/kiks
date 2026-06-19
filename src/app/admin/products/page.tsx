@@ -11,12 +11,12 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  getDoc,
   collection,
   Timestamp,
   getDocs,
 } from "firebase/firestore";
-import { db, storage } from "@/lib/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { db } from "@/lib/firebase";
 import { generateDummyProducts } from "@/lib/dummyProducts";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -202,11 +202,37 @@ export default function AdminProductsPage() {
   const uploadImage = async (file: File) => {
     setUploading(true);
     try {
-      const storageRef = ref(storage, `products/${Date.now()}-${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const configSnap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      const cfg = configSnap.data() as Record<string, any> | undefined;
+      if (!cfg?.gasWebhookUrl) {
+        alert("GAS Webhook URL not configured. Please set it in Settings → Email & Backup first.");
+        return;
+      }
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch(cfg.gasWebhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "uploadImage",
+          imageBase64: base64,
+          filename: file.name,
+          mimeType: file.type,
+          driveFolderId: cfg.imageDriveFolderId || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.status !== "ok") throw new Error(data.message || "Upload failed");
+      const driveUrl = `https://drive.google.com/thumbnail?id=${data.fileId}&sz=w1000`;
       const images = form.images.filter(Boolean);
-      images.push(url, "");
+      images.push(driveUrl, "");
       setForm({ ...form, images });
     } catch (e) {
       console.error("Upload failed", e);
@@ -591,7 +617,7 @@ export default function AdminProductsPage() {
                           {uploading ? (
                             <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...</>
                           ) : (
-                            <><Upload className="h-3.5 w-3.5" /> Upload from Device</>
+                            <><Upload className="h-3.5 w-3.5" /> Upload to Drive</>
                           )}
                           <input type="file" accept="image/*" className="hidden"
                             onChange={async (e) => {

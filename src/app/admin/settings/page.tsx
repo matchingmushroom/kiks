@@ -25,6 +25,7 @@ interface EmailBackupConfig {
   driveBackup: boolean;
   driveFolderId: string;
   gasWebhookUrl: string;
+  imageDriveFolderId: string;
 }
 
 const defaults: Settings = {
@@ -44,6 +45,7 @@ const emailDefaults: EmailBackupConfig = {
   driveBackup: false,
   driveFolderId: "",
   gasWebhookUrl: "",
+  imageDriveFolderId: "",
 };
 
 const ALL_MODULES = [
@@ -281,6 +283,14 @@ export default function SettingsPage() {
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
           )}
+
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Image Upload Folder ID</label>
+            <input type="text" value={emailConfig.imageDriveFolderId}
+              onChange={(e) => setEmailConfig({ ...emailConfig, imageDriveFolderId: e.target.value })}
+              placeholder="1ABC... (separate folder for product images)"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
 
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">GAS Webhook URL</label>
