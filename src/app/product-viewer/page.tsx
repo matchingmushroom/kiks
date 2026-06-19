@@ -11,6 +11,8 @@ import ShopFooter from "@/components/shop/ShopFooter";
 import Link from "next/link";
 
 function fixImageUrl(url: string): string {
+  const gd = url.match(/drive\.google\.com\/file\/d\/([^/?#&]+)/);
+  if (gd) return `https://drive.google.com/uc?export=view&id=${gd[1]}`;
   const match = url.match(/images\.unsplash\.com\/photo-([^?]+)/);
   if (match) return `https://unsplash.com/photos/${match[1]}/download?w=400`;
   return url;

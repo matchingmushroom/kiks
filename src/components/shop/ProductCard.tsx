@@ -20,7 +20,9 @@ const BADGE_STYLES: Record<ProductBadge, { bg: string; label: string }> = {
 };
 
 function imgUrl(url: string): string {
-  return url.replace(/images\.unsplash\.com\/photo-([^?]+)/, "unsplash.com/photos/$1/download?w=400");
+  const gd = url.match(/drive\.google\.com\/file\/d\/([^/?#&]+)/);
+  if (gd) return `https://drive.google.com/uc?export=view&id=${gd[1]}`;
+  return url.replace(/images\.unsplash\.com\/photo-([^?]+)/, "https://unsplash.com/photos/$1/download?w=400");
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
