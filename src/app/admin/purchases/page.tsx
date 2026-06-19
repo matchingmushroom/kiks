@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor } from "@/types";
@@ -12,8 +12,9 @@ import {
   addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc, setDoc, getDocs, query, where, arrayUnion, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { exportPurchasesCSV, downloadBlob } from "@/lib/export";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw, ChevronDown, PlusCircle } from "lucide-react";
+import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw, ChevronDown, PlusCircle, Download, Mail } from "lucide-react";
 
 interface FieldOptions {
   baseMaterial: string[];
@@ -81,6 +82,10 @@ export default function AdminPurchasesPage() {
   const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
   const [detailPurchaseId, setDetailPurchaseId] = useState<string | null>(null);
   const [detailPurchaseData, setDetailPurchaseData] = useState<Purchase | null>(null);
+  const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Inline product creation
   const [showNewProduct, setShowNewProduct] = useState(false);
@@ -478,15 +483,77 @@ export default function AdminPurchasesPage() {
     return () => unsub();
   }, [detailPurchaseId]);
 
+  const filteredData = useMemo(() => {
+    let start = 0, end = Infinity;
+    if (reportRange === "ytd") { start = new Date(new Date().getFullYear(), 0, 1).getTime(); }
+    else if (reportRange === "mtd") { start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime(); }
+    else if (reportRange === "custom" && dateFrom && dateTo) {
+      start = new Date(dateFrom).getTime();
+      end = new Date(dateTo).getTime() + 86400000;
+    }
+    if (start > 0 || end < Infinity) {
+      return purchases.filter((p) => { const d = p.purchaseDate as number; return d >= start && d <= end; });
+    }
+    return purchases;
+  }, [purchases, reportRange, dateFrom, dateTo]);
+
+  const handleDownloadCSV = () => {
+    const csv = exportPurchasesCSV(filteredData);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    downloadBlob(blob, `purchases-${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    try {
+      const snap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      if (!snap.exists()) { alert("Configure Email & Backup in Settings first."); return; }
+      const cfg = snap.data() as any;
+      if (!cfg.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
+      const csv = exportPurchasesCSV(filteredData);
+      const period = new Date().toISOString().slice(0, 10);
+      const res = await fetch(cfg.gasWebhookUrl, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sendReport", module: "purchases", csv, filename: `purchases-${period}.csv`, period, emailTo: cfg.emailTo || "", driveFolderId: cfg.driveFolderId || "" }),
+      });
+      const data = await res.json();
+      if (data.status === "ok") alert("Report sent!"); else alert("Error: " + (data.message || "Unknown"));
+    } catch (e: any) { alert("Failed: " + (e.message || e)); }
+    setSendingEmail(false);
+  };
+
   return (
     <AdminLayout>
       <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-secondary">Purchases</h1>
-            <p className="text-sm text-muted-foreground">{purchases.length} total</p>
+            <p className="text-sm text-muted-foreground">{filteredData.length} total</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={reportRange} onChange={(e) => setReportRange(e.target.value as any)}
+              className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="all">All Time</option>
+              <option value="ytd">Year to Date</option>
+              <option value="mtd">Month to Day</option>
+              <option value="custom">Custom</option>
+            </select>
+            {reportRange === "custom" && (
+              <>
+                <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                  className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                  className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </>
+            )}
+            <button onClick={handleDownloadCSV}
+              className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted flex items-center gap-1.5 text-sm">
+              <Download className="h-4 w-4" /> CSV
+            </button>
+            <button onClick={handleSendEmail} disabled={sendingEmail}
+              className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted flex items-center gap-1.5 text-sm disabled:opacity-50">
+              <Mail className="h-4 w-4" /> {sendingEmail ? "..." : "Send"}
+            </button>
             <button onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
               className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
               {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
@@ -1009,7 +1076,7 @@ export default function AdminPurchasesPage() {
           <p className="text-muted-foreground text-center py-12">No purchases yet.</p>
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {purchases.map((p) => (
+            {filteredData.map((p) => (
               <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
                 <button onClick={() => setDetailPurchaseId(p.id)} className="block space-y-2 w-full text-left">
                   <div className="flex items-start justify-between gap-2">
@@ -1064,7 +1131,7 @@ export default function AdminPurchasesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {purchases.map((p) => (
+                {filteredData.map((p) => (
                   <tr key={p.id} className="hover:bg-muted/30">
                     <td className="px-4 py-2.5 text-sm font-medium text-secondary">{p.supplierName}</td>
                     <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.items?.length || 0}</td>

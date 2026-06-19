@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Creditor } from "@/types";
@@ -13,7 +13,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, Eye, LayoutGrid, List, AlertTriangle } from "lucide-react";
+import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, Eye, LayoutGrid, List, AlertTriangle, Download, Mail } from "lucide-react";
+import { exportCreditorsCSV, downloadBlob } from "@/lib/export";
 
 export default function AdminCreditorsPage() {
   const { data: creditors, loading } = useFirestore<Creditor>("creditors", {
@@ -28,14 +29,31 @@ export default function AdminCreditorsPage() {
   const [selectedCreditor, setSelectedCreditor] = useState<Creditor | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
-  const filtered = creditors.filter((c) => {
-    const matchSearch = !search ||
-      c.supplierName?.toLowerCase().includes(search.toLowerCase()) ||
-      c.supplierPhone?.includes(search);
-    const matchStatus = !statusFilter || c.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const filtered = useMemo(() => {
+    let result = creditors.filter((c) => {
+      const matchSearch = !search ||
+        c.supplierName?.toLowerCase().includes(search.toLowerCase()) ||
+        c.supplierPhone?.includes(search);
+      const matchStatus = !statusFilter || c.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+    let start = 0, end = Infinity;
+    if (reportRange === "ytd") { start = new Date(new Date().getFullYear(), 0, 1).getTime(); }
+    else if (reportRange === "mtd") { start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime(); }
+    else if (reportRange === "custom" && dateFrom && dateTo) {
+      start = new Date(dateFrom).getTime();
+      end = new Date(dateTo).getTime() + 86400000;
+    }
+    if (start > 0 || end < Infinity) {
+      result = result.filter((c) => { const d = c.lastTransactionDate as number; return d >= start && d <= end; });
+    }
+    return result;
+  }, [creditors, search, statusFilter, reportRange, dateFrom, dateTo]);
 
   const activeCount = creditors.filter((c) => c.status === "active").length;
   const totalOutstanding = creditors
@@ -113,6 +131,31 @@ export default function AdminCreditorsPage() {
     setSaving(false);
   };
 
+  const handleDownloadCSV = () => {
+    const csv = exportCreditorsCSV(filtered);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    downloadBlob(blob, `creditors-${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    try {
+      const snap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      if (!snap.exists()) { alert("Configure Email & Backup in Settings first."); return; }
+      const cfg = snap.data() as any;
+      if (!cfg.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
+      const csv = exportCreditorsCSV(filtered);
+      const period = new Date().toISOString().slice(0, 10);
+      const res = await fetch(cfg.gasWebhookUrl, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sendReport", module: "creditors", csv, filename: `creditors-${period}.csv`, period, emailTo: cfg.emailTo || "", driveFolderId: cfg.driveFolderId || "" }),
+      });
+      const data = await res.json();
+      if (data.status === "ok") alert("Report sent!"); else alert("Error: " + (data.message || "Unknown"));
+    } catch (e: any) { alert("Failed: " + (e.message || e)); }
+    setSendingEmail(false);
+  };
+
   return (
     <AdminLayout>
       <div className="p-6">
@@ -145,6 +188,29 @@ export default function AdminCreditorsPage() {
             <option value="">All Status</option>
             <option value="cleared">Cleared</option>
           </select>
+          <select value={reportRange} onChange={(e) => setReportRange(e.target.value as any)}
+            className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            <option value="all">All Time</option>
+            <option value="ytd">Year to Date</option>
+            <option value="mtd">Month to Day</option>
+            <option value="custom">Custom</option>
+          </select>
+          {reportRange === "custom" && (
+            <>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            </>
+          )}
+          <button onClick={handleDownloadCSV}
+            className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5">
+            <Download className="h-4 w-4" /> CSV
+          </button>
+          <button onClick={handleSendEmail} disabled={sendingEmail}
+            className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5 disabled:opacity-50">
+            <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send"}
+          </button>
           <div className="flex items-center gap-1">
             <button onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>

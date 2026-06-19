@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Order, Coupon } from "@/types";
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/utils";
-import { updateDoc, doc, Timestamp } from "firebase/firestore";
+import { updateDoc, doc, Timestamp, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Search, ChevronDown, ChevronUp, ExternalLink, MessageCircle, X, LayoutGrid, List, Edit2, Save } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, ExternalLink, MessageCircle, X, LayoutGrid, List, Edit2, Save, Download, Mail } from "lucide-react";
 import Link from "next/link";
+import { exportOrdersCSV, downloadBlob } from "@/lib/export";
 import { openWhatsApp } from "@/lib/whatsapp";
 
 const STATUSES = ["pending", "confirmed", "shipped", "delivered", "cancelled"] as const;
@@ -38,17 +39,60 @@ export default function AdminOrdersPage() {
   const [editOrder, setEditOrder] = useState<Order | null>(null);
   const [editForm, setEditForm] = useState({ customerName: "", customerPhone: "", customerAddress: "", notes: "" });
   const [editSaving, setEditSaving] = useState(false);
+  const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const confirmedBuyerCoupons = allCoupons.filter((c) => c.couponType === "For Confirmed Buyers" && c.isActive);
 
-  const filtered = orders.filter((o) => {
-    const matchSearch = !search ||
-      o.customer?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      o.customer?.phone?.includes(search) ||
-      o.orderNumber?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = !statusFilter || o.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const filtered = useMemo(() => {
+    let result = orders;
+    result = result.filter((o) => {
+      const matchSearch = !search ||
+        o.customer?.name?.toLowerCase().includes(search.toLowerCase()) ||
+        o.customer?.phone?.includes(search) ||
+        o.orderNumber?.toLowerCase().includes(search.toLowerCase());
+      const matchStatus = !statusFilter || o.status === statusFilter;
+      return matchSearch && matchStatus;
+    });
+    let start = 0, end = Infinity;
+    if (reportRange === "ytd") { start = new Date(new Date().getFullYear(), 0, 1).getTime(); }
+    else if (reportRange === "mtd") { start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime(); }
+    else if (reportRange === "custom" && dateFrom && dateTo) {
+      start = new Date(dateFrom).getTime();
+      end = new Date(dateTo).getTime() + 86400000;
+    }
+    if (start > 0 || end < Infinity) {
+      result = result.filter((o) => { const d = o.createdAt as number; return d >= start && d <= end; });
+    }
+    return result;
+  }, [orders, search, statusFilter, reportRange, dateFrom, dateTo]);
+
+  const handleDownloadCSV = () => {
+    const csv = exportOrdersCSV(filtered);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    downloadBlob(blob, `orders-${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    try {
+      const snap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      if (!snap.exists()) { alert("Configure Email & Backup in Settings first."); return; }
+      const cfg = snap.data() as any;
+      if (!cfg.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
+      const csv = exportOrdersCSV(filtered);
+      const period = new Date().toISOString().slice(0, 10);
+      const res = await fetch(cfg.gasWebhookUrl, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sendReport", module: "orders", csv, filename: `orders-${period}.csv`, period, emailTo: cfg.emailTo || "", driveFolderId: cfg.driveFolderId || "" }),
+      });
+      const data = await res.json();
+      if (data.status === "ok") alert("Report sent!"); else alert("Error: " + (data.message || "Unknown"));
+    } catch (e: any) { alert("Failed: " + (e.message || e)); }
+    setSendingEmail(false);
+  };
 
   const updateStatus = async (id: string, status: string) => {
     await updateDoc(doc(db, "orders", id), { status, updatedAt: Timestamp.fromDate(new Date()) });
@@ -172,6 +216,29 @@ export default function AdminOrdersPage() {
               <option key={s} value={s} className="capitalize">{s}</option>
             ))}
           </select>
+          <select value={reportRange} onChange={(e) => setReportRange(e.target.value as any)}
+            className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            <option value="all">All Time</option>
+            <option value="ytd">Year to Date</option>
+            <option value="mtd">Month to Day</option>
+            <option value="custom">Custom</option>
+          </select>
+          {reportRange === "custom" && (
+            <>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            </>
+          )}
+          <button onClick={handleDownloadCSV}
+            className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5">
+            <Download className="h-4 w-4" /> CSV
+          </button>
+          <button onClick={handleSendEmail} disabled={sendingEmail}
+            className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5 disabled:opacity-50">
+            <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send"}
+          </button>
           <div className="flex items-center gap-1">
             <button onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>

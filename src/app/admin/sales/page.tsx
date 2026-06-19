@@ -14,8 +14,9 @@ import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit, arrayRemove, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2, RotateCcw, Printer } from "lucide-react";
+import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2, RotateCcw, Printer, Download, Mail } from "lucide-react";
 import Link from "next/link";
+import { exportSalesCSV, downloadBlob } from "@/lib/export";
 
 interface LineItem {
   productId: string;
@@ -83,6 +84,10 @@ function SalesContent() {
   const [invoicePreviewId, setInvoicePreviewId] = useState<string | null>(null);
   const [invoicePreviewData, setInvoicePreviewData] = useState<Invoice | null>(null);
   const [showReturned, setShowReturned] = useState(false);
+  const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   // Live-update sale detail modal when the sale doc changes
   useEffect(() => {
@@ -122,8 +127,23 @@ function SalesContent() {
     if (!showReturned) {
       result = result.filter((s) => !s.returned);
     }
+    let start = 0, end = Infinity;
+    if (reportRange === "ytd") {
+      start = new Date(new Date().getFullYear(), 0, 1).getTime();
+    } else if (reportRange === "mtd") {
+      start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+    } else if (reportRange === "custom" && dateFrom && dateTo) {
+      start = new Date(dateFrom).getTime();
+      end = new Date(dateTo).getTime() + 86400000;
+    }
+    if (start > 0 || end < Infinity) {
+      result = result.filter((s) => {
+        const d = s.saleDate as number;
+        return d >= start && d <= end;
+      });
+    }
     return result;
-  }, [sales, search, paymentFilter]);
+  }, [sales, search, paymentFilter, reportRange, dateFrom, dateTo]);
 
   useEffect(() => {
     if (returnDiscount && returnCustomer) {
@@ -580,6 +600,44 @@ function SalesContent() {
     setSavingReturn(false);
   };
 
+  const handleDownloadCSV = () => {
+    const csv = exportSalesCSV(filteredSales);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const date = new Date().toISOString().slice(0, 10);
+    downloadBlob(blob, `sales-${date}.csv`);
+  };
+
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    try {
+      const snap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      if (!snap.exists()) { alert("Configure Email & Backup in Settings first."); return; }
+      const cfg = snap.data() as { emailTo?: string; driveFolderId?: string; gasWebhookUrl?: string };
+      if (!cfg.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
+      const csv = exportSalesCSV(filteredSales);
+      const period = `${new Date().toISOString().slice(0, 10)}`;
+      const res = await fetch(cfg.gasWebhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "sendReport",
+          module: "sales",
+          csv,
+          filename: `sales-${period}.csv`,
+          period,
+          emailTo: cfg.emailTo || "",
+          driveFolderId: cfg.driveFolderId || "",
+        }),
+      });
+      const data = await res.json();
+      if (data.status === "ok") alert("Report sent to email" + (cfg.driveFolderId ? " and saved to Drive" : "") + "!");
+      else alert("Error: " + (data.message || "Unknown error"));
+    } catch (e: any) {
+      alert("Failed to send: " + (e.message || e));
+    }
+    setSendingEmail(false);
+  };
+
   if (loading) {
     return <div className="p-6 text-center text-muted-foreground">Loading...</div>;
   }
@@ -612,6 +670,29 @@ function SalesContent() {
         <button onClick={() => setShowReturned(!showReturned)}
           className={`px-3 py-2 border rounded-lg text-sm flex items-center gap-1.5 ${showReturned ? "bg-yellow-50 border-yellow-300 text-yellow-800" : "border-border text-muted-foreground hover:bg-muted"}`}>
           <RotateCcw className="h-4 w-4" /> {showReturned ? "Hide" : "Show"} Returned
+        </button>
+        <select value={reportRange} onChange={(e) => setReportRange(e.target.value as any)}
+          className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+          <option value="all">All Time</option>
+          <option value="ytd">Year to Date</option>
+          <option value="mtd">Month to Day</option>
+          <option value="custom">Custom</option>
+        </select>
+        {reportRange === "custom" && (
+          <>
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+              className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+              className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </>
+        )}
+        <button onClick={handleDownloadCSV}
+          className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5">
+          <Download className="h-4 w-4" /> CSV
+        </button>
+        <button onClick={handleSendEmail} disabled={sendingEmail}
+          className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5 disabled:opacity-50">
+          <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send"}
         </button>
         <div className="flex items-center gap-1">
           <button onClick={() => setViewMode("grid")}

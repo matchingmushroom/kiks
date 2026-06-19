@@ -1,17 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Product, InventoryLog, Category } from "@/types";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  addDoc, collection, updateDoc, doc, Timestamp,
+  addDoc, collection, updateDoc, doc, Timestamp, getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package, LayoutGrid, List } from "lucide-react";
+import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package, LayoutGrid, List, Download, Mail } from "lucide-react";
+import { exportInventoryCSV, downloadBlob } from "@/lib/export";
 
 export default function AdminInventoryPage() {
   const { data: products } = useFirestore<Product>("products", {
@@ -34,16 +35,33 @@ export default function AdminInventoryPage() {
   const [tab, setTab] = useState<"stock" | "log">("stock");
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
-  const filtered = products.filter((p) => {
-    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
-    if (stockFilter === "low") return matchSearch && p.quantityInStock > 0 && p.quantityInStock <= 3;
-    if (stockFilter === "out") return matchSearch && p.quantityInStock <= 0;
-    if (stockFilter === "active") return matchSearch && p.isActive;
-    return matchSearch;
-  });
+  const filtered = useMemo(() => {
+    let result = products.filter((p) => {
+      const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
+      if (stockFilter === "low") return matchSearch && p.quantityInStock > 0 && p.quantityInStock <= 3;
+      if (stockFilter === "out") return matchSearch && p.quantityInStock <= 0;
+      if (stockFilter === "active") return matchSearch && p.isActive;
+      return matchSearch;
+    });
+    let start = 0, end = Infinity;
+    if (reportRange === "ytd") { start = new Date(new Date().getFullYear(), 0, 1).getTime(); }
+    else if (reportRange === "mtd") { start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime(); }
+    else if (reportRange === "custom" && dateFrom && dateTo) {
+      start = new Date(dateFrom).getTime();
+      end = new Date(dateTo).getTime() + 86400000;
+    }
+    if (start > 0 || end < Infinity) {
+      result = result.filter((p) => { const d = p.createdAt as number; return d >= start && d <= end; });
+    }
+    return result;
+  }, [products, search, stockFilter, reportRange, dateFrom, dateTo]);
 
   const totalStock = products.reduce((s, p) => s + (p.isActive ? p.quantityInStock : 0), 0);
   const lowStockCount = products.filter((p) => p.isActive && p.quantityInStock > 0 && p.quantityInStock <= 3).length;
@@ -116,6 +134,31 @@ export default function AdminInventoryPage() {
     setSaving(false);
   };
 
+  const handleDownloadCSV = () => {
+    const csv = exportInventoryCSV(filtered);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    downloadBlob(blob, `inventory-${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    try {
+      const snap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      if (!snap.exists()) { alert("Configure Email & Backup in Settings first."); return; }
+      const cfg = snap.data() as any;
+      if (!cfg.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
+      const csv = exportInventoryCSV(filtered);
+      const period = new Date().toISOString().slice(0, 10);
+      const res = await fetch(cfg.gasWebhookUrl, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sendReport", module: "inventory", csv, filename: `inventory-${period}.csv`, period, emailTo: cfg.emailTo || "", driveFolderId: cfg.driveFolderId || "" }),
+      });
+      const data = await res.json();
+      if (data.status === "ok") alert("Report sent!"); else alert("Error: " + (data.message || "Unknown"));
+    } catch (e: any) { alert("Failed: " + (e.message || e)); }
+    setSendingEmail(false);
+  };
+
   return (
     <AdminLayout>
       <div className="p-6">
@@ -159,6 +202,29 @@ export default function AdminInventoryPage() {
                 <option value="low">Low Stock (≤3)</option>
                 <option value="out">Out of Stock</option>
               </select>
+              <select value={reportRange} onChange={(e) => setReportRange(e.target.value as any)}
+                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                <option value="all">All Time</option>
+                <option value="ytd">Year to Date</option>
+                <option value="mtd">Month to Day</option>
+                <option value="custom">Custom</option>
+              </select>
+              {reportRange === "custom" && (
+                <>
+                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                    className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                    className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </>
+              )}
+              <button onClick={handleDownloadCSV}
+                className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5">
+                <Download className="h-4 w-4" /> CSV
+              </button>
+              <button onClick={handleSendEmail} disabled={sendingEmail}
+                className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5 disabled:opacity-50">
+                <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send"}
+              </button>
               <button onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
                 className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
                 {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}

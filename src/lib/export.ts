@@ -1,6 +1,26 @@
 import { getDocs, collection } from "firebase/firestore";
 import { db } from "./firebase";
 import JSZip from "jszip";
+import type { Sale, Purchase, Order, Product, Debtor, Creditor, Expense } from "@/types";
+
+function fmt(n: unknown): string {
+  if (n === null || n === undefined) return "";
+  const v = typeof n === "number" ? n : Number(n);
+  return isNaN(v) ? "" : v.toFixed(2);
+}
+
+function esc(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  const s = String(val);
+  if (s.includes(",") || s.includes('"') || s.includes("\n") || s.includes("\r")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+function itemsSummary(items: { productName?: string; quantity?: number }[]): string {
+  return items.map((i) => `${i.quantity || 1}x${i.productName || ""}`).join("; ");
+}
 
 function toCSV(data: Record<string, unknown>[]): string {
   if (data.length === 0) return "";
@@ -168,4 +188,128 @@ export function reportToCSV(report: ReportData): string {
     ),
   ];
   return lines.join("\n");
+}
+
+// ── Full-data CSV generators (for per-module download / email) ──
+
+export function exportSalesCSV(sales: Sale[]): string {
+  const headers = "id,saleDate,Customer Name,Customer Phone,Items,Total Amount,Discount,Final Amount,Payment Method,Received,Balance Due,Warranty,Coupon Code,Notes,Recorded By";
+  const rows = sales.map((s) => [
+    esc(s.id),
+    esc(new Date(s.saleDate).toISOString().slice(0, 10)),
+    esc(s.customer?.name),
+    esc(s.customer?.phone),
+    esc(itemsSummary(s.items)),
+    fmt(s.totalAmount),
+    fmt(s.discountAmount),
+    fmt(s.finalAmount),
+    esc(s.payment?.method),
+    fmt(s.payment?.receivedAmount),
+    fmt(s.payment?.balanceDue),
+    esc(s.warranty?.period),
+    esc(s.couponIssued?.code),
+    esc(s.notes),
+    esc(s.recordedByName),
+  ].join(",")).join("\n");
+  return `${headers}\n${rows}`;
+}
+
+export function exportPurchasesCSV(purchases: Purchase[]): string {
+  const headers = "id,purchaseDate,Supplier,Phone,Items,Total Amount,Paid,Balance Due,Payment Status,Notes,Recorded By";
+  const rows = purchases.map((p) => [
+    esc(p.id),
+    esc(new Date(p.purchaseDate).toISOString().slice(0, 10)),
+    esc(p.supplierName),
+    esc(p.supplierPhone),
+    esc(itemsSummary(p.items)),
+    fmt(p.totalAmount),
+    fmt(p.paidAmount),
+    fmt((p.totalAmount || 0) - (p.paidAmount || 0)),
+    esc(p.paymentStatus),
+    esc(p.notes),
+    esc(p.recordedByName),
+  ].join(",")).join("\n");
+  return `${headers}\n${rows}`;
+}
+
+export function exportOrdersCSV(orders: Order[]): string {
+  const headers = "id,orderNumber,Date,Customer Name,Phone,Items,Total Amount,Status,Coupon Code,Notes,Processed By";
+  const rows = orders.map((o) => [
+    esc(o.id),
+    esc(o.orderNumber),
+    esc(new Date(o.createdAt).toISOString().slice(0, 10)),
+    esc(o.customer?.name),
+    esc(o.customer?.phone),
+    esc(itemsSummary(o.items)),
+    fmt(o.totalAmount),
+    esc(o.status),
+    esc(o.couponApplied?.code),
+    esc(o.notes),
+    esc(o.processedBy),
+  ].join(",")).join("\n");
+  return `${headers}\n${rows}`;
+}
+
+export function exportInventoryCSV(products: Product[]): string {
+  const headers = "id,Name,SKU,Brand,Quantity In Stock,Cost Price,Sales Price,Weight,Purity,Metal Type,Is Active";
+  const rows = products.map((p) => [
+    esc(p.id),
+    esc(p.name),
+    esc(p.sku),
+    esc(p.brand),
+    String(p.quantityInStock ?? 0),
+    fmt(p.costPrice),
+    fmt(p.price),
+    fmt(p.weight),
+    esc(p.purity),
+    esc(p.metalType),
+    p.isActive ? "Yes" : "No",
+  ].join(",")).join("\n");
+  return `${headers}\n${rows}`;
+}
+
+export function exportDebtorsCSV(debtors: Debtor[]): string {
+  const headers = "id,Customer Name,Phone,Total Amount,Amount Paid,Balance Due,Due Date,Status";
+  const rows = debtors.map((d) => [
+    esc(d.id),
+    esc(d.customerName),
+    esc(d.customerPhone),
+    fmt(d.totalAmount),
+    fmt(d.amountPaid),
+    fmt(d.balanceDue),
+    esc(new Date(d.dueDate).toISOString().slice(0, 10)),
+    esc(d.status),
+  ].join(",")).join("\n");
+  return `${headers}\n${rows}`;
+}
+
+export function exportCreditorsCSV(creditors: Creditor[]): string {
+  const headers = "id,Supplier Name,Phone,Total Amount,Amount Paid,Balance Due,Due Date,Status,Last Transaction Date";
+  const rows = creditors.map((c) => [
+    esc(c.id),
+    esc(c.supplierName),
+    esc(c.supplierPhone),
+    fmt(c.totalAmount),
+    fmt(c.amountPaid),
+    fmt(c.balanceDue),
+    esc(new Date(c.dueDate).toISOString().slice(0, 10)),
+    esc(c.status),
+    esc(c.lastTransactionDate ? new Date(c.lastTransactionDate).toISOString().slice(0, 10) : ""),
+  ].join(",")).join("\n");
+  return `${headers}\n${rows}`;
+}
+
+export function exportExpensesCSV(expenses: Expense[]): string {
+  const headers = "id,Date,Title,Amount,Head,Payment Method,Description,Recorded By";
+  const rows = expenses.map((e) => [
+    esc(e.id),
+    esc(new Date(e.date).toISOString().slice(0, 10)),
+    esc(e.title),
+    fmt(e.amount),
+    esc(e.head),
+    esc(e.paymentMethod),
+    esc(e.description),
+    esc(e.recordedBy),
+  ].join(",")).join("\n");
+  return `${headers}\n${rows}`;
 }

@@ -9,13 +9,14 @@ import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  addDoc, collection, updateDoc, doc, Timestamp, deleteDoc, setDoc, getDocs, query, where,
+  addDoc, collection, updateDoc, doc, Timestamp, deleteDoc, setDoc, getDoc, getDocs, query, where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
-  Plus, Search, X, Save, Trash2, Edit2, Repeat, AlertCircle, LayoutGrid, List,
+  Plus, Search, X, Save, Trash2, Edit2, Repeat, AlertCircle, LayoutGrid, List, Download, Mail,
 } from "lucide-react";
+import { exportExpensesCSV, downloadBlob } from "@/lib/export";
 
 const EXPENSE_HEADS: ExpenseHead[] = [
   "Rent", "Salary", "Electricity", "Water", "Internet",
@@ -64,6 +65,10 @@ export default function AdminExpensesPage() {
   const [headFilter, setHeadFilter] = useState("");
   const [tab, setTab] = useState<"expenses" | "recurring">("expenses");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const [showRecurringForm, setShowRecurringForm] = useState(false);
   const [editingRecurringId, setEditingRecurringId] = useState<string | null>(null);
@@ -76,12 +81,25 @@ export default function AdminExpensesPage() {
     setDueCount(count);
   }, [templates]);
 
-  const filtered = expenses.filter((e) => {
-    const matchSearch = !search ||
-      e.title?.toLowerCase().includes(search.toLowerCase());
-    const matchHead = !headFilter || e.head === headFilter;
-    return matchSearch && matchHead;
-  });
+  const filtered = useMemo(() => {
+    let result = expenses.filter((e) => {
+      const matchSearch = !search ||
+        e.title?.toLowerCase().includes(search.toLowerCase());
+      const matchHead = !headFilter || e.head === headFilter;
+      return matchSearch && matchHead;
+    });
+    let start = 0, end = Infinity;
+    if (reportRange === "ytd") { start = new Date(new Date().getFullYear(), 0, 1).getTime(); }
+    else if (reportRange === "mtd") { start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime(); }
+    else if (reportRange === "custom" && dateFrom && dateTo) {
+      start = new Date(dateFrom).getTime();
+      end = new Date(dateTo).getTime() + 86400000;
+    }
+    if (start > 0 || end < Infinity) {
+      result = result.filter((e) => { const d = e.date as number; return d >= start && d <= end; });
+    }
+    return result;
+  }, [expenses, search, headFilter, reportRange, dateFrom, dateTo]);
 
   const openAdd = () => {
     setForm(emptyForm);
@@ -257,6 +275,31 @@ export default function AdminExpensesPage() {
     await deleteDoc(doc(db, "recurringExpenses", id));
   };
 
+  const handleDownloadCSV = () => {
+    const csv = exportExpensesCSV(filtered);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    downloadBlob(blob, `expenses-${new Date().toISOString().slice(0, 10)}.csv`);
+  };
+
+  const handleSendEmail = async () => {
+    setSendingEmail(true);
+    try {
+      const snap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      if (!snap.exists()) { alert("Configure Email & Backup in Settings first."); return; }
+      const cfg = snap.data() as any;
+      if (!cfg.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
+      const csv = exportExpensesCSV(filtered);
+      const period = new Date().toISOString().slice(0, 10);
+      const res = await fetch(cfg.gasWebhookUrl, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sendReport", module: "expenses", csv, filename: `expenses-${period}.csv`, period, emailTo: cfg.emailTo || "", driveFolderId: cfg.driveFolderId || "" }),
+      });
+      const data = await res.json();
+      if (data.status === "ok") alert("Report sent!"); else alert("Error: " + (data.message || "Unknown"));
+    } catch (e: any) { alert("Failed: " + (e.message || e)); }
+    setSendingEmail(false);
+  };
+
   return (
     <AdminLayout>
       <div className="p-6">
@@ -318,6 +361,29 @@ export default function AdminExpensesPage() {
                 <option value="">All Heads</option>
                 {allHeads.map((h) => <option key={h} value={h}>{h}</option>)}
               </select>
+              <select value={reportRange} onChange={(e) => setReportRange(e.target.value as any)}
+                className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                <option value="all">All Time</option>
+                <option value="ytd">Year to Date</option>
+                <option value="mtd">Month to Day</option>
+                <option value="custom">Custom</option>
+              </select>
+              {reportRange === "custom" && (
+                <>
+                  <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                    className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                    className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </>
+              )}
+              <button onClick={handleDownloadCSV}
+                className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5">
+                <Download className="h-4 w-4" /> CSV
+              </button>
+              <button onClick={handleSendEmail} disabled={sendingEmail}
+                className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5 disabled:opacity-50">
+                <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send"}
+              </button>
             </div>
 
             {showForm && (
