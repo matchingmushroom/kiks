@@ -206,10 +206,12 @@ function ViewerInner() {
               </div>
             )}
 
-            <div className="border-t border-border pt-6 text-center text-xs text-muted-foreground">
-              <p>Thank you for your business! &bull; {shopName}</p>
-              {shopAddress && <p>{shopAddress}</p>}
-            </div>
+            {!invoice.couponIssued && (
+              <div className="border-t border-border pt-6 text-center text-xs text-muted-foreground">
+                <p>Thank you for your business! &bull; {shopName}</p>
+                {shopAddress && <p>{shopAddress}</p>}
+              </div>
+            )}
           </div>
         </div>
       </div>

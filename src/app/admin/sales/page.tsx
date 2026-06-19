@@ -376,10 +376,10 @@ function SalesContent() {
       try {
         if (form.couponType !== "none" && form.couponValue > 0) {
           const couponCode = generateCouponCode();
+          const discountType = form.couponType === "percentage" ? "percentage" : "fixed";
           const discountValue = form.couponType === "percentage" ? Math.min(form.couponValue, 100) : form.couponValue;
           await setDoc(doc(db, "coupons", couponCode), {
-            code: couponCode, discountType: form.couponType === "percentage" ? "percentage" : "fixed",
-            discountValue, minPurchaseAmount: 0, maxDiscount: 200,
+            code: couponCode, discountType, discountValue, minPurchaseAmount: 0, maxDiscount: 200,
             validFrom: Timestamp.fromDate(new Date()),
             validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
             usageLimit: 1, usedCount: 0, isActive: true,
@@ -387,6 +387,12 @@ function SalesContent() {
             issuedToCustomer: { name: form.customerName, phone: form.customerPhone },
             issuedForOrderId: saleRef.id, createdAt: Timestamp.fromDate(new Date()), createdBy: user?.uid || "",
           });
+          if (savedInvId) {
+            await updateDoc(doc(db, "invoices", savedInvId), {
+              couponIssued: { code: couponCode, discountValue, discountType, terms: "To be Used within 1 Months" },
+              updatedAt: Timestamp.fromDate(new Date()),
+            });
+          }
         }
       } catch (e) { console.error("Coupon creation failed", e); }
 
