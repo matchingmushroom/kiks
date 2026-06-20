@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
-import { collection, query, where, getAggregateFromServer, sum, count, Timestamp } from "firebase/firestore";
+import { collection, query, where, getAggregateFromServer, sum, count } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Sale, Product, Debtor, Order, Category } from "@/types";
 import { formatCurrency, formatNumber, toDate } from "@/lib/utils";
@@ -55,30 +55,19 @@ export default function AdminDashboardPage() {
   });
 
   const [agg, setAgg] = useState<Record<string, number | null>>({
-    ytd: null, mtd: null, total: null, debtBalance: null, lowStock: null, activeDebtors: null,
+    total: null, debtBalance: null, lowStock: null, activeDebtors: null,
   });
 
   useEffect(() => {
-    const now = new Date();
-    const startOfYear = Timestamp.fromDate(new Date(now.getFullYear(), 0, 1));
-    const startOfMonth = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1));
-    const yearEnd = Timestamp.fromDate(new Date(now.getFullYear() + 1, 0, 1));
-
-    const salesYtd = query(collection(db, "sales"), where("saleDate", ">=", startOfYear), where("saleDate", "<", yearEnd));
-    const salesMtd = query(collection(db, "sales"), where("saleDate", ">=", startOfMonth));
     const activeDebtorsQ = query(collection(db, "debtors"), where("status", "==", "active"));
     const lowStockQ = query(collection(db, "products"), where("quantityInStock", ">", 0), where("quantityInStock", "<=", 3));
 
     Promise.all([
-      getAggregateFromServer(salesYtd, { total: sum("finalAmount") }),
-      getAggregateFromServer(salesMtd, { total: sum("finalAmount") }),
       getAggregateFromServer(query(collection(db, "sales")), { total: sum("finalAmount") }),
       getAggregateFromServer(activeDebtorsQ, { total: sum("balanceDue"), count: count() }),
       getAggregateFromServer(lowStockQ, { count: count() }),
-    ]).then(([ytd, mtd, all, ad, ls]) => {
+    ]).then(([all, ad, ls]) => {
       setAgg({
-        ytd: ytd.data().total ?? 0,
-        mtd: mtd.data().total ?? 0,
         total: all.data().total ?? 0,
         debtBalance: ad.data().total ?? 0,
         lowStock: ls.data().count ?? 0,
@@ -96,15 +85,6 @@ export default function AdminDashboardPage() {
   const lowStockItems = products.filter((p) => p.quantityInStock > 0 && p.quantityInStock <= 3);
   const activeDebtorsList = debtors.filter((d) => d.status === "active");
 
-  const stats = [
-    { label: "YTD Sales", value: agg.ytd !== null ? formatCurrency(agg.ytd) : "—", icon: TrendingUp, color: "text-green-600 bg-green-50" },
-    { label: "MTD Sales", value: agg.mtd !== null ? formatCurrency(agg.mtd) : "—", icon: Wallet, color: "text-blue-600 bg-blue-50" },
-    { label: "Total Sales", value: agg.total !== null ? formatCurrency(agg.total) : "—", icon: Package, color: "text-purple-600 bg-purple-50" },
-    { label: "Debtors Balance", value: agg.debtBalance !== null ? formatCurrency(agg.debtBalance) : "—", icon: Users, color: "text-red-600 bg-red-50" },
-    { label: "Low Stock Items", value: agg.lowStock !== null ? agg.lowStock.toString() : "—", icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
-    { label: "Active Debtors", value: agg.activeDebtors !== null ? agg.activeDebtors.toString() : "—", icon: Users, color: "text-orange-600 bg-orange-50" },
-  ];
-
   const last30 = getLast30Days();
   const safeDate = (d: unknown) => {
     try {
@@ -115,6 +95,26 @@ export default function AdminDashboardPage() {
       return new Date(ms).toISOString().slice(0, 10);
     } catch { return ""; }
   };
+
+  const now = new Date();
+  const ytdStart = new Date(now.getFullYear(), 0, 1).toISOString().slice(0, 10);
+  const mtdStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const ytdSales = mySales
+    .filter((s) => safeDate(s.saleDate) >= ytdStart)
+    .reduce((sum, s) => sum + s.finalAmount, 0);
+  const mtdSales = mySales
+    .filter((s) => safeDate(s.saleDate) >= mtdStart)
+    .reduce((sum, s) => sum + s.finalAmount, 0);
+
+  const stats = [
+    { label: "YTD Sales", value: formatCurrency(ytdSales), icon: TrendingUp, color: "text-green-600 bg-green-50" },
+    { label: "MTD Sales", value: formatCurrency(mtdSales), icon: Wallet, color: "text-blue-600 bg-blue-50" },
+    { label: "Total Sales", value: agg.total !== null ? formatCurrency(agg.total) : "—", icon: Package, color: "text-purple-600 bg-purple-50" },
+    { label: "Debtors Balance", value: agg.debtBalance !== null ? formatCurrency(agg.debtBalance) : "—", icon: Users, color: "text-red-600 bg-red-50" },
+    { label: "Low Stock Items", value: agg.lowStock !== null ? agg.lowStock.toString() : "—", icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
+    { label: "Active Debtors", value: agg.activeDebtors !== null ? agg.activeDebtors.toString() : "—", icon: Users, color: "text-orange-600 bg-orange-50" },
+  ];
+
   const salesTrend = last30.map((date) => ({
     date: date.slice(5),
     sales: mySales
