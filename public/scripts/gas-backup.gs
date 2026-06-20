@@ -39,13 +39,13 @@ function doPost(e) {
         : DriveApp.getRootFolder();
       var file = folder.createFile(blob);
 
-      if (data.uploadId && data.uploadId.length > 0) {
+      if (data.uploadId && data.uploadId.length > 0 && data.authToken) {
         try {
           firestoreWrite("pendingUploads/" + data.uploadId, {
             status: "done",
             fileId: file.getId(),
             name: file.getName(),
-          });
+          }, data.authToken);
         } catch (e) {
           console.log("firestoreWrite error: " + e);
         }
@@ -154,19 +154,7 @@ function doBackup() {
   }
 }
 
-// ── FIRESTORE AUTH + WRITE HELPERS ────────────────────
-
-function getFirebaseToken() {
-  var url = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + FIREBASE_CONFIG.apiKey;
-  var resp = UrlFetchApp.fetch(url, {
-    method: "POST",
-    payload: JSON.stringify({ returnSecureToken: true }),
-    contentType: "application/json",
-    muteHttpExceptions: true,
-  });
-  var data = JSON.parse(resp.getContentText());
-  return data.idToken;
-}
+// ── FIRESTORE WRITE HELPER ────────────────────────────
 
 function objToFields(obj) {
   var fields = {};
@@ -192,8 +180,7 @@ function valueToField(v) {
   return { stringValue: String(v) };
 }
 
-function firestoreWrite(path, data) {
-  var token = getFirebaseToken();
+function firestoreWrite(path, data, token) {
   var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + path + "?key=" + FIREBASE_CONFIG.apiKey;
   var payload = { fields: objToFields(data) };
   UrlFetchApp.fetch(url, {

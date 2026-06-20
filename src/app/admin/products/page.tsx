@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useAuth } from "@/contexts/AuthContext";
 import { Product, ProductBadge, Category } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
@@ -50,6 +51,8 @@ export default function AdminProductsPage() {
     constraints: [orderBy("order", "asc")],
     realtime: false,
   });
+
+  const { user } = useAuth();
 
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("");
@@ -236,6 +239,8 @@ export default function AdminProductsPage() {
         setUploading(false);
       });
 
+      const authToken = await user?.getIdToken();
+
       await setDoc(doc(db, "pendingUploads", uploadId), { status: "pending", createdAt: Timestamp.fromDate(new Date()) });
 
       fetch(cfg.gasWebhookUrl, {
@@ -244,7 +249,7 @@ export default function AdminProductsPage() {
         body: JSON.stringify({
           action: "uploadImage", imageBase64: base64, filename: file.name,
           mimeType: file.type, driveFolderId: cfg.imageDriveFolderId || undefined,
-          uploadId,
+          uploadId, authToken,
         }),
       });
     } catch (e: any) {
