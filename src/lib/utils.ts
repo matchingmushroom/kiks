@@ -90,3 +90,58 @@ export function amountInWords(amount: number): string {
   if (fraction > 0) result += ` and ${fraction}/100`;
   return result.trim() + " Only";
 }
+
+export function compressImageUnder200KB(file: File): Promise<{ base64: string; mimeType: string; filename: string }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const supportsWebP = typeof document !== "undefined" && document.createElement("canvas").toDataURL("image/webp").indexOf("image/webp") === 5;
+      const ext = supportsWebP ? "webp" : "jpeg";
+      const mime = supportsWebP ? "image/webp" : "image/jpeg";
+      const baseName = file.name.replace(/\.[^.]+$/, "");
+
+      let maxDim = 2000;
+      let quality = 0.85;
+      const MAX_TARGET = 200 * 1024;
+
+      const tryCompress = () => {
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) { h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob((blob) => {
+          if (!blob) { reject(new Error("Canvas toBlob failed")); return; }
+          if (blob.size < MAX_TARGET) {
+            const reader = new FileReader();
+            reader.onload = () => resolve({ base64: (reader.result as string).split(",")[1], mimeType: mime, filename: `${baseName}.${ext}` });
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          } else {
+            if (quality > 0.3) {
+              quality -= 0.1;
+              tryCompress();
+            } else if (maxDim > 800) {
+              maxDim = Math.max(800, maxDim - 400);
+              quality = 0.85;
+              tryCompress();
+            } else {
+              const reader = new FileReader();
+              reader.onload = () => resolve({ base64: (reader.result as string).split(",")[1], mimeType: mime, filename: `${baseName}.${ext}` });
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            }
+          }
+        }, mime, quality);
+      };
+      tryCompress();
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}

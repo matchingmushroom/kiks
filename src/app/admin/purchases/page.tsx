@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor } from "@/types";
-import { formatCurrency, formatDate, toDate } from "@/lib/utils";
+import { formatCurrency, formatDate, toDate, compressImageUnder200KB } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -517,25 +517,8 @@ function PurchasesContent() {
         alert("GAS Webhook URL not configured. Please set it in Settings first.");
         setUploadingBill(false); return;
       }
-      // Compress image client-side: resize to max 2000px, JPEG quality 0.9
-      const compressedBase64 = await new Promise<string>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-          const MAX = 2000;
-          let w = img.naturalWidth, h = img.naturalHeight;
-          if (w > MAX || h > MAX) {
-            if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
-            else { w = Math.round(w * MAX / h); h = MAX; }
-          }
-          const canvas = document.createElement("canvas");
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext("2d")!;
-          ctx.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL("image/jpeg", 0.9).split(",")[1]);
-        };
-        img.onerror = reject;
-        img.src = URL.createObjectURL(file);
-      });
+      // Compress client-side: WebP with size-feedback loop to stay under 200KB
+      const { base64: compressedBase64, mimeType: compressedMime, filename: compressedName } = await compressImageUnder200KB(file);
       const uploadId = "up_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
       const timeoutId = setTimeout(() => setUploadingBill(false), 30000);
       const unsub = onSnapshot(doc(db, "pendingUploads", uploadId), (snap) => {
@@ -561,8 +544,8 @@ function PurchasesContent() {
         body: JSON.stringify({
           action: "uploadImage",
           imageBase64: compressedBase64,
-          filename: "bill_" + file.name.replace(/\.[^.]+$/, "") + ".jpg",
-          mimeType: "image/jpeg",
+          filename: "bill_" + compressedName,
+          mimeType: compressedMime,
           driveFolderId: cfg.billDriveFolderId || cfg.imageDriveFolderId || cfg.driveFolderId || undefined,
           uploadId,
           authToken,

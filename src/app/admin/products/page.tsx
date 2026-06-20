@@ -5,7 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Product, ProductBadge, Category } from "@/types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, compressImageUnder200KB } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
 import {
   setDoc,
@@ -213,13 +213,9 @@ export default function AdminProductsPage() {
         setUploading(false); return;
       }
 
+      // Compress client-side: WebP with size-feedback loop to stay under 200KB
+      const { base64: compressedBase64, mimeType: compressedMime, filename: compressedName } = await compressImageUnder200KB(file);
       const uploadId = "up_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
 
       const timeoutId = setTimeout(() => setUploading(false), 30000);
       const unsub = onSnapshot(doc(db, "pendingUploads", uploadId), (snap) => {
@@ -247,8 +243,8 @@ export default function AdminProductsPage() {
         method: "POST",
         mode: "no-cors",
         body: JSON.stringify({
-          action: "uploadImage", imageBase64: base64, filename: file.name,
-          mimeType: file.type, driveFolderId: cfg.imageDriveFolderId || undefined,
+          action: "uploadImage", imageBase64: compressedBase64, filename: compressedName,
+          mimeType: compressedMime, driveFolderId: cfg.imageDriveFolderId || undefined,
           uploadId, authToken,
         }),
       });
