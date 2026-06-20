@@ -29,8 +29,7 @@ var CONFIG_DOC = "shop_settings/emailBackupConfig";
  */
 function doPost(e) {
   try {
-    var raw = e.parameter && e.parameter.payload ? e.parameter.payload : (e.postData && e.postData.contents ? e.postData.contents : null);
-    var data = JSON.parse(raw);
+    var data = JSON.parse(e.postData.contents);
 
     if (data.action === "uploadImage" && data.imageBase64 && data.filename) {
       var decoded = Utilities.base64Decode(data.imageBase64);
@@ -39,10 +38,22 @@ function doPost(e) {
         ? DriveApp.getFolderById(data.driveFolderId)
         : DriveApp.getRootFolder();
       var file = folder.createFile(blob);
-      var result = JSON.stringify({ status: "ok", fileId: file.getId(), name: file.getName() });
-      return HtmlService.createHtmlOutput(
-        '<html><body><script>parent.postMessage(' + result + ', "*");</script></body></html>'
-      );
+
+      if (data.uploadId && data.uploadId.length > 0) {
+        try {
+          firestoreWrite("pendingUploads/" + data.uploadId, {
+            status: "done",
+            fileId: file.getId(),
+            name: file.getName(),
+          });
+        } catch (e) {
+          console.log("firestoreWrite error: " + e);
+        }
+      }
+
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", fileId: file.getId() }))
+        .setMimeType(ContentService.MimeType.JSON);
     }
 
     if (data.action === "sendReport" && data.csv && data.module) {
@@ -141,6 +152,57 @@ function doBackup() {
       attachments: attachments,
     });
   }
+}
+
+// ── FIRESTORE AUTH + WRITE HELPERS ────────────────────
+
+function getFirebaseToken() {
+  var url = "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=" + FIREBASE_CONFIG.apiKey;
+  var resp = UrlFetchApp.fetch(url, {
+    method: "POST",
+    payload: JSON.stringify({ returnSecureToken: true }),
+    contentType: "application/json",
+    muteHttpExceptions: true,
+  });
+  var data = JSON.parse(resp.getContentText());
+  return data.idToken;
+}
+
+function objToFields(obj) {
+  var fields = {};
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      fields[key] = valueToField(obj[key]);
+    }
+  }
+  return fields;
+}
+
+function valueToField(v) {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === "string") return { stringValue: v };
+  if (typeof v === "number") {
+    if (v % 1 === 0 && Math.abs(v) < 9007199254740991) return { integerValue: String(v) };
+    return { doubleValue: v };
+  }
+  if (typeof v === "boolean") return { booleanValue: v };
+  if (v instanceof Date) return { timestampValue: v.toISOString() };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(valueToField) } };
+  if (typeof v === "object") return { mapValue: { fields: objToFields(v) } };
+  return { stringValue: String(v) };
+}
+
+function firestoreWrite(path, data) {
+  var token = getFirebaseToken();
+  var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + path + "?key=" + FIREBASE_CONFIG.apiKey;
+  var payload = { fields: objToFields(data) };
+  UrlFetchApp.fetch(url, {
+    method: "PATCH",
+    headers: { Authorization: "Bearer " + token },
+    payload: JSON.stringify(payload),
+    contentType: "application/json",
+    muteHttpExceptions: true,
+  });
 }
 
 // ── FIRESTORE REST HELPERS ────────────────────────────

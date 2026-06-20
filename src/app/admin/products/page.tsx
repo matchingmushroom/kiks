@@ -15,6 +15,7 @@ import {
   collection,
   Timestamp,
   getDocs,
+  onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateDummyProducts } from "@/lib/dummyProducts";
@@ -206,8 +207,10 @@ export default function AdminProductsPage() {
       const cfg = configSnap.data() as Record<string, any> | undefined;
       if (!cfg?.gasWebhookUrl) {
         alert("GAS Webhook URL not configured. Please set it in Settings → Email & Backup first.");
-        return;
+        setUploading(false); return;
       }
+
+      const uploadId = "up_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve((reader.result as string).split(",")[1]);
@@ -215,48 +218,40 @@ export default function AdminProductsPage() {
         reader.readAsDataURL(file);
       });
 
-      const fileId = await new Promise<string>((resolve, reject) => {
-        const iframe = document.createElement("iframe");
-        iframe.style.display = "none";
-        iframe.name = "uploadFrame";
-        document.body.appendChild(iframe);
-
-        const timeout = setTimeout(() => { reject(new Error("Upload timed out")); cleanup(); }, 60000);
-        const cleanup = () => { clearTimeout(timeout); window.removeEventListener("message", handler); document.body.removeChild(iframe); };
-        const handler = (e: MessageEvent) => {
-          if (e.data?.status === "ok" && e.data?.fileId) { cleanup(); resolve(e.data.fileId); }
-          else if (e.data?.status === "error") { cleanup(); reject(new Error(e.data.message || "Upload failed")); }
-        };
-        window.addEventListener("message", handler);
-
-        const form = document.createElement("form");
-        form.method = "POST";
-        form.action = cfg.gasWebhookUrl;
-        form.target = "uploadFrame";
-        form.style.display = "none";
-        const ta = document.createElement("textarea");
-        ta.name = "payload";
-        ta.value = JSON.stringify({
-          action: "uploadImage", imageBase64: base64, filename: file.name,
-          mimeType: file.type, driveFolderId: cfg.imageDriveFolderId || undefined,
-        });
-        form.appendChild(ta);
-        document.body.appendChild(form);
-        form.submit();
-        document.body.removeChild(form);
+      const timeoutId = setTimeout(() => setUploading(false), 30000);
+      const unsub = onSnapshot(doc(db, "pendingUploads", uploadId), (snap) => {
+        const d = snap.data();
+        if (!d || d.status === "pending") return;
+        clearTimeout(timeoutId);
+        unsub();
+        if (d.status === "done") {
+          const driveUrl = `https://drive.google.com/thumbnail?id=${d.fileId}&sz=w1000`;
+          const images = [...form.images];
+          const emptyIdx = images.indexOf("");
+          if (emptyIdx !== -1) images[emptyIdx] = driveUrl;
+          else images.push(driveUrl, "");
+          setForm({ ...form, images });
+        }
+        deleteDoc(doc(db, "pendingUploads", uploadId)).catch(() => {});
+        setUploading(false);
       });
 
-      const driveUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
-      const images = [...form.images];
-      const emptyIdx = images.indexOf("");
-      if (emptyIdx !== -1) images[emptyIdx] = driveUrl;
-      else images.push(driveUrl, "");
-      setForm({ ...form, images });
+      await setDoc(doc(db, "pendingUploads", uploadId), { status: "pending", createdAt: Timestamp.fromDate(new Date()) });
+
+      fetch(cfg.gasWebhookUrl, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({
+          action: "uploadImage", imageBase64: base64, filename: file.name,
+          mimeType: file.type, driveFolderId: cfg.imageDriveFolderId || undefined,
+          uploadId,
+        }),
+      });
     } catch (e: any) {
       console.error("Upload failed", e);
       alert("Failed to upload image: " + (e.message || e));
+      setUploading(false);
     }
-    setUploading(false);
   };
 
   const importFromFlipkart = async () => {
