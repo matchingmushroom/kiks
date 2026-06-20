@@ -38,6 +38,7 @@ function doPost(e) {
         ? DriveApp.getFolderById(data.driveFolderId)
         : DriveApp.getRootFolder();
       var file = folder.createFile(blob);
+      file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
 
       if (data.uploadId && data.uploadId.length > 0 && data.authToken) {
         try {
