@@ -372,6 +372,9 @@ export interface ShopSettings {
   address: string;
   whatsappNumber: string;
   currency: string;
+  gasWebhookUrl?: string;
+  emailTo?: string;
+  driveFolderId?: string;
 }
 
 export interface PaymentHistoryEntry {

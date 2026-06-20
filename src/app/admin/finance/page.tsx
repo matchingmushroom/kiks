@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import {
-  Sale, Product, Expense, Debtor, Purchase,
-  Account, AccountTransaction, Creditor,
+  Account, AccountTransaction,
 } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { ACCOUNTS } from "@/lib/accounts";
@@ -16,6 +16,30 @@ import { Button } from "@/components/ui/button";
 import {
   Download, Plus, X, Save, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
+
+interface PnlResult {
+  grossRevenue: number;
+  cogs: number;
+  grossProfit: number;
+  totalExpenses: number;
+  expenseByHead: Record<string, number>;
+  netProfit: number;
+  saleCount: number;
+}
+
+interface BalanceSheetResult {
+  cashBalance: number;
+  bankBalance: number;
+  closingStock: number;
+  productCount: number;
+  sundryDebtors: number;
+  sundryCreditors: number;
+  openingCapital: number;
+  retainedEarnings: number;
+  totalAssets: number;
+  totalLiabilities: number;
+  totalEquity: number;
+}
 
 const EXPENSE_HEADS = [
   "Rent", "Salary", "Electricity", "Water", "Internet",
@@ -28,51 +52,35 @@ const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 const startOfYear = new Date(today.getFullYear(), 0, 1);
 
 function PnLSection() {
-  const { data: sales } = useFirestore<Sale>("sales", {
-    constraints: [orderBy("saleDate", "desc")],
-    realtime: false, cache: true,
-  });
-  const { data: products } = useFirestore<Product>("products", { realtime: false, cache: true });
-  const { data: expenses } = useFirestore<Expense>("expenses", {
-    constraints: [orderBy("date", "desc")],
-    realtime: false, cache: true,
-  });
-
+  const { settings } = useShopSettings();
+  const [pnlData, setPnlData] = useState<PnlResult | null>(null);
+  const [pnlLoading, setPnlLoading] = useState(false);
   const [pnlRange, setPnlRange] = useState<"mtd" | "ytd" | "custom">("mtd");
   const [customStart, setCustomStart] = useState(startOfMonth.toISOString().slice(0, 10));
   const [customEnd, setCustomEnd] = useState(today.toISOString().slice(0, 10));
 
-  const getPnlData = () => {
-    let start: number, end: number;
-    if (pnlRange === "mtd") { start = startOfMonth.getTime(); end = today.getTime(); }
-    else if (pnlRange === "ytd") { start = startOfYear.getTime(); end = today.getTime(); }
-    else { start = new Date(customStart).getTime(); end = new Date(customEnd).getTime() + 86400000; }
+  useEffect(() => {
+    if (!settings.gasWebhookUrl) return;
+    let start: string, end: string;
+    if (pnlRange === "mtd") { start = startOfMonth.toISOString().slice(0, 10); end = today.toISOString().slice(0, 10); }
+    else if (pnlRange === "ytd") { start = startOfYear.toISOString().slice(0, 10); end = today.toISOString().slice(0, 10); }
+    else { start = customStart; end = customEnd; }
 
-    const filteredSales = sales.filter((s) => {
-      const d = (s.saleDate as unknown as { toMillis?: () => number })?.toMillis?.() || (s.saleDate as number);
-      return d >= start && d <= end;
-    });
-    const grossRevenue = filteredSales.reduce((sum, s) => sum + s.finalAmount, 0);
-    let cogs = 0;
-    for (const sale of filteredSales) {
-      for (const item of sale.items) {
-        const product = products.find((p) => p.id === item.productId);
-        cogs += ((item as any).costPriceAtSale ?? product?.costPrice ?? 0) * item.quantity;
-      }
-    }
-    const filteredExpenses = expenses.filter((e) => {
-      const d = (e.date as unknown as { toMillis?: () => number })?.toMillis?.() || (e.date as number);
-      return d >= start && d <= end;
-    });
-    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const expenseByHead: Record<string, number> = {};
-    for (const e of filteredExpenses) expenseByHead[e.head] = (expenseByHead[e.head] || 0) + e.amount;
-    return { grossRevenue, cogs, grossProfit: grossRevenue - cogs, totalExpenses, expenseByHead, netProfit: grossRevenue - cogs - totalExpenses, saleCount: filteredSales.length };
-  };
+    setPnlLoading(true);
+    fetch(settings.gasWebhookUrl, {
+      method: "POST",
+      body: JSON.stringify({ action: "computePnl", start, end }),
+    })
+      .then((r) => r.json())
+      .then((result) => setPnlData(result as PnlResult))
+      .catch(() => {})
+      .finally(() => setPnlLoading(false));
+  }, [pnlRange, customStart, customEnd, settings.gasWebhookUrl]);
 
-  const pnl = getPnlData();
+  const pnl = pnlData;
 
   const downloadCSV = () => {
+    if (!pnl) return;
     const rows = [
       ["Metric", "Value"],
       ["Period", pnlRange === "mtd" ? "Month to Date" : pnlRange === "ytd" ? "Year to Date" : `${customStart} to ${customEnd}`],
@@ -110,24 +118,26 @@ function PnLSection() {
         <Button onClick={downloadCSV} variant="outline" size="sm"><Download className="h-3.5 w-3.5" /> CSV</Button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div className={`grid grid-cols-2 md:grid-cols-5 gap-3 mb-6 ${pnlLoading && pnl ? "opacity-50 transition-opacity duration-300" : ""}`}>
         {[
-          { label: "Gross Revenue", value: pnl.grossRevenue, color: "text-green-600" },
-          { label: "COGS", value: pnl.cogs, color: "text-red-600" },
-          { label: "Gross Profit", value: pnl.grossProfit, color: pnl.grossProfit >= 0 ? "text-green-600" : "text-red-600" },
-          { label: "Total Expenses", value: pnl.totalExpenses, color: "text-red-600" },
-          { label: "Net Profit", value: pnl.netProfit, color: pnl.netProfit >= 0 ? "text-green-600" : "text-red-600" },
+          { label: "Gross Revenue", value: pnl?.grossRevenue, color: "text-green-600" },
+          { label: "COGS", value: pnl?.cogs, color: "text-red-600" },
+          { label: "Gross Profit", value: pnl?.grossProfit, color: (pnl?.grossProfit ?? 0) >= 0 ? "text-green-600" : "text-red-600" },
+          { label: "Total Expenses", value: pnl?.totalExpenses, color: "text-red-600" },
+          { label: "Net Profit", value: pnl?.netProfit, color: (pnl?.netProfit ?? 0) >= 0 ? "text-green-600" : "text-red-600" },
         ].map((s) => (
           <div key={s.label} className="bg-white border border-border rounded-xl p-4 shadow-sm">
             <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
-            <p className={`text-lg font-bold ${s.color}`}>{formatCurrency(s.value)}</p>
+            <p className={`text-lg font-bold ${s.color}`}>{s.value !== undefined ? formatCurrency(s.value) : "—"}</p>
           </div>
         ))}
       </div>
 
       <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
         <h3 className="text-sm font-semibold text-secondary mb-4">Expense Breakdown by Head</h3>
-        {Object.keys(pnl.expenseByHead).length === 0 ? (
+        {!pnl ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
+        ) : Object.keys(pnl.expenseByHead).length === 0 ? (
           <p className="text-sm text-muted-foreground">No expenses in this period.</p>
         ) : (
           <div className="divide-y divide-border">
@@ -141,34 +151,16 @@ function PnLSection() {
             </div>
           </div>
         )}
-        <p className="text-xs text-muted-foreground mt-4">{pnl.saleCount} sale(s) in this period</p>
+        <p className="text-xs text-muted-foreground mt-4">{pnl ? `${pnl.saleCount} sale(s) in this period` : ""}</p>
       </div>
     </div>
   );
 }
 
 function BalanceSheetSection() {
-  const { data: sales } = useFirestore<Sale>("sales", {
-    constraints: [orderBy("saleDate", "desc")],
-    realtime: false, cache: true,
-  });
-  const { data: products } = useFirestore<Product>("products", { realtime: false, cache: true });
-  const { data: expenses } = useFirestore<Expense>("expenses", {
-    constraints: [orderBy("date", "desc")],
-    realtime: false, cache: true,
-  });
-  const { data: debtors } = useFirestore<Debtor>("debtors", { realtime: false, cache: true });
-  const { data: purchases } = useFirestore<Purchase>("purchases", {
-    constraints: [orderBy("purchaseDate", "desc")],
-    realtime: false, cache: true,
-  });
-  const { data: creditors } = useFirestore<Creditor>("creditors", { realtime: false, cache: true });
-  const { data: accounts } = useFirestore<Account>("accounts", { realtime: false, cache: true });
-  const { data: transactions } = useFirestore<AccountTransaction>("accountTransactions", {
-    constraints: [orderBy("date", "desc"), limit(200)],
-    realtime: false, cache: true,
-  });
-
+  const { settings } = useShopSettings();
+  const [bsData, setBsData] = useState<BalanceSheetResult | null>(null);
+  const [bsLoading, setBsLoading] = useState(false);
   const [bsDate, setBsDate] = useState(today.toISOString().slice(0, 10));
   const [openingCapital, setOpeningCapital] = useState(0);
   const [capitalSaving, setCapitalSaving] = useState(false);
@@ -182,62 +174,19 @@ function BalanceSheetSection() {
   }, []);
 
   useEffect(() => {
-    const ensureAccounts = async () => {
-      if (accounts.length === 0) {
-        await setDoc(doc(db, "accounts", "cash_in_hand"), { name: "Cash in Hand", type: "cash", openingBalance: 0, createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()) });
-        await setDoc(doc(db, "accounts", "bank_account"), { name: "Bank Account", type: "bank", openingBalance: 0, createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()) });
-      }
-    };
-    ensureAccounts();
-  }, [accounts.length]);
+    if (!settings.gasWebhookUrl) return;
+    setBsLoading(true);
+    fetch(settings.gasWebhookUrl, {
+      method: "POST",
+      body: JSON.stringify({ action: "computeBalanceSheet", asOf: bsDate }),
+    })
+      .then((r) => r.json())
+      .then((result) => setBsData(result as BalanceSheetResult))
+      .catch(() => {})
+      .finally(() => setBsLoading(false));
+  }, [bsDate, settings.gasWebhookUrl]);
 
-  const getBalanceSheet = () => {
-    const bsEnd = new Date(bsDate).getTime();
-    const closingStock = products.reduce((sum, p) => sum + (p.quantityInStock || 0) * (p.costPrice || 0), 0);
-    const sundryDebtors = debtors.filter((d) => d.status === "active").reduce((sum, d) => sum + d.balanceDue, 0);
-
-    const accountBalances: Record<string, number> = {};
-    for (const acc of accounts) {
-      const credits = transactions.filter((t) => t.accountId === acc.id && t.type === "credit" && t.date <= bsEnd).reduce((s, t) => s + t.amount, 0);
-      const debits = transactions.filter((t) => t.accountId === acc.id && t.type === "debit" && t.date <= bsEnd).reduce((s, t) => s + t.amount, 0);
-      accountBalances[acc.id] = acc.openingBalance + credits - debits;
-    }
-
-    const cashBalance = accountBalances["cash_in_hand"] || 0;
-    const bankBalance = accountBalances["bank_account"] || 0;
-    const creditorsBalance = creditors.reduce((sum, c) => sum + (c.balanceDue || 0), 0);
-    const purchaseCreditors = purchases.filter((p) => {
-      const d = (p.purchaseDate as unknown as { toMillis?: () => number })?.toMillis?.() || (p.purchaseDate as number);
-      return d <= bsEnd && (p.paymentStatus === "unpaid" || p.paymentStatus === "partially_paid");
-    }).reduce((sum, p) => sum + (p.totalAmount - (p.paidAmount || 0)), 0);
-    const sundryCreditors = creditorsBalance > 0 ? creditorsBalance : purchaseCreditors;
-
-    const filteredSales = sales.filter((s) => {
-      const d = (s.saleDate as unknown as { toMillis?: () => number })?.toMillis?.() || (s.saleDate as number);
-      return d <= bsEnd;
-    });
-    const filteredExpenses = expenses.filter((e) => {
-      const d = (e.date as unknown as { toMillis?: () => number })?.toMillis?.() || (e.date as number);
-      return d <= bsEnd;
-    });
-    let retainedEarnings = 0;
-    for (const sale of filteredSales) {
-      for (const item of sale.items) {
-        const product = products.find((p) => p.id === item.productId);
-        retainedEarnings -= ((item as any).costPriceAtSale ?? product?.costPrice ?? 0) * item.quantity;
-      }
-      retainedEarnings += sale.finalAmount;
-    }
-    for (const expense of filteredExpenses) retainedEarnings -= expense.amount;
-
-    const totalAssets = cashBalance + bankBalance + closingStock + sundryDebtors;
-    const totalLiabilities = sundryCreditors;
-    const totalEquity = openingCapital + retainedEarnings;
-
-    return { cashBalance, bankBalance, closingStock, sundryDebtors, sundryCreditors, openingCapital, retainedEarnings, totalAssets, totalLiabilities, totalEquity };
-  };
-
-  const bs = getBalanceSheet();
+  const bs = bsData;
 
   return (
     <div>
@@ -246,48 +195,64 @@ function BalanceSheetSection() {
         <input type="date" value={bsDate} onChange={(e) => setBsDate(e.target.value)} className="px-3 py-1.5 border border-border rounded-lg text-sm" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${bsLoading && bs ? "opacity-50 transition-opacity duration-300" : ""}`}>
         <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-3">
           <h3 className="text-sm font-semibold text-secondary">Assets</h3>
-          <div className="divide-y divide-border">
-            <div className="flex justify-between py-2 text-sm"><span>Cash in Hand</span><span className="font-medium">{formatCurrency(bs.cashBalance)}</span></div>
-            <div className="flex justify-between py-2 text-sm"><span>Bank Account</span><span className="font-medium">{formatCurrency(bs.bankBalance)}</span></div>
-            <div className="flex justify-between py-2 text-sm"><span>Closing Stock ({products.length} products)</span><span className="font-medium">{formatCurrency(bs.closingStock)}</span></div>
-            <div className="flex justify-between py-2 text-sm"><span>Sundry Debtors</span><span className="font-medium">{formatCurrency(bs.sundryDebtors)}</span></div>
-            <div className="flex justify-between py-2 text-sm font-bold text-secondary border-t-2"><span>Total Assets</span><span>{formatCurrency(bs.totalAssets)}</span></div>
-          </div>
+          {!bs ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
+          ) : (
+            <div className="divide-y divide-border">
+              <div className="flex justify-between py-2 text-sm"><span>Cash in Hand</span><span className="font-medium">{formatCurrency(bs.cashBalance)}</span></div>
+              <div className="flex justify-between py-2 text-sm"><span>Bank Account</span><span className="font-medium">{formatCurrency(bs.bankBalance)}</span></div>
+              <div className="flex justify-between py-2 text-sm"><span>Closing Stock ({bs.productCount} products)</span><span className="font-medium">{formatCurrency(bs.closingStock)}</span></div>
+              <div className="flex justify-between py-2 text-sm"><span>Sundry Debtors</span><span className="font-medium">{formatCurrency(bs.sundryDebtors)}</span></div>
+              <div className="flex justify-between py-2 text-sm font-bold text-secondary border-t-2"><span>Total Assets</span><span>{formatCurrency(bs.totalAssets)}</span></div>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">
           <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-3">
             <h3 className="text-sm font-semibold text-secondary">Liabilities</h3>
-            <div className="divide-y divide-border">
-              <div className="flex justify-between py-2 text-sm"><span>Sundry Creditors</span><span className="font-medium">{formatCurrency(bs.sundryCreditors)}</span></div>
-              <div className="flex justify-between py-2 text-sm font-bold text-secondary border-t-2"><span>Total Liabilities</span><span>{formatCurrency(bs.totalLiabilities)}</span></div>
-            </div>
+            {!bs ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
+            ) : (
+              <div className="divide-y divide-border">
+                <div className="flex justify-between py-2 text-sm"><span>Sundry Creditors</span><span className="font-medium">{formatCurrency(bs.sundryCreditors)}</span></div>
+                <div className="flex justify-between py-2 text-sm font-bold text-secondary border-t-2"><span>Total Liabilities</span><span>{formatCurrency(bs.totalLiabilities)}</span></div>
+              </div>
+            )}
           </div>
 
           <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-3">
             <h3 className="text-sm font-semibold text-secondary">Equity</h3>
-            <div className="divide-y divide-border">
-              <div className="flex items-center justify-between py-2 text-sm">
-                <span>Opening Capital</span>
-                <div className="flex items-center gap-2">
-                  <input type="number" value={openingCapital || ""} onChange={(e) => setOpeningCapital(Number(e.target.value))} className="w-28 px-2 py-1 border border-border rounded text-xs text-right" />
-                  <Button onClick={async () => { setCapitalSaving(true); await setDoc(doc(db, "shop_settings", "config"), { openingCapital }, { merge: true }); setCapitalSaving(false); }} disabled={capitalSaving} size="sm" variant="ghost" className="text-xs"><Save className="h-3 w-3" /></Button>
+            {!bs ? (
+              <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
+            ) : (
+              <div className="divide-y divide-border">
+                <div className="flex items-center justify-between py-2 text-sm">
+                  <span>Opening Capital</span>
+                  <div className="flex items-center gap-2">
+                    <input type="number" value={openingCapital || ""} onChange={(e) => setOpeningCapital(Number(e.target.value))} className="w-28 px-2 py-1 border border-border rounded text-xs text-right" />
+                    <Button onClick={async () => { setCapitalSaving(true); await setDoc(doc(db, "shop_settings", "config"), { openingCapital }, { merge: true }); setCapitalSaving(false); }} disabled={capitalSaving} size="sm" variant="ghost" className="text-xs"><Save className="h-3 w-3" /></Button>
+                  </div>
                 </div>
+                <div className="flex justify-between py-2 text-sm"><span>Retained Earnings</span><span className={`font-medium ${bs.retainedEarnings >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(bs.retainedEarnings)}</span></div>
+                <div className="flex justify-between py-2 text-sm font-bold text-secondary border-t-2"><span>Total Equity</span><span>{formatCurrency(bs.totalEquity)}</span></div>
               </div>
-              <div className="flex justify-between py-2 text-sm"><span>Retained Earnings</span><span className={`font-medium ${bs.retainedEarnings >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(bs.retainedEarnings)}</span></div>
-              <div className="flex justify-between py-2 text-sm font-bold text-secondary border-t-2"><span>Total Equity</span><span>{formatCurrency(bs.totalEquity)}</span></div>
-            </div>
+            )}
           </div>
 
           <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-sm space-y-1">
-            <div className="flex justify-between font-semibold"><span>Net Assets (Assets − Liabilities)</span><span>{formatCurrency(bs.totalAssets - bs.totalLiabilities)}</span></div>
-            <div className="flex justify-between font-semibold"><span>Total Equity</span><span>{formatCurrency(bs.totalEquity)}</span></div>
-            <div className={`flex justify-between font-bold pt-1 border-t ${Math.abs(bs.totalAssets - bs.totalLiabilities - bs.totalEquity) < 1 ? "text-green-600" : "text-amber-600"}`}>
-              <span>Balance Check</span><span>{Math.abs(bs.totalAssets - bs.totalLiabilities - bs.totalEquity) < 1 ? "✓ Balanced" : "⚠ Mismatch"}</span>
-            </div>
+            {bs && (
+              <>
+                <div className="flex justify-between font-semibold"><span>Net Assets (Assets − Liabilities)</span><span>{formatCurrency(bs.totalAssets - bs.totalLiabilities)}</span></div>
+                <div className="flex justify-between font-semibold"><span>Total Equity</span><span>{formatCurrency(bs.totalEquity)}</span></div>
+                <div className={`flex justify-between font-bold pt-1 border-t ${Math.abs(bs.totalAssets - bs.totalLiabilities - bs.totalEquity) < 1 ? "text-green-600" : "text-amber-600"}`}>
+                  <span>Balance Check</span><span>{Math.abs(bs.totalAssets - bs.totalLiabilities - bs.totalEquity) < 1 ? "✓ Balanced" : "⚠ Mismatch"}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
