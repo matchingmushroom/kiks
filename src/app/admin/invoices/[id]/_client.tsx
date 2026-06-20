@@ -240,7 +240,7 @@ export default function InvoiceDetailPage() {
           <div className="p-8" id="invoice-template">
             <div className="flex flex-col sm:flex-row items-start justify-between gap-4 mb-8 pb-6 border-b border-border">
               <div>
-                <img src={logoUrl} alt={shopName} className="h-12 mb-2" />
+                <img src={logoUrl} alt={shopName} className="h-14 mb-2" />
                 <h2 className="text-xl font-bold text-secondary">{shopName}</h2>
                 <p className="text-sm text-muted-foreground">{shopTagline}</p>
                 {shopAddress && <p className="text-sm text-muted-foreground">{shopAddress}</p>}

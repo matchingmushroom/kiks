@@ -1,4 +1,4 @@
-import { Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet, Font } from "@react-pdf/renderer";
 import { amountInWords, formatNumber } from "@/lib/utils";
 
 Font.register({
@@ -11,6 +11,7 @@ Font.register({
 const styles = StyleSheet.create({
   page: { padding: 40, fontSize: 10, fontFamily: "Helvetica" },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 30, paddingBottom: 20, borderBottom: "1 solid #ccc" },
+  logo: { width: 60, marginBottom: 4 },
   shopName: { fontSize: 18, fontWeight: "bold" },
   titleBox: { alignItems: "flex-end" },
   title: { fontSize: 24, fontWeight: "bold", color: "#b8860b" },
@@ -78,6 +79,7 @@ export default function InvoicePDF(data: InvoicePDFProps) {
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View>
+            <Image src={data.logoUrl || "/logo.svg"} style={styles.logo} />
             <Text style={styles.shopName}>{data.shopName}</Text>
             <Text style={{ fontSize: 9, color: "#666", marginTop: 2 }}>{data.shopTagline}</Text>
           </View>

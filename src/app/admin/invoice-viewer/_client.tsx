@@ -82,7 +82,7 @@ function ViewerInner() {
           <div className="p-8">
             <div className="flex items-start justify-between mb-8 pb-6 border-b border-border">
               <div>
-                <img src={logoUrl} alt={shopName} className="h-12 mb-2" />
+                <img src={logoUrl} alt={shopName} className="h-14 mb-2" />
                 <h2 className="text-xl font-bold text-secondary">{shopName}</h2>
                 <p className="text-sm text-muted-foreground">{shopTagline}</p>
                 {shopAddress && <p className="text-sm text-muted-foreground">{shopAddress}</p>}

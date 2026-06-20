@@ -16,7 +16,7 @@ export default function ShopHeader() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2">
-            <img src={settings.logoUrl || "/logo.svg"} alt={settings.shopName} className="h-10" />
+            <img src={settings.logoUrl || "/logo.svg"} alt={settings.shopName} className="h-14" />
           </Link>
           <nav className="hidden md:flex items-center gap-6">
             <Link href="/" className="text-sm font-medium hover:text-accent transition-colors">Home</Link>
