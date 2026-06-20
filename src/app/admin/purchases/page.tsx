@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit, useDataCache } from "@/hooks/useFirestore";
 import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor } from "@/types";
 import { formatCurrency, formatDate, toDate, compressImageUnder200KB } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
@@ -73,6 +73,7 @@ function PurchasesContent() {
     realtime: false, cache: true,
   });
   const { user, profile } = useAuth();
+  const { refreshCollection } = useDataCache();
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnCredit = searchParams.get("returnCredit");
@@ -100,6 +101,24 @@ function PurchasesContent() {
   const [uploadingBill, setUploadingBill] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const canExport = profile?.role !== "staff";
+  const [archiveResults, setArchiveResults] = useState<Purchase[] | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+
+  const searchArchive = async () => {
+    if (!purchaseSettings.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
+    setArchiveLoading(true);
+    setShowArchive(true);
+    try {
+      const res = await fetch(purchaseSettings.gasWebhookUrl, {
+        method: "POST",
+        body: JSON.stringify({ action: "queryArchivedRange", collection: "purchases", start: "1970-01-01", end: new Date().toISOString().slice(0, 10) }),
+      });
+      const data = await res.json();
+      setArchiveResults((data.docs || []) as Purchase[]);
+    } catch { setArchiveResults([]); }
+    setArchiveLoading(false);
+  };
 
   // Inline product creation
   const [showNewProduct, setShowNewProduct] = useState(false);
@@ -216,6 +235,7 @@ function PurchasesContent() {
     setNewProductForm({ ...newProductForm, categoryId: catId });
     setNewCategoryName("");
     setShowNewCategory(false);
+    refreshCollection("categories");
   };
 
   const handleCreateProduct = async () => {
@@ -237,6 +257,7 @@ function PurchasesContent() {
     };
     const prodId = await generateId("PROD");
     await setDoc(doc(db, "products", prodId), prodData);
+    refreshCollection("products");
     const newProduct: Product = {
       id: prodId, ...prodData,
       price: f.salesPrice || f.costPrice,
@@ -394,6 +415,10 @@ function PurchasesContent() {
         }
       }
 
+      refreshCollection("purchases");
+      refreshCollection("products");
+      refreshCollection("inventoryLogs");
+      refreshCollection("creditors");
       setForm({ ...emptyForm });
       setEditingId(null);
       setShowForm(false);
@@ -474,6 +499,10 @@ function PurchasesContent() {
       } else {
         setReturnModal(null);
       }
+      refreshCollection("purchases");
+      refreshCollection("products");
+      refreshCollection("inventoryLogs");
+      refreshCollection("creditors");
     } catch (e) {
       console.error("Return failed", e);
     }
@@ -487,6 +516,7 @@ function PurchasesContent() {
     if (purchase.returned) {
       // Already returned — stock already decremented; skip restock
       await deleteDoc(doc(db, "purchases", id));
+      refreshCollection("purchases");
       return;
     }
     for (const item of purchase.items) {
@@ -510,6 +540,10 @@ function PurchasesContent() {
       await deleteDoc(doc(db, "accountTransactions", tx.id));
     }
     await deleteDoc(doc(db, "purchases", id));
+    refreshCollection("purchases");
+    refreshCollection("products");
+    refreshCollection("inventoryLogs");
+    refreshCollection("creditors");
   };
 
   // Upload bill copy to Drive via GAS webhook
@@ -677,6 +711,9 @@ function PurchasesContent() {
               className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
               {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </button>
+            <Button onClick={searchArchive} variant="outline">
+              <Search className="h-4 w-4" /> Archive
+            </Button>
             <Button onClick={() => { setShowForm(true); setForm({ ...emptyForm }); setEditingId(null); }} variant="accent">
               <Plus className="h-4 w-4" /> New Purchase
             </Button>
@@ -1524,6 +1561,38 @@ function PurchasesContent() {
             </div>
           </div>
         )}
+
+      {showArchive && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { setShowArchive(false); setArchiveResults(null); }}>
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-secondary">Archived Purchases</h2>
+              <button onClick={() => { setShowArchive(false); setArchiveResults(null); }} className="p-1 hover:bg-muted rounded">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              {archiveLoading ? (
+                <p className="text-center text-muted-foreground py-8">Loading archived purchases...</p>
+              ) : !archiveResults || archiveResults.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No archived purchases found.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {archiveResults.map((p) => (
+                    <div key={p.id} className="flex items-center justify-between py-2.5 text-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{p.supplierName || "Unknown"}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(p.purchaseDate)}</p>
+                      </div>
+                      <span className="font-medium shrink-0 ml-4">{formatCurrency(p.totalAmount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       </div>
   );
 }

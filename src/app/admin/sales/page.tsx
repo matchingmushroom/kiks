@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, formatDateTime, generateCouponCode, toDate 
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Button } from "@/components/ui/button";
 import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit, arrayRemove, onSnapshot,
@@ -84,6 +85,25 @@ function SalesContent() {
   const [returnSale, setReturnSale] = useState<Sale | null>(null);
   const [returnQtys, setReturnQtys] = useState<Record<number, number>>({});
   const [returnType, setReturnType] = useState<"refund" | "exchange">("refund");
+  const { settings: saleSettings } = useShopSettings();
+  const [archiveResults, setArchiveResults] = useState<Sale[] | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+
+  const searchArchive = async () => {
+    if (!saleSettings.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
+    setArchiveLoading(true);
+    setShowArchive(true);
+    try {
+      const res = await fetch(saleSettings.gasWebhookUrl, {
+        method: "POST",
+        body: JSON.stringify({ action: "queryArchivedRange", collection: "sales", start: "1970-01-01", end: new Date().toISOString().slice(0, 10) }),
+      });
+      const data = await res.json();
+      setArchiveResults((data.docs || []) as Sale[]);
+    } catch { setArchiveResults([]); }
+    setArchiveLoading(false);
+  };
   const [savingReturn, setSavingReturn] = useState(false);
   const [invoicePreviewId, setInvoicePreviewId] = useState<string | null>(null);
   const [invoicePreviewData, setInvoicePreviewData] = useState<Invoice | null>(null);
@@ -666,9 +686,14 @@ function SalesContent() {
           <h1 className="text-2xl font-bold text-secondary">Sales</h1>
           <p className="text-sm text-muted-foreground">{filteredSales.length} of {sales.length} total</p>
         </div>
-        <Button onClick={() => { setShowForm(true); setForm({ ...emptyForm }); setInvoiceError(null); }} variant="accent">
-          <Plus className="h-4 w-4" /> Record Sale
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={searchArchive} variant="outline">
+            <Search className="h-4 w-4" /> Search Archive
+          </Button>
+          <Button onClick={() => { setShowForm(true); setForm({ ...emptyForm }); setInvoiceError(null); }} variant="accent">
+            <Plus className="h-4 w-4" /> Record Sale
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3 mb-6">
@@ -1327,6 +1352,38 @@ function SalesContent() {
                   <Save className="h-4 w-4" /> {savingReturn ? "Processing..." : returnType === "refund" ? "Process Refund" : "Process Exchange"}
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showArchive && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { setShowArchive(false); setArchiveResults(null); }}>
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-secondary">Archived Sales</h2>
+              <button onClick={() => { setShowArchive(false); setArchiveResults(null); }} className="p-1 hover:bg-muted rounded">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              {archiveLoading ? (
+                <p className="text-center text-muted-foreground py-8">Loading archived sales...</p>
+              ) : !archiveResults || archiveResults.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No archived sales found.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {archiveResults.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between py-2.5 text-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{s.customer?.name || "Unknown"}</p>
+                        <p className="text-xs text-muted-foreground">{s.customer?.phone} · {formatDate(s.saleDate)}</p>
+                      </div>
+                      <span className="font-medium shrink-0 ml-4">{formatCurrency(s.finalAmount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
@@ -120,26 +120,32 @@ export default function AdminDashboardPage() {
       .reduce((sum, s) => sum + s.finalAmount, 0),
   }));
 
-  const productMap = new Map(products.map((p) => [p.id, p]));
-  const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
-  const catRevenue = new Map<string, number>();
-  mySales.forEach((s) => {
-    (s.items || []).forEach((item) => {
-      const prod = productMap.get(item.productId);
-      const catName = prod ? categoryMap.get(prod.categoryId) || "Uncategorized" : "Uncategorized";
-      catRevenue.set(catName, (catRevenue.get(catName) || 0) + (item.subtotal || 0));
+  const categoryData = useMemo(() => {
+    const prodMap = new Map(products.map((p) => [p.id, p]));
+    const nameMap = new Map(products.map((p) => [p.name, p]));
+    const catMap = new Map(categories.map((c) => [c.id, c.name]));
+    const revenue = new Map<string, number>();
+    mySales.forEach((s) => {
+      (s.items || []).forEach((item) => {
+        const prod = prodMap.get(item.productId) || nameMap.get(item.productName);
+        const catName = prod ? catMap.get(prod.categoryId) || "Uncategorized" : "Uncategorized";
+        revenue.set(catName, (revenue.get(catName) || 0) + (item.subtotal || 0));
+      });
     });
-  });
-  const categoryData = Array.from(catRevenue.entries()).map(([name, value]) => ({ name, value }));
+    return Array.from(revenue.entries()).map(([name, value]) => ({ name, value }));
+  }, [mySales, products, categories]);
 
-  const catStock = new Map<string, number>();
-  products.forEach((p) => {
-    if (p.isActive) {
-      const catName = categoryMap.get(p.categoryId) || "Uncategorized";
-      catStock.set(catName, (catStock.get(catName) || 0) + p.quantityInStock);
-    }
-  });
-  const inventoryData = Array.from(catStock.entries()).map(([name, stock]) => ({ name, stock }));
+  const inventoryData = useMemo(() => {
+    const catMap = new Map(categories.map((c) => [c.id, c.name]));
+    const stock = new Map<string, number>();
+    products.forEach((p) => {
+      if (p.isActive) {
+        const catName = catMap.get(p.categoryId) || "Uncategorized";
+        stock.set(catName, (stock.get(catName) || 0) + p.quantityInStock);
+      }
+    });
+    return Array.from(stock.entries()).map(([name, stock]) => ({ name, stock }));
+  }, [products, categories]);
 
   const productSales = new Map<string, { qty: number; revenue: number }>();
   mySales.forEach((s) => {
