@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Save, Image, Download, Mail, Database } from "lucide-react";
+import { Save, Image, Download, Mail, Database, Trash2 } from "lucide-react";
 
 interface Settings {
   shopName: string;
@@ -83,6 +83,7 @@ export default function SettingsPage() {
   const [emailSaved, setEmailSaved] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [archiveStatus, setArchiveStatus] = useState<string | null>(null);
+  const [deletingAll, setDeletingAll] = useState(false);
 
   const runArchive = async () => {
     if (!emailConfig.gasWebhookUrl) { alert("Configure GAS Webhook URL first."); return; }
@@ -105,6 +106,29 @@ export default function SettingsPage() {
       setArchiveStatus("Error: " + (e.message || e));
     }
     setArchiving(false);
+  };
+
+  const handleDeleteAll = async () => {
+    if (!confirm("Delete ALL products, sales, purchases, orders, and expenses? This cannot be undone.")) return;
+    if (!confirm("Are you sure? This will permanently delete all data in the database.")) return;
+    setDeletingAll(true);
+    try {
+      const collections = ["products", "sales", "purchases", "orders", "expenses", "invoices", "debtors", "creditors", "coupons"];
+      let total = 0;
+      for (const name of collections) {
+        const snap = await getDocs(collection(db, name));
+        const ids = snap.docs.map((d) => d.id);
+        for (let i = 0; i < ids.length; i += 50) {
+          await Promise.all(ids.slice(i, i + 50).map((id) => deleteDoc(doc(db, name, id))));
+        }
+        total += ids.length;
+      }
+      alert(`Deleted ${total} documents from ${collections.length} collections.`);
+    } catch (e) {
+      alert("Delete all failed. Check console for details.");
+      console.error(e);
+    }
+    setDeletingAll(false);
   };
 
   useEffect(() => {
@@ -396,6 +420,20 @@ export default function SettingsPage() {
           <p className="text-xs text-muted-foreground">
             Also runs automatically as part of the daily backup schedule.
           </p>
+        </div>
+
+        <div className="bg-white border border-red-200 rounded-xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 pb-4 border-b border-red-200">
+            <Trash2 className="h-5 w-5 text-red-500" />
+            <h2 className="text-lg font-semibold text-red-600">Delete All Data</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Permanently delete all documents from Products, Sales, Purchases, Orders, Expenses,
+            Invoices, Debtors, Creditors, and Coupons. <strong className="text-red-600">This cannot be undone.</strong>
+          </p>
+          <Button onClick={handleDeleteAll} disabled={deletingAll} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
+            <Trash2 className="h-4 w-4" /> {deletingAll ? "Deleting..." : "Delete All Data"}
+          </Button>
         </div>
       </div>
     </AdminLayout>
