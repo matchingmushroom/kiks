@@ -101,12 +101,13 @@ export default function AdminDashboardPage() {
   const categoryData = useMemo(() => {
     const prodMap = new Map(products.map((p) => [p.id, p]));
     const nameMap = new Map(products.map((p) => [p.name, p]));
-    const catMap = new Map(categories.map((c) => [c.id, c.name]));
+    const catNameMap = new Map(categories.map((c) => [c.id, c.name]));
     const revenue = new Map<string, number>();
     mySales.forEach((s) => {
       (s.items || []).forEach((item) => {
         const prod = prodMap.get(item.productId) || nameMap.get(item.productName);
-        const catName = prod ? catMap.get(prod.categoryId) || "Uncategorized" : "Uncategorized";
+        if (!prod) return;
+        const catName = catNameMap.get(prod.categoryId) || prod.categoryId || "Unknown";
         revenue.set(catName, (revenue.get(catName) || 0) + (item.subtotal || 0));
       });
     });
