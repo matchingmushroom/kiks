@@ -4,6 +4,7 @@ import { ReactNode, useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { DataCacheProvider } from "@/contexts/DataCacheContext";
 import { hasPermission } from "@/lib/roles";
 import {
@@ -81,6 +82,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, profile, loading, logout } = useAuth();
+  const { settings } = useShopSettings();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -137,7 +139,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-white/10">
           <Link href="/admin" className="flex items-center gap-2">
-            <img src="/logo.svg" alt="ASC" className="h-8" />
+            <img src={settings.logoUrl || "/logo.svg"} alt={settings.shopName} className="h-8" />
           </Link>
           <button className="lg:hidden" onClick={() => setSidebarOpen(false)}>
             <X className="h-5 w-5" />
