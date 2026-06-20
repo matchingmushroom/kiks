@@ -563,7 +563,7 @@ function PurchasesContent() {
           imageBase64: compressedBase64,
           filename: "bill_" + file.name.replace(/\.[^.]+$/, "") + ".jpg",
           mimeType: "image/jpeg",
-          driveFolderId: cfg.imageDriveFolderId || undefined,
+          driveFolderId: cfg.billDriveFolderId || cfg.imageDriveFolderId || cfg.driveFolderId || undefined,
           uploadId,
           authToken,
         }),

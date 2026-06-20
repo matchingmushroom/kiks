@@ -26,6 +26,7 @@ interface EmailBackupConfig {
   driveFolderId: string;
   gasWebhookUrl: string;
   imageDriveFolderId: string;
+  billDriveFolderId: string;
 }
 
 const defaults: Settings = {
@@ -46,6 +47,7 @@ const emailDefaults: EmailBackupConfig = {
   driveFolderId: "",
   gasWebhookUrl: "",
   imageDriveFolderId: "",
+  billDriveFolderId: "",
 };
 
 const ALL_MODULES = [
@@ -289,6 +291,14 @@ export default function SettingsPage() {
             <input type="text" value={emailConfig.imageDriveFolderId}
               onChange={(e) => setEmailConfig({ ...emailConfig, imageDriveFolderId: e.target.value })}
               placeholder="1ABC... (separate folder for product images)"
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Bill Upload Folder ID</label>
+            <input type="text" value={emailConfig.billDriveFolderId}
+              onChange={(e) => setEmailConfig({ ...emailConfig, billDriveFolderId: e.target.value })}
+              placeholder="1ABC... (separate folder for bill copies)"
               className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
           </div>
 
