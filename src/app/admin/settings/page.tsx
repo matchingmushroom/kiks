@@ -81,6 +81,31 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailSaved, setEmailSaved] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const [archiveStatus, setArchiveStatus] = useState<string | null>(null);
+
+  const runArchive = async () => {
+    if (!emailConfig.gasWebhookUrl) { alert("Configure GAS Webhook URL first."); return; }
+    if (!emailConfig.driveFolderId) { alert("Configure Drive Folder ID first."); return; }
+    setArchiving(true);
+    setArchiveStatus(null);
+    try {
+      const res = await fetch(emailConfig.gasWebhookUrl, {
+        method: "POST",
+        body: JSON.stringify({ action: "archiveToSheet", driveFolderId: emailConfig.driveFolderId }),
+      });
+      const data = await res.json();
+      if (data.status === "ok") {
+        const counts = Object.entries(data.archived || {}).map(([k, v]) => `${k}: ${v}`).join(", ");
+        setArchiveStatus(`Archived: ${counts || "0 records"}`);
+      } else {
+        setArchiveStatus("Archive failed: " + (data.message || "Unknown error"));
+      }
+    } catch (e: any) {
+      setArchiveStatus("Error: " + (e.message || e));
+    }
+    setArchiving(false);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -349,6 +374,28 @@ export default function SettingsPage() {
               <li>For scheduled backups: go to Triggers → Add Trigger → <code>doBackup</code> → Time-driven (e.g., 8 AM daily)</li>
             </ol>
           </details>
+        </div>
+
+        {/* ── Archive Old Data ── */}
+        <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-4">
+          <div className="flex items-center gap-2 pb-4 border-b border-border">
+            <Database className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-secondary">Archive Old Data</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Move data older than 12 months from Firestore to Google Sheets to reduce read costs.
+            Archived data remains accessible in the app (marked with "Archived" badge).
+            Affected collections: Sales, Purchases, Expenses, Invoices.
+          </p>
+          <Button onClick={runArchive} disabled={archiving || !emailConfig.gasWebhookUrl || !emailConfig.driveFolderId} variant="accent">
+            <Save className="h-4 w-4" /> {archiving ? "Archiving..." : "Archive Now"}
+          </Button>
+          {archiveStatus && (
+            <p className="text-sm text-green-600">{archiveStatus}</p>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Also runs automatically as part of the daily backup schedule.
+          </p>
         </div>
       </div>
     </AdminLayout>

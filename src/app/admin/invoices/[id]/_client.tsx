@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useAuth } from "@/contexts/AuthContext";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { generateId } from "@/lib/id-generator";
 import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, Timestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -30,8 +31,10 @@ export default function InvoiceDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { profile } = useAuth();
+  const { settings } = useShopSettings();
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [loading, setLoading] = useState(true);
+  const [archived, setArchived] = useState(false);
   const [shopName, setShopName] = useState("KIKS Collections");
   const [shopTagline, setShopTagline] = useState("Exquisite Jewellery");
   const [shopAddress, setShopAddress] = useState("");
@@ -43,6 +46,17 @@ export default function InvoiceDetailPage() {
       const snap = await getDoc(doc(db, "invoices", params.id as string));
       if (snap.exists()) {
         setInvoice({ id: snap.id, ...snap.data() } as Invoice);
+        setArchived(false);
+      } else if (settings.gasWebhookUrl) {
+        const res = await fetch(settings.gasWebhookUrl, {
+          method: "POST",
+          body: JSON.stringify({ action: "queryArchivedDoc", collection: "invoices", id: params.id }),
+        });
+        const result = await res.json();
+        if (result.status === "ok" && result.doc) {
+          setInvoice(result.doc as Invoice);
+          setArchived(true);
+        }
       }
       const settingsSnap = await getDoc(doc(db, "shop_settings", "config"));
       if (settingsSnap.exists()) {
@@ -58,7 +72,7 @@ export default function InvoiceDetailPage() {
     setLoading(false);
   };
 
-  useEffect(() => { loadInvoice(); }, [params.id]);
+  useEffect(() => { loadInvoice(); }, [params.id, settings.gasWebhookUrl]);
 
   const updateStatus = async (status: string) => {
     if (!invoice) return;
@@ -173,9 +187,14 @@ export default function InvoiceDetailPage() {
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-secondary">{invoice.invoiceNumber}</h1>
-              <span className={`text-xs px-2 py-0.5 rounded-full capitalize border ${STATUS_COLORS[invoice.status] || ""}`}>
-                {invoice.status?.replace("_", " ")}
-              </span>
+              <div className="flex gap-1.5 mt-1">
+                <span className={`text-xs px-2 py-0.5 rounded-full capitalize border ${STATUS_COLORS[invoice.status] || ""}`}>
+                  {invoice.status?.replace("_", " ")}
+                </span>
+                {archived && (
+                  <span className="text-xs px-2 py-0.5 rounded-full border bg-gray-100 text-gray-600">Archived</span>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">

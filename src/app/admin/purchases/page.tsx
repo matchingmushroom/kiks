@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, toDate, compressImageUnder200KB } from "@/l
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import {
   addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc, setDoc, getDocs, query, where, arrayUnion, onSnapshot,
 } from "firebase/firestore";
@@ -91,6 +92,8 @@ function PurchasesContent() {
   const [returnType, setReturnType] = useState<"refund" | "exchange">("refund");
   const [detailPurchaseId, setDetailPurchaseId] = useState<string | null>(null);
   const [detailPurchaseData, setDetailPurchaseData] = useState<Purchase | null>(null);
+  const [purchaseArchived, setPurchaseArchived] = useState(false);
+  const { settings: purchaseSettings } = useShopSettings();
   const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -562,12 +565,28 @@ function PurchasesContent() {
 
   // Live-update purchase detail modal
   useEffect(() => {
-    if (!detailPurchaseId) { setDetailPurchaseData(null); return; }
+    if (!detailPurchaseId) { setDetailPurchaseData(null); setPurchaseArchived(false); return; }
     const unsub = onSnapshot(doc(db, "purchases", detailPurchaseId), (snap) => {
-      if (snap.exists()) setDetailPurchaseData({ id: snap.id, ...snap.data() } as Purchase);
+      if (snap.exists()) {
+        setDetailPurchaseData({ id: snap.id, ...snap.data() } as Purchase);
+        setPurchaseArchived(false);
+      } else if (purchaseSettings.gasWebhookUrl) {
+        fetch(purchaseSettings.gasWebhookUrl, {
+          method: "POST",
+          body: JSON.stringify({ action: "queryArchivedDoc", collection: "purchases", id: detailPurchaseId }),
+        })
+          .then((r) => r.json())
+          .then((result) => {
+            if (result.status === "ok" && result.doc) {
+              setDetailPurchaseData(result.doc as Purchase);
+              setPurchaseArchived(true);
+            }
+          })
+          .catch(() => {});
+      }
     });
     return () => unsub();
-  }, [detailPurchaseId]);
+  }, [detailPurchaseId, purchaseSettings.gasWebhookUrl]);
 
   const filteredData = useMemo(() => {
     let start = 0, end = Infinity;
@@ -1338,7 +1357,10 @@ function PurchasesContent() {
           <div className="fixed inset-0 z-50 bg-black/50 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setDetailPurchaseId(null)}>
             <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full my-8" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-border">
-                <h2 className="text-lg font-semibold text-secondary">{detailPurchaseData.supplierName}</h2>
+                <h2 className="text-lg font-semibold text-secondary">
+                  {detailPurchaseData.supplierName}
+                  {purchaseArchived && <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-normal">Archived</span>}
+                </h2>
                 <button onClick={() => setDetailPurchaseId(null)} className="p-1 hover:bg-muted rounded">
                   <X className="h-5 w-5" />
                 </button>

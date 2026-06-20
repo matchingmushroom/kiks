@@ -8,6 +8,7 @@ import { formatCurrency, formatDate, toDate } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import {
   addDoc, collection, updateDoc, doc, Timestamp, deleteDoc, setDoc, getDoc, getDocs, query, where,
 } from "firebase/firestore";
@@ -71,6 +72,25 @@ export default function AdminExpensesPage() {
   const [dateTo, setDateTo] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const canExport = profile?.role !== "staff";
+  const { settings: expenseSettings } = useShopSettings();
+  const [archiveResults, setArchiveResults] = useState<Expense[] | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
+
+  const searchArchive = async () => {
+    if (!expenseSettings.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
+    setArchiveLoading(true);
+    setShowArchive(true);
+    try {
+      const res = await fetch(expenseSettings.gasWebhookUrl, {
+        method: "POST",
+        body: JSON.stringify({ action: "queryArchivedRange", collection: "expenses", start: "1970-01-01", end: new Date().toISOString().slice(0, 10) }),
+      });
+      const data = await res.json();
+      setArchiveResults((data.docs || []) as Expense[]);
+    } catch { setArchiveResults([]); }
+    setArchiveLoading(false);
+  };
 
   const [showRecurringForm, setShowRecurringForm] = useState(false);
   const [editingRecurringId, setEditingRecurringId] = useState<string | null>(null);
@@ -327,9 +347,14 @@ export default function AdminExpensesPage() {
                 <Plus className="h-4 w-4" /> New Template
               </Button>
             ) : (
-              <Button onClick={openAdd} variant="accent">
-                <Plus className="h-4 w-4" /> Add Expense
-              </Button>
+              <>
+                <Button onClick={openAdd} variant="accent">
+                  <Plus className="h-4 w-4" /> Add Expense
+                </Button>
+                <Button onClick={searchArchive} variant="outline">
+                  <Search className="h-4 w-4" /> Search Archive
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -652,6 +677,38 @@ export default function AdminExpensesPage() {
           </>
         )}
       </div>
+
+      {showArchive && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { setShowArchive(false); setArchiveResults(null); }}>
+          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-lg font-semibold text-secondary">Archived Expenses</h2>
+              <button onClick={() => { setShowArchive(false); setArchiveResults(null); }} className="p-1 hover:bg-muted rounded">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              {archiveLoading ? (
+                <p className="text-center text-muted-foreground py-8">Loading archived expenses...</p>
+              ) : !archiveResults || archiveResults.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No archived expenses found.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {archiveResults.map((e) => (
+                    <div key={e.id} className="flex items-center justify-between py-2.5 text-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{e.title}</p>
+                        <p className="text-xs text-muted-foreground">{e.head} · {formatDate(e.date)}</p>
+                      </div>
+                      <span className="font-medium shrink-0 ml-4">{formatCurrency(e.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }

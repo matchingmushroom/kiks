@@ -126,6 +126,7 @@ export interface Sale {
   createdAt: number;
   updatedAt: number;
   returned?: boolean;
+  archived?: boolean;
 }
 
 export interface InvoiceItem {
@@ -162,6 +163,7 @@ export interface Invoice {
   couponIssued?: { code: string; discountValue: number; discountType?: string; terms?: string };
   createdAt: number;
   updatedAt: number;
+  archived?: boolean;
 }
 
 export interface Coupon {
@@ -240,6 +242,7 @@ export interface Purchase {
   createdAt: number;
   updatedAt: number;
   returned?: boolean;
+  archived?: boolean;
 }
 
 export type ExpenseHead =
@@ -260,6 +263,7 @@ export interface Expense {
   recordedBy: string;
   createdAt: number;
   updatedAt: number;
+  archived?: boolean;
 }
 
 export interface RecurringExpenseTemplate {

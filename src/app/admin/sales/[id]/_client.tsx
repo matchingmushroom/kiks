@@ -8,6 +8,7 @@ import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { doc, onSnapshot, getDoc, addDoc, collection, updateDoc, Timestamp, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, RotateCcw, X, Save } from "lucide-react";
@@ -23,6 +24,8 @@ export default function SaleDetailPage() {
   const [returnItems, setReturnItems] = useState<Record<number, number>>({});
   const [returnType, setReturnType] = useState<"refund" | "exchange">("refund");
   const [saving, setSaving] = useState(false);
+  const [archived, setArchived] = useState(false);
+  const { settings } = useShopSettings();
 
   useEffect(() => {
     const id = params?.id as string;
@@ -31,11 +34,46 @@ export default function SaleDetailPage() {
     const unsub = onSnapshot(doc(db, "sales", id), (snap) => {
       if (snap.exists()) {
         setSale({ id: snap.id, ...snap.data() } as Sale);
+        setArchived(false);
+        setLoading(false);
+      } else if (settings.gasWebhookUrl) {
+        fetch(settings.gasWebhookUrl, {
+          method: "POST",
+          body: JSON.stringify({ action: "queryArchivedDoc", collection: "sales", id }),
+        })
+          .then((r) => r.json())
+          .then((result) => {
+            if (result.status === "ok" && result.doc) {
+              setSale(result.doc as Sale);
+              setArchived(true);
+            }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
-    }, () => setLoading(false));
+    }, () => {
+      if (settings.gasWebhookUrl) {
+        fetch(settings.gasWebhookUrl, {
+          method: "POST",
+          body: JSON.stringify({ action: "queryArchivedDoc", collection: "sales", id }),
+        })
+          .then((r) => r.json())
+          .then((result) => {
+            if (result.status === "ok" && result.doc) {
+              setSale(result.doc as Sale);
+              setArchived(true);
+            }
+            setLoading(false);
+          })
+          .catch(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
     return () => unsub();
-  }, [params?.id]);
+  }, [params?.id, settings.gasWebhookUrl]);
 
   const openReturn = () => {
     if (!sale) return;
@@ -177,6 +215,11 @@ export default function SaleDetailPage() {
                     {sale.returned && (
                       <span className="text-xs px-3 py-1 rounded-full font-medium bg-yellow-50 text-yellow-700">
                         Returned
+                      </span>
+                    )}
+                    {archived && (
+                      <span className="text-xs px-3 py-1 rounded-full font-medium bg-gray-100 text-gray-600">
+                        Archived
                       </span>
                     )}
                     <Button size="sm" variant="outline" onClick={openReturn} disabled={sale.returned}>

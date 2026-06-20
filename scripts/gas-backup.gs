@@ -72,6 +72,29 @@ function doPost(e) {
       ]);
       var products = firestoreList("products");
 
+      // Also get archived data from Sheet
+      try {
+        var cfg = firestoreGet(CONFIG_DOC);
+        var sid = cfg && cfg[ARCHIVE_CONFIG_KEY] ? cfg[ARCHIVE_CONFIG_KEY] : null;
+        if (sid) {
+          var ss = SpreadsheetApp.openById(sid);
+          var sSheet = ss.getSheetByName("Sales");
+          var eSheet = ss.getSheetByName("Expenses");
+          if (sSheet) {
+            var archivedSales = sheetQueryRange(sSheet, start.getTime(), end.getTime());
+            for (var as = 0; as < archivedSales.length; as++) {
+              sales.push(archivedSales[as]);
+            }
+          }
+          if (eSheet) {
+            var archivedExpenses = sheetQueryRange(eSheet, start.getTime(), end.getTime());
+            for (var ae = 0; ae < archivedExpenses.length; ae++) {
+              expenses.push(archivedExpenses[ae]);
+            }
+          }
+        }
+      } catch (e) { console.log("Sheet merge error: " + e); }
+
       var productMap = {};
       for (var p = 0; p < products.length; p++) {
         productMap[products[p].id] = products[p];
@@ -124,6 +147,38 @@ function doPost(e) {
       var allCreditors = firestoreList("creditors");
       var allAccounts = firestoreList("accounts");
       var allTxns = firestoreQuery("accountTransactions", [["date", "<", asOf]]);
+
+      // Also get archived data from Sheet
+      try {
+        var cfg = firestoreGet(CONFIG_DOC);
+        var sid = cfg && cfg[ARCHIVE_CONFIG_KEY] ? cfg[ARCHIVE_CONFIG_KEY] : null;
+        if (sid) {
+          var ss = SpreadsheetApp.openById(sid);
+          var startEpoch = new Date(0).getTime();
+          var endTs = asOf.getTime();
+          var sSheet = ss.getSheetByName("Sales");
+          var eSheet = ss.getSheetByName("Expenses");
+          var pSheet = ss.getSheetByName("Purchases");
+          if (sSheet) {
+            var archivedSales = sheetQueryRange(sSheet, startEpoch, endTs);
+            for (var as2 = 0; as2 < archivedSales.length; as2++) {
+              allSales.push(archivedSales[as2]);
+            }
+          }
+          if (eSheet) {
+            var archivedExpenses = sheetQueryRange(eSheet, startEpoch, endTs);
+            for (var ae2 = 0; ae2 < archivedExpenses.length; ae2++) {
+              allExpenses.push(archivedExpenses[ae2]);
+            }
+          }
+          if (pSheet) {
+            var archivedPurchases = sheetQueryRange(pSheet, startEpoch, endTs);
+            for (var ap = 0; ap < archivedPurchases.length; ap++) {
+              allPurchases.push(archivedPurchases[ap]);
+            }
+          }
+        }
+      } catch (e) { console.log("BS Sheet merge error: " + e); }
 
       var costMap = {};
       for (var p = 0; p < allProducts.length; p++) {
@@ -202,6 +257,101 @@ function doPost(e) {
           totalLiabilities: totalLiabilities,
           totalEquity: totalEquity,
         }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === "archiveToSheet" && data.driveFolderId) {
+      var cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      var archiveInfo = getArchiveSheet(data.driveFolderId);
+      var tabs = archiveInfo.tabs;
+      var collections = [
+        { name: "sales", tab: tabs["Sales"], dateField: "saleDate", label: "Sales" },
+        { name: "purchases", tab: tabs["Purchases"], dateField: "purchaseDate", label: "Purchases" },
+        { name: "expenses", tab: tabs["Expenses"], dateField: "date", label: "Expenses" },
+        { name: "invoices", tab: tabs["Invoices"], dateField: "createdAt", label: "Invoices" },
+      ];
+      var totals = {};
+      for (var c = 0; c < collections.length; c++) {
+        var col = collections[c];
+        var docs = firestoreQuery(col.name, [[col.dateField, "<", cutoff]]);
+        var archivedCount = 0;
+        for (var d = 0; d < docs.length; d++) {
+          docs[d].dateField = docs[d][col.dateField] instanceof Date
+            ? docs[d][col.dateField].getTime()
+            : Number(docs[d][col.dateField] || 0);
+          sheetAppendRow(col.tab, docs[d]);
+          firestoreDelete(col.name + "/" + docs[d].id);
+          archivedCount++;
+        }
+        totals[col.label] = archivedCount;
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", archived: totals }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === "queryArchivedDoc" && data.collection && data.id) {
+      var cfg = firestoreGet(CONFIG_DOC);
+      var sid = cfg && cfg[ARCHIVE_CONFIG_KEY] ? cfg[ARCHIVE_CONFIG_KEY] : null;
+      if (!sid) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "No archive sheet found" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var tabMap = { sales: "Sales", purchases: "Purchases", expenses: "Expenses", invoices: "Invoices" };
+      var tabName = tabMap[data.collection];
+      if (!tabName) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Unknown collection" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var ss = SpreadsheetApp.openById(sid);
+      var sheet = ss.getSheetByName(tabName);
+      if (!sheet) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Tab not found" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var doc = sheetFindById(sheet, data.id);
+      if (!doc) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Not found in archive" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", doc: doc }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === "queryArchivedRange" && data.collection && data.start && data.end) {
+      var cfg = firestoreGet(CONFIG_DOC);
+      var sid = cfg && cfg[ARCHIVE_CONFIG_KEY] ? cfg[ARCHIVE_CONFIG_KEY] : null;
+      if (!sid) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "No archive sheet found" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var tabMap = { sales: "Sales", purchases: "Purchases", expenses: "Expenses", invoices: "Invoices" };
+      var tabName = tabMap[data.collection];
+      if (!tabName) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Unknown collection" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var ss = SpreadsheetApp.openById(sid);
+      var sheet = ss.getSheetByName(tabName);
+      if (!sheet) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "ok", docs: [] }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var start = new Date(data.start).getTime();
+      var end = new Date(data.end).getTime();
+      end += 86400000;
+      var docs = sheetQueryRange(sheet, start, end);
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", docs: docs }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -301,6 +451,35 @@ function doBackup() {
       attachments: attachments,
     });
   }
+
+  // Chain archive: move data older than 12 months to Google Sheet
+  if (driveFolderId) {
+    try {
+      var cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      var archiveInfo = getArchiveSheet(driveFolderId);
+      var tabs = archiveInfo.tabs;
+      var collections = [
+        { name: "sales", tab: tabs["Sales"], dateField: "saleDate", label: "Sales" },
+        { name: "purchases", tab: tabs["Purchases"], dateField: "purchaseDate", label: "Purchases" },
+        { name: "expenses", tab: tabs["Expenses"], dateField: "date", label: "Expenses" },
+        { name: "invoices", tab: tabs["Invoices"], dateField: "createdAt", label: "Invoices" },
+      ];
+      for (var c = 0; c < collections.length; c++) {
+        var col = collections[c];
+        var docs = firestoreQuery(col.name, [[col.dateField, "<", cutoff]]);
+        for (var d = 0; d < docs.length; d++) {
+          docs[d].dateField = docs[d][col.dateField] instanceof Date
+            ? docs[d][col.dateField].getTime()
+            : Number(docs[d][col.dateField] || 0);
+          sheetAppendRow(col.tab, docs[d]);
+          firestoreDelete(col.name + "/" + docs[d].id);
+        }
+      }
+    } catch (e) {
+      console.log("Archive chain error: " + e);
+    }
+  }
 }
 
 // ── FIRESTORE WRITE HELPER ────────────────────────────
@@ -337,6 +516,29 @@ function firestoreWrite(path, data, token) {
     headers: { Authorization: "Bearer " + token },
     payload: JSON.stringify(payload),
     contentType: "application/json",
+    muteHttpExceptions: true,
+  });
+}
+
+function firestorePatch(path, data) {
+  var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + path + "?key=" + FIREBASE_CONFIG.apiKey;
+  var token = ScriptApp.getOAuthToken();
+  var payload = { fields: objToFields(data) };
+  UrlFetchApp.fetch(url, {
+    method: "PATCH",
+    headers: { Authorization: "Bearer " + token },
+    payload: JSON.stringify(payload),
+    contentType: "application/json",
+    muteHttpExceptions: true,
+  });
+}
+
+function firestoreDelete(path) {
+  var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + path + "?key=" + FIREBASE_CONFIG.apiKey;
+  var token = ScriptApp.getOAuthToken();
+  UrlFetchApp.fetch(url, {
+    method: "DELETE",
+    headers: { Authorization: "Bearer " + token },
     muteHttpExceptions: true,
   });
 }
@@ -460,6 +662,75 @@ function firestoreQuery(collection, whereClauses, orderByClause, limitVal) {
       obj.id = r.document.name.split("/").pop();
       return obj;
     });
+}
+
+// ── ARCHIVE SHEET HELPERS ────────────────────────────
+
+var ARCHIVE_SHEET_NAME = "AS-Collection_Archive";
+var ARCHIVE_CONFIG_KEY = "archiveSheetId";
+
+function getArchiveSheet(driveFolderId) {
+  var config = firestoreGet(CONFIG_DOC);
+  var sheetId = config && config[ARCHIVE_CONFIG_KEY] ? config[ARCHIVE_CONFIG_KEY] : null;
+  var ss;
+  if (sheetId) {
+    try { ss = SpreadsheetApp.openById(sheetId); } catch (e) { ss = null; }
+  }
+  if (!ss) {
+    var folder = driveFolderId ? DriveApp.getFolderById(driveFolderId) : DriveApp.getRootFolder();
+    ss = SpreadsheetApp.create(ARCHIVE_SHEET_NAME);
+    var file = DriveApp.getFileById(ss.getId());
+    folder.addFile(file);
+    DriveApp.getRootFolder().removeFile(file);
+    sheetId = ss.getId();
+    firestorePatch(CONFIG_DOC, {});
+    var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + CONFIG_DOC + "?key=" + FIREBASE_CONFIG.apiKey;
+    var token = ScriptApp.getOAuthToken();
+    var payload = { fields: objToFields({ archiveSheetId: sheetId }) };
+    UrlFetchApp.fetch(url, {
+      method: "PATCH", headers: { Authorization: "Bearer " + token },
+      payload: JSON.stringify(payload), contentType: "application/json", muteHttpExceptions: true,
+    });
+  }
+  var tabs = {};
+  var tabNames = ["Sales", "Purchases", "Expenses", "Invoices"];
+  for (var t = 0; t < tabNames.length; t++) {
+    var sheet = ss.getSheetByName(tabNames[t]);
+    if (!sheet) {
+      sheet = ss.insertSheet(tabNames[t]);
+      sheet.appendRow(["id", "dateField", "data"]);
+    }
+    tabs[tabNames[t]] = sheet;
+  }
+  ss.getSheetByName("Sheet1") && ss.deleteSheet(ss.getSheetByName("Sheet1"));
+  return { ss: ss, tabs: tabs, id: sheetId };
+}
+
+function sheetAppendRow(sheet, doc) {
+  var dataStr = JSON.stringify(doc);
+  sheet.appendRow([doc.id, doc.dateField || "", dataStr]);
+}
+
+function sheetFindById(sheet, id) {
+  var data = sheet.getDataRange().getValues();
+  for (var r = 1; r < data.length; r++) {
+    if (String(data[r][0]) === String(id)) {
+      try { return JSON.parse(data[r][2]); } catch (e) { return null; }
+    }
+  }
+  return null;
+}
+
+function sheetQueryRange(sheet, start, end) {
+  var data = sheet.getDataRange().getValues();
+  var results = [];
+  for (var r = 1; r < data.length; r++) {
+    var ts = Number(data[r][1]);
+    if (ts >= start && ts < end) {
+      try { results.push(JSON.parse(data[r][2])); } catch (e) {}
+    }
+  }
+  return results;
 }
 
 // ── CSV HELPERS ───────────────────────────────────────
