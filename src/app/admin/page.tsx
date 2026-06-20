@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
-import { collection, query, where, getAggregateFromServer, sum, count } from "firebase/firestore";
+import { collection, query, where, getAggregateFromServer, sum, count, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Sale, Product, Debtor, Order, Category } from "@/types";
 import { formatCurrency, formatNumber, toDate } from "@/lib/utils";
@@ -60,9 +60,9 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     const now = new Date();
-    const startOfYear = new Date(now.getFullYear(), 0, 1);
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
+    const startOfYear = Timestamp.fromDate(new Date(now.getFullYear(), 0, 1));
+    const startOfMonth = Timestamp.fromDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    const yearEnd = Timestamp.fromDate(new Date(now.getFullYear() + 1, 0, 1));
 
     const salesYtd = query(collection(db, "sales"), where("saleDate", ">=", startOfYear), where("saleDate", "<", yearEnd));
     const salesMtd = query(collection(db, "sales"), where("saleDate", ">=", startOfMonth));
@@ -77,14 +77,16 @@ export default function AdminDashboardPage() {
       getAggregateFromServer(lowStockQ, { count: count() }),
     ]).then(([ytd, mtd, all, ad, ls]) => {
       setAgg({
-        ytd: ytd.data().total,
-        mtd: mtd.data().total,
-        total: all.data().total,
-        debtBalance: ad.data().total,
-        lowStock: ls.data().count,
-        activeDebtors: ad.data().count,
+        ytd: ytd.data().total ?? 0,
+        mtd: mtd.data().total ?? 0,
+        total: all.data().total ?? 0,
+        debtBalance: ad.data().total ?? 0,
+        lowStock: ls.data().count ?? 0,
+        activeDebtors: ad.data().count ?? 0,
       });
-    }).catch(() => {});
+    }).catch((e) => {
+      console.error("Aggregation queries failed:", e);
+    });
   }, []);
 
   const isStaff = profile?.role === "staff";
