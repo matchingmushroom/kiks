@@ -19,6 +19,14 @@ var FIREBASE_CONFIG = {
   apiKey: "AIzaSyBWYuU_UpuHhgvbG9KjaSIvQxazWpeIXZE",
 };
 
+// ── REQUIRED SCOPES (set in appsscript.json) ──────────
+// oauthScopes:
+//   - https://www.googleapis.com/auth/datastore
+//   - https://www.googleapis.com/auth/drive
+//   - https://www.googleapis.com/auth/spreadsheets
+//   - https://www.googleapis.com/auth/script.external_request
+//   - https://www.googleapis.com/auth/script.send_mail
+
 // ── DO NOT EDIT BELOW ─────────────────────────────────
 
 var CONFIG_DOC = "shop_settings/emailBackupConfig";
@@ -398,15 +406,22 @@ function doGet() {
  * Fetches all enabled modules from Firestore REST API, emails CSV attachments, saves to Drive.
  */
 function doBackup() {
+  console.log("doBackup started");
   var config = firestoreGet(CONFIG_DOC);
-  if (!config || !config.emailTo) {
-    console.log("No emailBackupConfig found or no emailTo set");
+  if (!config) {
+    console.log("doBackup: config not found at " + CONFIG_DOC);
+    return;
+  }
+  if (!config.emailTo) {
+    console.log("doBackup: emailTo is empty in config");
     return;
   }
 
   var emailTo = config.emailTo;
   var driveFolderId = config.driveFolderId;
   var enabledModules = config.enabledModules || [];
+  console.log("doBackup: emailTo=" + emailTo + " modules=" + enabledModules.join(","));
+
   var attachments = [];
   var period = new Date().toISOString().slice(0, 10);
 
@@ -426,30 +441,42 @@ function doBackup() {
     if (!info) continue;
 
     try {
+      console.log("doBackup: fetching " + info.collection);
       var docs = firestoreList(info.collection);
       var csv = docsToCSV(docs);
       if (csv) {
         var filename = moduleKey + "-" + period + ".csv";
         var blob = Utilities.newBlob(csv, "text/csv", filename);
         attachments.push(blob);
+        console.log("doBackup: " + moduleKey + " -> " + docs.length + " docs, CSV " + csv.length + " chars");
 
         if (driveFolderId) {
-          var folder = DriveApp.getFolderById(driveFolderId);
-          folder.createFile(blob);
+          try {
+            var folder = DriveApp.getFolderById(driveFolderId);
+            folder.createFile(blob);
+          } catch (e) {
+            console.log("doBackup: Drive save failed for " + moduleKey + ": " + e);
+          }
         }
+      } else {
+        console.log("doBackup: " + moduleKey + " -> " + docs.length + " docs, CSV empty");
       }
     } catch (err) {
-      console.log("Error exporting " + moduleKey + ": " + err);
+      console.log("doBackup: Error exporting " + moduleKey + ": " + err);
     }
   }
 
   if (attachments.length > 0) {
+    console.log("doBackup: sending email with " + attachments.length + " attachments");
     MailApp.sendEmail({
       to: emailTo,
       subject: "AS-Collection Daily Backup — " + period,
       body: "Please find attached the scheduled backup reports for " + period + ".\n\nModules: " + enabledModules.join(", "),
       attachments: attachments,
     });
+    console.log("doBackup: email sent");
+  } else {
+    console.log("doBackup: no attachments, email NOT sent");
   }
 
   // Chain archive: move data older than 12 months to Google Sheet
@@ -457,6 +484,7 @@ function doBackup() {
     try {
       var cutoff = new Date();
       cutoff.setFullYear(cutoff.getFullYear() - 1);
+      console.log("doBackup: starting archive chain, cutoff=" + cutoff);
       var archiveInfo = getArchiveSheet(driveFolderId);
       var tabs = archiveInfo.tabs;
       var collections = [
@@ -467,19 +495,24 @@ function doBackup() {
       ];
       for (var c = 0; c < collections.length; c++) {
         var col = collections[c];
+        console.log("doBackup: archiving " + col.name);
         var docs = firestoreQuery(col.name, [[col.dateField, "<", cutoff]]);
+        var archived = 0;
         for (var d = 0; d < docs.length; d++) {
           docs[d].dateField = docs[d][col.dateField] instanceof Date
             ? docs[d][col.dateField].getTime()
             : Number(docs[d][col.dateField] || 0);
           sheetAppendRow(col.tab, docs[d]);
           firestoreDelete(col.name + "/" + docs[d].id);
+          archived++;
         }
+        console.log("doBackup: archived " + archived + " " + col.name);
       }
     } catch (e) {
-      console.log("Archive chain error: " + e);
+      console.log("doBackup: Archive chain error: " + e);
     }
   }
+  console.log("doBackup finished");
 }
 
 // ── FIRESTORE WRITE HELPER ────────────────────────────
@@ -546,22 +579,36 @@ function firestoreDelete(path) {
 // ── FIRESTORE REST HELPERS ────────────────────────────
 
 function firestoreGet(path) {
+  var token = ScriptApp.getOAuthToken();
   var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + path + "?key=" + FIREBASE_CONFIG.apiKey;
-  var resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-  if (resp.getResponseCode() !== 200) return null;
+  var resp = UrlFetchApp.fetch(url, {
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true,
+  });
+  if (resp.getResponseCode() !== 200) {
+    console.log("firestoreGet(" + path + ") returned " + resp.getResponseCode() + ": " + resp.getContentText().slice(0, 200));
+    return null;
+  }
   var data = JSON.parse(resp.getContentText());
   return fieldsToObj(data.fields);
 }
 
 function firestoreList(collection) {
+  var token = ScriptApp.getOAuthToken();
   var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + collection + "?key=" + FIREBASE_CONFIG.apiKey;
   var allDocs = [];
   var pageToken = "";
 
   while (true) {
     var queryUrl = url + (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : "");
-    var resp = UrlFetchApp.fetch(queryUrl, { muteHttpExceptions: true });
-    if (resp.getResponseCode() !== 200) break;
+    var resp = UrlFetchApp.fetch(queryUrl, {
+      headers: { Authorization: "Bearer " + token },
+      muteHttpExceptions: true,
+    });
+    if (resp.getResponseCode() !== 200) {
+      console.log("firestoreList(" + collection + ") returned " + resp.getResponseCode() + ": " + resp.getContentText().slice(0, 200));
+      break;
+    }
     var data = JSON.parse(resp.getContentText());
     var documents = data.documents || [];
 
@@ -612,6 +659,7 @@ function getFieldValue(field) {
 // ── STRUCTURED QUERY HELPER ────────────────────────────
 
 function firestoreQuery(collection, whereClauses, orderByClause, limitVal) {
+  var token = ScriptApp.getOAuthToken();
   var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents:runQuery?key=" + FIREBASE_CONFIG.apiKey;
 
   var sq = { from: [{ collectionId: collection }] };
@@ -648,12 +696,16 @@ function firestoreQuery(collection, whereClauses, orderByClause, limitVal) {
 
   var resp = UrlFetchApp.fetch(url, {
     method: "POST",
+    headers: { Authorization: "Bearer " + token },
     contentType: "application/json",
     payload: JSON.stringify({ structuredQuery: sq }),
     muteHttpExceptions: true,
   });
 
-  if (resp.getResponseCode() !== 200) return [];
+  if (resp.getResponseCode() !== 200) {
+    console.log("firestoreQuery(" + collection + ") returned " + resp.getResponseCode() + ": " + resp.getContentText().slice(0, 200));
+    return [];
+  }
 
   return JSON.parse(resp.getContentText())
     .filter(function(r) { return r.document; })
