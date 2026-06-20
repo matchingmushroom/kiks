@@ -230,6 +230,7 @@ export interface Purchase {
   paymentStatus: "paid" | "unpaid" | "partially_paid";
   paymentMethod?: string;
   paidAmount?: number;
+  discountAmount?: number;
   billNo?: string;
   billDate?: string;
   notes?: string;
@@ -237,6 +238,7 @@ export interface Purchase {
   recordedByName: string;
   createdAt: number;
   updatedAt: number;
+  returned?: boolean;
 }
 
 export type ExpenseHead =

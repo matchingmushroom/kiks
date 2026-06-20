@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor } from "@/types";
@@ -50,10 +51,10 @@ const emptyForm = {
   items: [] as PurchaseItemType[],
   totalAmount: 0,
   paymentStatus: "unpaid" as "paid" | "unpaid" | "partially_paid",
-  paymentMethod: "", paidAmount: 0, billNo: "", billDate: "", notes: "",
+  paymentMethod: "", paidAmount: 0, discountAmount: 0, billNo: "", billDate: "", notes: "",
 };
 
-export default function AdminPurchasesPage() {
+function PurchasesContent() {
   const { data: purchases, loading } = useFirestore<Purchase>("purchases", {
     constraints: [orderBy("purchaseDate", "desc")],
   });
@@ -69,6 +70,11 @@ export default function AdminPurchasesPage() {
     realtime: false,
   });
   const { user, profile } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnCredit = searchParams.get("returnCredit");
+  const returnSupplier = searchParams.get("returnSupplier");
+  const returnSupplierPhone = searchParams.get("returnSupplierPhone");
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -80,6 +86,7 @@ export default function AdminPurchasesPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [returnModal, setReturnModal] = useState<Purchase | null>(null);
   const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
+  const [returnType, setReturnType] = useState<"refund" | "exchange">("refund");
   const [detailPurchaseId, setDetailPurchaseId] = useState<string | null>(null);
   const [detailPurchaseData, setDetailPurchaseData] = useState<Purchase | null>(null);
   const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
@@ -284,12 +291,14 @@ export default function AdminPurchasesPage() {
     setSaving(true);
     setPurchaseError(null);
     try {
+      const effectiveTotal = form.totalAmount - (form.discountAmount || 0);
       const purchaseData = {
         supplierName: form.supplierName,
         supplierPhone: form.supplierPhone,
         purchaseDate: Timestamp.fromDate(new Date()),
         items: form.items,
         totalAmount: form.totalAmount,
+        discountAmount: form.discountAmount || 0,
         paymentStatus: form.paymentStatus,
         paymentMethod: form.paymentMethod,
         paidAmount: form.paidAmount,
@@ -298,6 +307,7 @@ export default function AdminPurchasesPage() {
         notes: form.notes,
         recordedBy: user?.uid || "",
         recordedByName: profile?.displayName || "",
+        returned: false,
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       };
@@ -370,7 +380,7 @@ export default function AdminPurchasesPage() {
           });
         }
         if (form.paymentStatus !== "paid") {
-          const balanceChange = form.paymentStatus === "unpaid" ? form.totalAmount : Math.max(0, form.totalAmount - (form.paidAmount || 0));
+          const balanceChange = form.paymentStatus === "unpaid" ? effectiveTotal : Math.max(0, effectiveTotal - (form.paidAmount || 0));
           if (balanceChange > 0) {
             await upsertCreditor(form.supplierName, form.supplierPhone, balanceChange, purchaseId);
           }
@@ -395,6 +405,7 @@ export default function AdminPurchasesPage() {
   const openReturn = (p: Purchase) => {
     setReturnModal(p);
     setReturnItems(p.items.map((i) => ({ productId: i.productId, qty: 0 })));
+    setReturnType("refund");
   };
 
   const handleReturn = async () => {
@@ -422,29 +433,40 @@ export default function AdminPurchasesPage() {
           createdAt: Timestamp.fromDate(new Date()),
         });
       }
+
       if (returnValue > 0) {
-        if (returnModal.paymentStatus === "paid" || returnModal.paymentStatus === "partially_paid") {
-          const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "purchase"), where("referenceId", "==", returnModal.id)));
-          if (!txSnap.empty) {
-            const origTx = txSnap.docs[0].data();
-            await addDoc(collection(db, "accountTransactions"), {
-              accountId: origTx.accountId,
-              type: "credit",
-              amount: returnValue,
-              description: `Purchase return from #${returnModal.id}`,
-              date: Timestamp.fromDate(new Date()),
-              referenceType: "purchase_return",
-              referenceId: returnModal.id,
-              recordedBy: user?.uid || "",
-              createdAt: Timestamp.fromDate(new Date()),
-            });
+        if (returnType === "refund") {
+          // Refund: create account transaction for paid portion, reduce creditor for unpaid
+          if (returnModal.paymentStatus === "paid" || returnModal.paymentStatus === "partially_paid") {
+            const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "purchase"), where("referenceId", "==", returnModal.id)));
+            if (!txSnap.empty) {
+              const origTx = txSnap.docs[0].data();
+              await addDoc(collection(db, "accountTransactions"), {
+                accountId: origTx.accountId,
+                type: "credit",
+                amount: returnValue,
+                description: `Purchase return from #${returnModal.id}`,
+                date: Timestamp.fromDate(new Date()),
+                referenceType: "purchase_return",
+                referenceId: returnModal.id,
+                recordedBy: user?.uid || "",
+                createdAt: Timestamp.fromDate(new Date()),
+              });
+            }
           }
+          if (returnModal.paymentStatus === "unpaid" || returnModal.paymentStatus === "partially_paid") {
+            await upsertCreditor(returnModal.supplierName, returnModal.supplierPhone, -returnValue, returnModal.id);
+          }
+          setReturnModal(null);
+        } else {
+          // Exchange: no money/creditor change, redirect to new purchase with credit
+          await updateDoc(doc(db, "purchases", returnModal.id), { returned: true, updatedAt: Timestamp.fromDate(new Date()) });
+          setReturnModal(null);
+          router.push(`/admin/purchases?returnCredit=${returnValue}&returnSupplier=${encodeURIComponent(returnModal.supplierName)}&returnSupplierPhone=${encodeURIComponent(returnModal.supplierPhone || "")}`);
         }
-        if (returnModal.paymentStatus === "unpaid" || returnModal.paymentStatus === "partially_paid") {
-          await upsertCreditor(returnModal.supplierName, returnModal.supplierPhone, -returnValue, returnModal.id);
-        }
+      } else {
+        setReturnModal(null);
       }
-      setReturnModal(null);
     } catch (e) {
       console.error("Return failed", e);
     }
@@ -455,6 +477,11 @@ export default function AdminPurchasesPage() {
     const snap = await getDoc(doc(db, "purchases", id));
     if (!snap.exists()) return;
     const purchase = snap.data() as Purchase;
+    if (purchase.returned) {
+      // Already returned — stock already decremented; skip restock
+      await deleteDoc(doc(db, "purchases", id));
+      return;
+    }
     for (const item of purchase.items) {
       const prodRef = doc(db, "products", item.productId);
       const prodSnap = await getDoc(prodRef);
@@ -501,6 +528,19 @@ export default function AdminPurchasesPage() {
     return purchases;
   }, [purchases, reportRange, dateFrom, dateTo]);
 
+  // Pre-fill form with exchange credit from returned purchase
+  useEffect(() => {
+    if (returnCredit && returnSupplier) {
+      setShowForm(true);
+      setForm({
+        ...emptyForm,
+        supplierName: returnSupplier,
+        supplierPhone: returnSupplierPhone || "",
+        discountAmount: Number(returnCredit),
+      });
+    }
+  }, [returnCredit, returnSupplier, returnSupplierPhone]);
+
   const handleDownloadCSV = () => {
     const csv = exportPurchasesCSV(filteredData);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -527,8 +567,7 @@ export default function AdminPurchasesPage() {
   };
 
   return (
-    <AdminLayout>
-      <div className="p-6">
+    <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-secondary">Purchases</h1>
@@ -1057,6 +1096,18 @@ export default function AdminPurchasesPage() {
                 </div>
               </div>
 
+              {(form.discountAmount ?? 0) > 0 && (
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Credit from Return</label>
+                    <input type="number" value={form.discountAmount || ""}
+                      onChange={(e) => setForm({ ...form, discountAmount: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-amber-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-amber-50" />
+                    <p className="text-xs text-muted-foreground mt-1">This credit reduces the effective total of this purchase</p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Bill No</label>
@@ -1078,7 +1129,14 @@ export default function AdminPurchasesPage() {
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-border">
-                <p className="text-base font-bold text-secondary">Total: {formatCurrency(form.totalAmount)}</p>
+                <div className="space-y-1 text-sm">
+                  <p className="text-base font-bold text-secondary">
+                    Total: {formatCurrency((form.discountAmount ?? 0) > 0 ? form.totalAmount - (form.discountAmount ?? 0) : form.totalAmount)}
+                  </p>
+                  {(form.discountAmount ?? 0) > 0 && (
+                    <p className="text-muted-foreground text-xs">Subtotal: {formatCurrency(form.totalAmount)} <span className="text-red-500">-{formatCurrency(form.discountAmount ?? 0)} credit</span></p>
+                  )}
+                </div>
                 <div className="flex gap-3">
                   <Button onClick={() => setShowForm(false)} variant="outline">Cancel</Button>
                   <Button onClick={handleSave} disabled={saving || !form.supplierName || form.items.length === 0} variant="accent">
@@ -1104,13 +1162,18 @@ export default function AdminPurchasesPage() {
                       <p className="font-medium text-secondary text-sm truncate">{p.supplierName}</p>
                       {p.supplierPhone && <p className="text-xs text-muted-foreground">{p.supplierPhone}</p>}
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${
-                      p.paymentStatus === "paid" ? "bg-green-50 text-green-700" :
-                      p.paymentStatus === "partially_paid" ? "bg-amber-50 text-amber-700" :
-                      "bg-red-50 text-red-700"
-                    }`}>
-                      {p.paymentStatus.replace("_", " ")}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0 ${
+                        p.paymentStatus === "paid" ? "bg-green-50 text-green-700" :
+                        p.paymentStatus === "partially_paid" ? "bg-amber-50 text-amber-700" :
+                        "bg-red-50 text-red-700"
+                      }`}>
+                        {p.paymentStatus.replace("_", " ")}
+                      </span>
+                      {p.returned && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 shrink-0">Returned</span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-semibold text-secondary">{formatCurrency(p.totalAmount)}</span>
@@ -1124,9 +1187,9 @@ export default function AdminPurchasesPage() {
                     <Eye className="h-3 w-3" /> View Details
                   </button>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => openReturn(p)}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
-                      <RotateCcw className="h-3 w-3" /> Return
+                    <button onClick={() => openReturn(p)} disabled={p.returned}
+                      className={"inline-flex items-center gap-1 text-xs " + (p.returned ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:text-primary")}>
+                      <RotateCcw className="h-3 w-3" /> {p.returned ? "Returned" : "Return"}
                     </button>
                     <button onClick={() => handleDelete(p.id)}
                       className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
@@ -1157,18 +1220,23 @@ export default function AdminPurchasesPage() {
                     <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.items?.length || 0}</td>
                     <td className="px-4 py-2.5 text-sm text-right">{formatCurrency(p.totalAmount)}</td>
                     <td className="px-4 py-2.5 text-sm text-center">
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${
-                        p.paymentStatus === "paid" ? "bg-green-50 text-green-700" :
-                        p.paymentStatus === "partially_paid" ? "bg-amber-50 text-amber-700" :
-                        "bg-red-50 text-red-700"
-                      }`}>
-                        {p.paymentStatus.replace("_", " ")}
-                      </span>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          p.paymentStatus === "paid" ? "bg-green-50 text-green-700" :
+                          p.paymentStatus === "partially_paid" ? "bg-amber-50 text-amber-700" :
+                          "bg-red-50 text-red-700"
+                        }`}>
+                          {p.paymentStatus.replace("_", " ")}
+                        </span>
+                        {p.returned && (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-orange-50 text-orange-700">Returned</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(p.purchaseDate)}</td>
                     <td className="px-4 py-2.5 text-sm text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button onClick={() => openReturn(p)} size="sm" variant="outline" className="text-xs px-2 py-1">
+                        <Button onClick={() => openReturn(p)} disabled={p.returned} size="sm" variant="outline" className={"text-xs px-2 py-1 " + (p.returned ? "opacity-40 cursor-not-allowed" : "")} title={p.returned ? "Already returned" : "Return"}>
                           <Undo2 className="h-3 w-3" />
                         </Button>
                         <Button onClick={() => handleDelete(p.id)} size="sm" variant="outline" className="text-xs px-2 py-1 text-red-500">
@@ -1284,36 +1352,74 @@ export default function AdminPurchasesPage() {
         )}
 
         {returnModal && (
-          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto">
-              <h2 className="text-lg font-semibold text-secondary mb-4">Purchase Return</h2>
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setReturnModal(null)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-secondary">Purchase Return</h2>
+                <button onClick={() => setReturnModal(null)} className="p-1 hover:bg-muted rounded">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
               <p className="text-sm text-muted-foreground mb-4">Supplier: {returnModal.supplierName}</p>
-              <div className="space-y-3">
+              <div className="space-y-3 mb-4">
                 {returnModal.items.map((item, i) => (
-                  <div key={i} className="flex items-center gap-3 text-sm">
-                    <span className="flex-1">{item.productName}</span>
-                    <span className="text-muted-foreground text-xs">Purchased: {item.quantity}</span>
-                    <input type="number" min={0} max={item.quantity} placeholder="Qty to return"
+                  <div key={i} className="flex items-center gap-3 border border-border rounded-lg p-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-secondary truncate">{item.productName}</p>
+                      <p className="text-xs text-muted-foreground">Purchased: {item.quantity} × {formatCurrency(item.unitCost)}</p>
+                    </div>
+                    <input type="number" min={0} max={item.quantity} placeholder="Qty"
                       value={returnItems[i]?.qty || ""}
                       onChange={(e) => {
+                        const val = Math.min(item.quantity, Math.max(0, Number(e.target.value)));
                         const updated = [...returnItems];
-                        updated[i] = { ...updated[i], qty: Number(e.target.value) };
+                        updated[i] = { ...updated[i], qty: val };
                         setReturnItems(updated);
                       }}
-                      className="w-20 px-2 py-1 border border-border rounded text-xs text-center" />
+                      className="w-16 px-2 py-1 border border-border rounded text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary" />
                   </div>
                 ))}
               </div>
-              <div className="flex gap-3 pt-4 border-t border-border mt-4">
-                <Button onClick={handleReturn} disabled={saving || returnItems.every((r) => r.qty <= 0)} variant="accent">
-                  <Undo2 className="h-4 w-4" /> Process Return
-                </Button>
-                <Button onClick={() => setReturnModal(null)} variant="outline">Cancel</Button>
+              <div className="flex items-center gap-4 mb-4">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="rt" checked={returnType === "refund"}
+                    onChange={() => setReturnType("refund")} className="text-primary" />
+                  Cash Refund (money back)
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="radio" name="rt" checked={returnType === "exchange"}
+                    onChange={() => setReturnType("exchange")} className="text-primary" />
+                  Exchange (credit on next purchase)
+                </label>
+              </div>
+              <div className="flex items-center justify-between pt-3 border-t border-border">
+                <div className="text-sm">
+                  {returnItems.some((r) => r.qty > 0) && (
+                    <p>Return Value: <span className="font-bold text-secondary">{formatCurrency(
+                      returnModal.items.reduce((sum, item, i) => sum + (returnItems[i]?.qty || 0) * item.unitCost, 0)
+                    )}</span></p>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={() => setReturnModal(null)} variant="outline">Cancel</Button>
+                  <Button onClick={handleReturn} disabled={saving || returnItems.every((r) => r.qty <= 0)} variant="accent">
+                    <Undo2 className="h-4 w-4" /> {saving ? "Processing..." : returnType === "refund" ? "Process Refund" : "Process Exchange"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         )}
       </div>
+  );
+}
+
+export default function AdminPurchasesPage() {
+  return (
+    <AdminLayout>
+      <Suspense fallback={<div className="p-6 text-center text-muted-foreground">Loading...</div>}>
+        <PurchasesContent />
+      </Suspense>
     </AdminLayout>
   );
 }
