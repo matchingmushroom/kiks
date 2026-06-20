@@ -233,6 +233,7 @@ export interface Purchase {
   discountAmount?: number;
   billNo?: string;
   billDate?: string;
+  billImageUrl?: string;
   notes?: string;
   recordedBy: string;
   recordedByName: string;

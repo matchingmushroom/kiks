@@ -15,7 +15,7 @@ import {
 import { db } from "@/lib/firebase";
 import { exportPurchasesCSV, downloadBlob } from "@/lib/export";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw, ChevronDown, PlusCircle, Download, Mail } from "lucide-react";
+import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw, ChevronDown, PlusCircle, Download, Mail, Upload, Loader2, FileImage, ExternalLink } from "lucide-react";
 
 interface FieldOptions {
   baseMaterial: string[];
@@ -51,7 +51,7 @@ const emptyForm = {
   items: [] as PurchaseItemType[],
   totalAmount: 0,
   paymentStatus: "unpaid" as "paid" | "unpaid" | "partially_paid",
-  paymentMethod: "", paidAmount: 0, discountAmount: 0, billNo: "", billDate: "", notes: "",
+  paymentMethod: "", paidAmount: 0, discountAmount: 0, billNo: "", billDate: "", billImageUrl: "", notes: "",
 };
 
 function PurchasesContent() {
@@ -92,6 +92,7 @@ function PurchasesContent() {
   const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [uploadingBill, setUploadingBill] = useState(false);
   const [sendingEmail, setSendingEmail] = useState(false);
   const canExport = profile?.role !== "staff";
 
@@ -304,6 +305,7 @@ function PurchasesContent() {
         paidAmount: form.paidAmount,
         billNo: form.billNo,
         billDate: form.billDate,
+        billImageUrl: form.billImageUrl || "",
         notes: form.notes,
         recordedBy: user?.uid || "",
         recordedByName: profile?.displayName || "",
@@ -503,6 +505,74 @@ function PurchasesContent() {
       await deleteDoc(doc(db, "accountTransactions", tx.id));
     }
     await deleteDoc(doc(db, "purchases", id));
+  };
+
+  // Upload bill copy to Drive via GAS webhook
+  const uploadBillImage = async (file: File) => {
+    setUploadingBill(true);
+    try {
+      const configSnap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      const cfg = configSnap.data() as Record<string, any> | undefined;
+      if (!cfg?.gasWebhookUrl) {
+        alert("GAS Webhook URL not configured. Please set it in Settings first.");
+        setUploadingBill(false); return;
+      }
+      // Compress image client-side: resize to max 2000px, JPEG quality 0.9
+      const compressedBase64 = await new Promise<string>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 2000;
+          let w = img.naturalWidth, h = img.naturalHeight;
+          if (w > MAX || h > MAX) {
+            if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+            else { w = Math.round(w * MAX / h); h = MAX; }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.9).split(",")[1]);
+        };
+        img.onerror = reject;
+        img.src = URL.createObjectURL(file);
+      });
+      const uploadId = "up_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      const timeoutId = setTimeout(() => setUploadingBill(false), 30000);
+      const unsub = onSnapshot(doc(db, "pendingUploads", uploadId), (snap) => {
+        const d = snap.data();
+        if (!d || d.status === "pending") return;
+        clearTimeout(timeoutId);
+        unsub();
+        if (d.status === "done") {
+          const driveUrl = `https://drive.google.com/thumbnail?id=${d.fileId}&sz=w1000`;
+          setForm((prev) => ({ ...prev, billImageUrl: driveUrl }));
+        }
+        deleteDoc(doc(db, "pendingUploads", uploadId)).catch(() => {});
+        setUploadingBill(false);
+      });
+      const authToken = await user?.getIdToken();
+      await setDoc(doc(db, "pendingUploads", uploadId), {
+        status: "pending",
+        createdAt: Timestamp.fromDate(new Date()),
+      });
+      fetch(cfg.gasWebhookUrl, {
+        method: "POST",
+        mode: "no-cors",
+        body: JSON.stringify({
+          action: "uploadImage",
+          imageBase64: compressedBase64,
+          filename: "bill_" + file.name.replace(/\.[^.]+$/, "") + ".jpg",
+          mimeType: "image/jpeg",
+          driveFolderId: cfg.imageDriveFolderId || undefined,
+          uploadId,
+          authToken,
+        }),
+      });
+    } catch (e: any) {
+      console.error("Bill upload failed", e);
+      alert("Failed to upload bill: " + (e.message || e));
+      setUploadingBill(false);
+    }
   };
 
   // Live-update purchase detail modal
@@ -1108,7 +1178,7 @@ function PurchasesContent() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Bill No</label>
                   <input type="text" value={form.billNo} onChange={(e) => setForm({ ...form, billNo: e.target.value })}
@@ -1119,6 +1189,34 @@ function PurchasesContent() {
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Bill Date</label>
                   <input type="date" value={form.billDate} onChange={(e) => setForm({ ...form, billDate: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Upload Copy of Bill</label>
+                  <div className="flex items-center gap-2">
+                    {form.billImageUrl ? (
+                      <div className="flex items-center gap-2 flex-1">
+                        <a href={form.billImageUrl.replace("&sz=w1000", "&sz=w2000")} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          <FileImage className="h-3.5 w-3.5" /> View Bill
+                        </a>
+                        <button onClick={() => setForm({ ...form, billImageUrl: "" })}
+                          className="text-xs text-red-500 hover:underline">Remove</button>
+                      </div>
+                    ) : (
+                      <label className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium cursor-pointer flex-1">
+                        {uploadingBill ? (
+                          <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...</>
+                        ) : (
+                          <><Upload className="h-3.5 w-3.5" /> Choose File</>
+                        )}
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) { await uploadBillImage(file); e.target.value = ""; }
+                          }} />
+                      </label>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1319,7 +1417,7 @@ function PurchasesContent() {
                   <p className="text-lg font-bold text-secondary">{formatCurrency(detailPurchaseData.totalAmount)}</p>
                 </div>
 
-                {(detailPurchaseData.billNo || detailPurchaseData.billDate) && (
+                {(detailPurchaseData.billNo || detailPurchaseData.billDate || detailPurchaseData.billImageUrl) && (
                   <div className="grid grid-cols-2 gap-3 text-sm border-t border-border pt-4">
                     {detailPurchaseData.billNo && (
                       <div>
@@ -1331,6 +1429,15 @@ function PurchasesContent() {
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Bill Date</p>
                         <p className="font-medium">{detailPurchaseData.billDate}</p>
+                      </div>
+                    )}
+                    {detailPurchaseData.billImageUrl && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-muted-foreground mb-1">Bill Copy</p>
+                        <a href={detailPurchaseData.billImageUrl.replace("&sz=w1000", "&sz=w2000")} target="_blank" rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+                          <FileImage className="h-4 w-4" /> View Bill <ExternalLink className="h-3 w-3" />
+                        </a>
                       </div>
                     )}
                   </div>
