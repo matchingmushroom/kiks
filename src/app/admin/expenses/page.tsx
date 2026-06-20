@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Expense, ExpenseHead, RecurringExpenseTemplate } from "@/types";
 import { formatCurrency, formatDate, toDate } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
@@ -46,9 +46,10 @@ const emptyRecurring = {
 
 export default function AdminExpensesPage() {
   const { data: expenses, loading } = useFirestore<Expense>("expenses", {
-    constraints: [orderBy("date", "desc")],
+    constraints: [orderBy("date", "desc"), limit(200)],
+    realtime: false,
   });
-  const { data: templates } = useFirestore<RecurringExpenseTemplate>("recurringExpenses", { realtime: false });
+  const { data: templates } = useFirestore<RecurringExpenseTemplate>("recurringExpenses", { constraints: [limit(50)], realtime: false });
   const { user, profile } = useAuth();
 
   // Merge hardcoded heads with unique custom heads from existing expenses

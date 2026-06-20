@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { HomeSection } from "@/types";
 import {
   updateDoc, deleteDoc, doc, setDoc, Timestamp,
@@ -33,6 +33,7 @@ const typeConfigDefaults: Record<string, Record<string, unknown>> = {
 export default function AdminHomepagePage() {
   const { data: sections, loading } = useFirestore<HomeSection>("sections", {
     constraints: [orderBy("order", "asc")],
+    realtime: false,
   });
 
   const [editingId, setEditingId] = useState<string | null>(null);

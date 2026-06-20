@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { AppUser, UserRole } from "@/types";
 import { formatDate } from "@/lib/utils";
 import {
@@ -28,6 +28,7 @@ const ROLE_COLORS: Record<string, string> = {
 export default function AdminStaffPage() {
   const { data: users, loading } = useFirestore<AppUser>("users", {
     constraints: [orderBy("createdAt", "desc")],
+    realtime: false,
   });
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);

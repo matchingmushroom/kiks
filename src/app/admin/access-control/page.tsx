@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { AppUser } from "@/types";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { Search, Shield } from "lucide-react";
@@ -13,6 +13,7 @@ export default function AccessControlPage() {
   const { profile: currentUser } = useAuth();
   const { data: users, loading } = useFirestore<AppUser>("users", {
     constraints: [orderBy("createdAt", "desc")],
+    realtime: false,
   });
   const [search, setSearch] = useState("");
 

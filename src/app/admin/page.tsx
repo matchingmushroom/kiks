@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Sale, Product, Debtor, Order, Category } from "@/types";
-import { formatCurrency, formatNumber } from "@/lib/utils";
+import { formatCurrency, formatNumber, toDate } from "@/lib/utils";
 import Link from "next/link";
 import {
   Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
@@ -31,15 +31,24 @@ function getLast30Days() {
 
 export default function AdminDashboardPage() {
   const { profile } = useAuth();
-  const { data: sales } = useFirestore<Sale>("sales", { realtime: false });
-  const { data: products } = useFirestore<Product>("products", { realtime: false });
-  const { data: orders } = useFirestore<Order>("orders", {
-    constraints: [orderBy("createdAt", "desc")],
+  const { data: sales } = useFirestore<Sale>("sales", {
+    constraints: [orderBy("saleDate", "desc"), limit(500)],
     realtime: false,
   });
-  const { data: categories } = useFirestore<Category>("categories", { realtime: false });
+  const { data: products } = useFirestore<Product>("products", {
+    constraints: [orderBy("name", "asc"), limit(200)],
+    realtime: false,
+  });
+  const { data: orders } = useFirestore<Order>("orders", {
+    constraints: [orderBy("createdAt", "desc"), limit(100)],
+    realtime: false,
+  });
+  const { data: categories } = useFirestore<Category>("categories", {
+    constraints: [limit(50)],
+    realtime: false,
+  });
   const { data: debtors } = useFirestore<Debtor>("debtors", {
-    constraints: [orderBy("balanceDue", "desc")],
+    constraints: [orderBy("balanceDue", "desc"), limit(100)],
     realtime: false,
   });
 

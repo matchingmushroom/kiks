@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Category } from "@/types";
 import {
   setDoc,
@@ -21,6 +21,7 @@ import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, X, LayoutGrid, List } from "lu
 export default function AdminCategoriesPage() {
   const { data: categories, loading } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
+    realtime: false,
   });
 
   const [showForm, setShowForm] = useState(false);

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Product, Category } from "@/types";
 import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,10 +14,10 @@ import { Search, Save, ClipboardList, CheckCircle, X, RefreshCw } from "lucide-r
 
 export default function ReconciliationPage() {
   const { data: products, loading } = useFirestore<Product>("products", {
-    constraints: [orderBy("name", "asc")],
+    constraints: [orderBy("name", "asc"), limit(200)],
     realtime: false,
   });
-  const { data: categories } = useFirestore<Category>("categories", { realtime: false });
+  const { data: categories } = useFirestore<Category>("categories", { constraints: [limit(50)], realtime: false });
   const { user } = useAuth();
 
   const [search, setSearch] = useState("");

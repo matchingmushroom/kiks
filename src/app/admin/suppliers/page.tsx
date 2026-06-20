@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Supplier } from "@/types";
 import { formatDate, formatDateTime } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
@@ -21,7 +21,8 @@ const emptyForm = {
 
 export default function AdminSuppliersPage() {
   const { data: suppliers, loading } = useFirestore<Supplier>("suppliers", {
-    constraints: [orderBy("name", "asc")],
+    constraints: [orderBy("name", "asc"), limit(100)],
+    realtime: false,
   });
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);

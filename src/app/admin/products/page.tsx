@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Product, ProductBadge, Category } from "@/types";
 import { formatCurrency, compressImageUnder200KB } from "@/lib/utils";
@@ -45,7 +45,8 @@ const emptyProduct = {
 
 export default function AdminProductsPage() {
   const { data: products, loading } = useFirestore<Product>("products", {
-    constraints: [orderBy("createdAt", "desc")],
+    constraints: [orderBy("createdAt", "desc"), limit(200)],
+    realtime: false,
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],

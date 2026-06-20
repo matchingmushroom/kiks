@@ -30,7 +30,8 @@ const emptyForm = {
 
 export default function AdminCouponsPage() {
   const { data: coupons, loading } = useFirestore<Coupon>("coupons", {
-    constraints: [orderBy("createdAt", "desc")],
+    constraints: [orderBy("createdAt", "desc"), limit(100)],
+    realtime: false,
   });
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);

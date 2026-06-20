@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor } from "@/types";
 import { formatCurrency, formatDate, toDate, compressImageUnder200KB } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
@@ -56,17 +56,19 @@ const emptyForm = {
 
 function PurchasesContent() {
   const { data: purchases, loading } = useFirestore<Purchase>("purchases", {
-    constraints: [orderBy("purchaseDate", "desc")],
+    constraints: [orderBy("purchaseDate", "desc"), limit(200)],
+    realtime: false,
   });
   const { data: products } = useFirestore<Product>("products", {
-    constraints: [orderBy("name", "asc")],
+    constraints: [orderBy("name", "asc"), limit(200)],
+    realtime: false,
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
     realtime: false,
   });
   const { data: allSuppliers } = useFirestore<Supplier>("suppliers", {
-    constraints: [orderBy("name", "asc")],
+    constraints: [orderBy("name", "asc"), limit(100)],
     realtime: false,
   });
   const { user, profile } = useAuth();

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Invoice } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AdminInvoicesPage() {
   const { data: invoices, loading, error } = useFirestore<Invoice>("invoices", {
-    constraints: [orderBy("createdAt", "desc")],
+    constraints: [orderBy("createdAt", "desc"), limit(200)],
+    realtime: false,
   });
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");

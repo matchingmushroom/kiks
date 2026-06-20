@@ -50,13 +50,15 @@ function SalesContent() {
   const returnPhone = searchParams.get("returnPhone");
 
   const { data: sales, loading } = useFirestore<Sale>("sales", {
-    constraints: [orderBy("saleDate", "desc")],
+    constraints: [orderBy("saleDate", "desc"), limit(300)],
+    realtime: false,
   });
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc")],
+    realtime: false,
   });
   const { data: allCustomers } = useFirestore<Customer>("customers", {
-    constraints: [orderBy("name", "asc")],
+    constraints: [orderBy("name", "asc"), limit(200)],
     realtime: false,
   });
   const { user, profile } = useAuth();

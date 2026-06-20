@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Order, Coupon } from "@/types";
 import { formatCurrency, formatDateTime, formatNumber, toDate } from "@/lib/utils";
@@ -27,9 +27,10 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function AdminOrdersPage() {
   const { data: orders, loading } = useFirestore<Order>("orders", {
-    constraints: [orderBy("createdAt", "desc")],
+    constraints: [orderBy("createdAt", "desc"), limit(200)],
+    realtime: false,
   });
-  const { data: allCoupons } = useFirestore<Coupon>("coupons", { realtime: false });
+  const { data: allCoupons } = useFirestore<Coupon>("coupons", { constraints: [limit(100)], realtime: false });
   const { settings } = useShopSettings();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");

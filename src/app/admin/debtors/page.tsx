@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Debtor } from "@/types";
 import { formatCurrency, formatDate, formatDateTime, toDate } from "@/lib/utils";
 import { resolveAccount } from "@/lib/accounts";
@@ -23,7 +23,8 @@ function getDaysOverdue(dueDate: unknown): number {
 
 export default function AdminDebtorsPage() {
   const { data: debtors, loading } = useFirestore<Debtor>("debtors", {
-    constraints: [orderBy("createdAt", "desc")],
+    constraints: [orderBy("createdAt", "desc"), limit(100)],
+    realtime: false,
   });
   const { user, profile } = useAuth();
   const [search, setSearch] = useState("");

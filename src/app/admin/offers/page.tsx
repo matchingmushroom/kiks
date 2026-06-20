@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Offer, Product, Category } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
@@ -31,9 +31,10 @@ const emptyForm = {
 export default function AdminOffersPage() {
   const { user } = useAuth();
   const { data: offers, loading } = useFirestore<Offer>("offers", {
-    constraints: [orderBy("createdAt", "desc")],
+    constraints: [orderBy("createdAt", "desc"), limit(100)],
+    realtime: false,
   });
-  const { data: products } = useFirestore<Product>("products", { realtime: false });
+  const { data: products } = useFirestore<Product>("products", { constraints: [limit(200)], realtime: false });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
     realtime: false,

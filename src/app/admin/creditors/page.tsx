@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Creditor } from "@/types";
 import { formatCurrency, formatDate, formatDateTime, toDate } from "@/lib/utils";
 import { resolveAccount } from "@/lib/accounts";
@@ -18,7 +18,8 @@ import { exportCreditorsCSV, downloadBlob } from "@/lib/export";
 
 export default function AdminCreditorsPage() {
   const { data: creditors, loading } = useFirestore<Creditor>("creditors", {
-    constraints: [orderBy("createdAt", "desc")],
+    constraints: [orderBy("createdAt", "desc"), limit(100)],
+    realtime: false,
   });
   const { user, profile } = useAuth();
   const [search, setSearch] = useState("");
