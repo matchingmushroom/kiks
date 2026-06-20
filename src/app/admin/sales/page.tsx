@@ -400,21 +400,25 @@ function SalesContent() {
 
       try {
         if (form.couponType !== "none" && form.couponValue > 0) {
+          const siteSnap = await getDoc(doc(db, "shop_settings", "config"));
+          const siteUrl = ((siteSnap.data() as Record<string, any>)?.website || "").replace(/\/$/, "");
+          const siteText = siteUrl ? `our website ${siteUrl}` : "our website";
           const couponCode = generateCouponCode();
           const discountType = form.couponType === "percentage" ? "percentage" : "fixed";
           const discountValue = form.couponType === "percentage" ? Math.min(form.couponValue, 100) : form.couponValue;
+          const terms = `To be Used within 1 Months for purchase through ${siteText} during checkout or at our store's checkout counter`;
           await setDoc(doc(db, "coupons", couponCode), {
             code: couponCode, discountType, discountValue, minPurchaseAmount: 0, maxDiscount: 200,
             validFrom: Timestamp.fromDate(new Date()),
             validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
             usageLimit: 1, usedCount: 0, isActive: true,
-            terms: "To be Used within 1 Months for purchase through our websites https://kiks.gpt.com.np during checkout or at our store's checkout counter",
+            terms,
             issuedToCustomer: { name: form.customerName, phone: form.customerPhone },
             issuedForOrderId: saleId, createdAt: Timestamp.fromDate(new Date()), createdBy: user?.uid || "",
           });
           if (savedInvId) {
             await updateDoc(doc(db, "invoices", savedInvId), {
-              couponIssued: { code: couponCode, discountValue, discountType, terms: "To be Used within 1 Months for purchase through our websites https://kiks.gpt.com.np during checkout or at our store's checkout counter" },
+              couponIssued: { code: couponCode, discountValue, discountType, terms },
               updatedAt: Timestamp.fromDate(new Date()),
             });
           }

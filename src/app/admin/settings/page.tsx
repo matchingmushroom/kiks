@@ -16,6 +16,7 @@ interface Settings {
   address: string;
   whatsappNumber: string;
   currency: string;
+  website: string;
 }
 
 interface EmailBackupConfig {
@@ -37,6 +38,7 @@ const defaults: Settings = {
   address: "Kathmandu, Nepal",
   whatsappNumber: "977XXXXXXXXX",
   currency: "NPR",
+  website: "",
 };
 
 const emailDefaults: EmailBackupConfig = {
@@ -210,6 +212,14 @@ export default function SettingsPage() {
               <input type="text" value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Website URL</label>
+              <input type="url" value={form.website}
+                onChange={(e) => setForm({ ...form, website: e.target.value })}
+                placeholder="https://example.com"
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <p className="text-xs text-muted-foreground mt-1">Used in coupon terms and public links</p>
             </div>
           </div>
 
