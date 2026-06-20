@@ -30,12 +30,12 @@ const startOfYear = new Date(today.getFullYear(), 0, 1);
 function PnLSection() {
   const { data: sales } = useFirestore<Sale>("sales", {
     constraints: [orderBy("saleDate", "desc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
-  const { data: products } = useFirestore<Product>("products", { realtime: false });
+  const { data: products } = useFirestore<Product>("products", { realtime: false, cache: true });
   const { data: expenses } = useFirestore<Expense>("expenses", {
     constraints: [orderBy("date", "desc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
 
   const [pnlRange, setPnlRange] = useState<"mtd" | "ytd" | "custom">("mtd");
@@ -150,23 +150,23 @@ function PnLSection() {
 function BalanceSheetSection() {
   const { data: sales } = useFirestore<Sale>("sales", {
     constraints: [orderBy("saleDate", "desc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
-  const { data: products } = useFirestore<Product>("products", { realtime: false });
+  const { data: products } = useFirestore<Product>("products", { realtime: false, cache: true });
   const { data: expenses } = useFirestore<Expense>("expenses", {
     constraints: [orderBy("date", "desc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
-  const { data: debtors } = useFirestore<Debtor>("debtors", { realtime: false });
+  const { data: debtors } = useFirestore<Debtor>("debtors", { realtime: false, cache: true });
   const { data: purchases } = useFirestore<Purchase>("purchases", {
     constraints: [orderBy("purchaseDate", "desc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
-  const { data: creditors } = useFirestore<Creditor>("creditors", { realtime: false });
-  const { data: accounts } = useFirestore<Account>("accounts", { realtime: false });
+  const { data: creditors } = useFirestore<Creditor>("creditors", { realtime: false, cache: true });
+  const { data: accounts } = useFirestore<Account>("accounts", { realtime: false, cache: true });
   const { data: transactions } = useFirestore<AccountTransaction>("accountTransactions", {
     constraints: [orderBy("date", "desc"), limit(200)],
-    realtime: false,
+    realtime: false, cache: true,
   });
 
   const [bsDate, setBsDate] = useState(today.toISOString().slice(0, 10));
@@ -297,10 +297,10 @@ function BalanceSheetSection() {
 
 function CashBankSection() {
   const { user } = useAuth();
-  const { data: accounts } = useFirestore<Account>("accounts", { realtime: false });
+  const { data: accounts } = useFirestore<Account>("accounts", { realtime: false, cache: true });
   const { data: transactions } = useFirestore<AccountTransaction>("accountTransactions", {
     constraints: [orderBy("date", "desc"), limit(200)],
-    realtime: false,
+    realtime: false, cache: true,
   });
 
   const [showTxForm, setShowTxForm] = useState(false);

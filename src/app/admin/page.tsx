@@ -33,23 +33,23 @@ export default function AdminDashboardPage() {
   const { profile } = useAuth();
   const { data: sales } = useFirestore<Sale>("sales", {
     constraints: [orderBy("saleDate", "desc"), limit(500)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc"), limit(200)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: orders } = useFirestore<Order>("orders", {
     constraints: [orderBy("createdAt", "desc"), limit(100)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [limit(50)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: debtors } = useFirestore<Debtor>("debtors", {
     constraints: [orderBy("balanceDue", "desc"), limit(100)],
-    realtime: false,
+    realtime: false, cache: true,
   });
 
   const isStaff = profile?.role === "staff";

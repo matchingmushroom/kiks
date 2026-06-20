@@ -46,11 +46,11 @@ const emptyProduct = {
 export default function AdminProductsPage() {
   const { data: products, loading } = useFirestore<Product>("products", {
     constraints: [orderBy("createdAt", "desc"), limit(200)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
 
   const { user } = useAuth();

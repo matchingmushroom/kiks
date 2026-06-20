@@ -21,7 +21,7 @@ import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, X, LayoutGrid, List } from "lu
 export default function AdminCategoriesPage() {
   const { data: categories, loading } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
 
   const [showForm, setShowForm] = useState(false);

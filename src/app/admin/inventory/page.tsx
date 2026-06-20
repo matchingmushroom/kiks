@@ -17,15 +17,15 @@ import { exportInventoryCSV, downloadBlob } from "@/lib/export";
 export default function AdminInventoryPage() {
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc"), limit(200)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: logs } = useFirestore<InventoryLog>("inventoryLogs", {
     constraints: [orderBy("createdAt", "desc"), limit(100)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [limit(50)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { user, profile } = useAuth();
 

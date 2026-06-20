@@ -28,9 +28,9 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AdminOrdersPage() {
   const { data: orders, loading } = useFirestore<Order>("orders", {
     constraints: [orderBy("createdAt", "desc"), limit(200)],
-    realtime: false,
+    realtime: false, cache: true,
   });
-  const { data: allCoupons } = useFirestore<Coupon>("coupons", { constraints: [limit(100)], realtime: false });
+  const { data: allCoupons } = useFirestore<Coupon>("coupons", { constraints: [limit(100)], realtime: false, cache: true });
   const { settings } = useShopSettings();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");

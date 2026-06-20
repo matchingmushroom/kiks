@@ -13,7 +13,7 @@ export default function AccessControlPage() {
   const { profile: currentUser } = useAuth();
   const { data: users, loading } = useFirestore<AppUser>("users", {
     constraints: [orderBy("createdAt", "desc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const [search, setSearch] = useState("");
 

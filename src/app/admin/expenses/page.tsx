@@ -47,9 +47,9 @@ const emptyRecurring = {
 export default function AdminExpensesPage() {
   const { data: expenses, loading } = useFirestore<Expense>("expenses", {
     constraints: [orderBy("date", "desc"), limit(200)],
-    realtime: false,
+    realtime: false, cache: true,
   });
-  const { data: templates } = useFirestore<RecurringExpenseTemplate>("recurringExpenses", { constraints: [limit(50)], realtime: false });
+  const { data: templates } = useFirestore<RecurringExpenseTemplate>("recurringExpenses", { constraints: [limit(50)], realtime: false, cache: true });
   const { user, profile } = useAuth();
 
   // Merge hardcoded heads with unique custom heads from existing expenses

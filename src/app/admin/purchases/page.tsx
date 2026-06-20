@@ -57,19 +57,19 @@ const emptyForm = {
 function PurchasesContent() {
   const { data: purchases, loading } = useFirestore<Purchase>("purchases", {
     constraints: [orderBy("purchaseDate", "desc"), limit(200)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc"), limit(200)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: allSuppliers } = useFirestore<Supplier>("suppliers", {
     constraints: [orderBy("name", "asc"), limit(100)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { user, profile } = useAuth();
   const router = useRouter();

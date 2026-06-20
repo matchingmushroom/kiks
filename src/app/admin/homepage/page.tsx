@@ -33,7 +33,7 @@ const typeConfigDefaults: Record<string, Record<string, unknown>> = {
 export default function AdminHomepagePage() {
   const { data: sections, loading } = useFirestore<HomeSection>("sections", {
     constraints: [orderBy("order", "asc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
 
   const [editingId, setEditingId] = useState<string | null>(null);

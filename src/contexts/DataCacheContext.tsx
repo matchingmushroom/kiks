@@ -18,7 +18,7 @@ interface DataCacheContextType {
 
 const TTL = 5 * 60 * 1000;
 
-const DataCacheContext = createContext<DataCacheContextType>({
+export const DataCacheContext = createContext<DataCacheContextType>({
   getCached: () => null,
   setCached: () => {},
   refreshCollection: () => {},

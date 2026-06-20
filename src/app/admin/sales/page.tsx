@@ -14,6 +14,7 @@ import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit, arrayRemove, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useDataCache } from "@/hooks/useFirestore";
 import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2, RotateCcw, Printer, Download, Mail } from "lucide-react";
 import Link from "next/link";
 import { exportSalesCSV, downloadBlob } from "@/lib/export";
@@ -41,6 +42,7 @@ const emptyForm = {
 };
 
 function SalesContent() {
+  const { refreshCollection } = useDataCache();
   const searchParams = useSearchParams();
   const router = useRouter();
   const orderId = searchParams.get("orderId");
@@ -51,15 +53,15 @@ function SalesContent() {
 
   const { data: sales, loading } = useFirestore<Sale>("sales", {
     constraints: [orderBy("saleDate", "desc"), limit(300)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc")],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { data: allCustomers } = useFirestore<Customer>("customers", {
     constraints: [orderBy("name", "asc"), limit(200)],
-    realtime: false,
+    realtime: false, cache: true,
   });
   const { user, profile } = useAuth();
 
@@ -446,6 +448,10 @@ function SalesContent() {
       setOrderData(null);
       setTimeout(() => setSaleError(null), 6000);
     }
+    refreshCollection("sales");
+    refreshCollection("inventoryLogs");
+    refreshCollection("debtors");
+    refreshCollection("invoices");
     setSaving(false);
   };
 
@@ -496,6 +502,10 @@ function SalesContent() {
       await deleteDoc(doc(db, "accountTransactions", tx.id));
     }
     await deleteDoc(doc(db, "sales", id));
+    refreshCollection("sales");
+    refreshCollection("inventoryLogs");
+    refreshCollection("debtors");
+    refreshCollection("invoices");
   };
 
   const openReturn = (sale: Sale) => {
