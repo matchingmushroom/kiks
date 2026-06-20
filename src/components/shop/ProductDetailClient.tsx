@@ -15,7 +15,7 @@ function extractGoogleDriveId(url: string): string | null {
 
 function imgUrl(url: string): string {
   const gd = extractGoogleDriveId(url);
-  if (gd) return `https://drive.google.com/thumbnail?id=${gd}&sz=w1000`;
+  if (gd) return `https://drive.google.com/thumbnail?id=${gd}&sz=w400`;
   return url.replace(/images\.unsplash\.com\/photo-([^?]+)/, "https://unsplash.com/photos/$1/download?w=400");
 }
 
