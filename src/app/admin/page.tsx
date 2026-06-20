@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
+import { collection, query, where, getAggregateFromServer, sum, count } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { Sale, Product, Debtor, Order, Category } from "@/types";
 import { formatCurrency, formatNumber, toDate } from "@/lib/utils";
 import Link from "next/link";
@@ -32,7 +34,7 @@ function getLast30Days() {
 export default function AdminDashboardPage() {
   const { profile } = useAuth();
   const { data: sales } = useFirestore<Sale>("sales", {
-    constraints: [orderBy("saleDate", "desc"), limit(500)],
+    constraints: [orderBy("saleDate", "desc"), limit(200)],
     realtime: false, cache: true,
   });
   const { data: products } = useFirestore<Product>("products", {
@@ -40,7 +42,7 @@ export default function AdminDashboardPage() {
     realtime: false, cache: true,
   });
   const { data: orders } = useFirestore<Order>("orders", {
-    constraints: [orderBy("createdAt", "desc"), limit(100)],
+    constraints: [orderBy("createdAt", "desc"), limit(50)],
     realtime: false, cache: true,
   });
   const { data: categories } = useFirestore<Category>("categories", {
@@ -48,44 +50,57 @@ export default function AdminDashboardPage() {
     realtime: false, cache: true,
   });
   const { data: debtors } = useFirestore<Debtor>("debtors", {
-    constraints: [orderBy("balanceDue", "desc"), limit(100)],
+    constraints: [orderBy("balanceDue", "desc"), limit(50)],
     realtime: false, cache: true,
   });
+
+  const [agg, setAgg] = useState<Record<string, number | null>>({
+    ytd: null, mtd: null, total: null, debtBalance: null, lowStock: null, activeDebtors: null,
+  });
+
+  useEffect(() => {
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
+
+    const salesYtd = query(collection(db, "sales"), where("saleDate", ">=", startOfYear), where("saleDate", "<", yearEnd));
+    const salesMtd = query(collection(db, "sales"), where("saleDate", ">=", startOfMonth));
+    const activeDebtorsQ = query(collection(db, "debtors"), where("status", "==", "active"));
+    const lowStockQ = query(collection(db, "products"), where("quantityInStock", ">", 0), where("quantityInStock", "<=", 3));
+
+    Promise.all([
+      getAggregateFromServer(salesYtd, { total: sum("finalAmount") }),
+      getAggregateFromServer(salesMtd, { total: sum("finalAmount") }),
+      getAggregateFromServer(query(collection(db, "sales")), { total: sum("finalAmount") }),
+      getAggregateFromServer(activeDebtorsQ, { total: sum("balanceDue"), count: count() }),
+      getAggregateFromServer(lowStockQ, { count: count() }),
+    ]).then(([ytd, mtd, all, ad, ls]) => {
+      setAgg({
+        ytd: ytd.data().total,
+        mtd: mtd.data().total,
+        total: all.data().total,
+        debtBalance: ad.data().total,
+        lowStock: ls.data().count,
+        activeDebtors: ad.data().count,
+      });
+    }).catch(() => {});
+  }, []);
 
   const isStaff = profile?.role === "staff";
   const mySales = isStaff ? sales.filter((s) => s.recordedBy === profile?.uid) : sales;
   const myOrders = isStaff ? orders.filter((o) => o.processedBy === profile?.uid) : orders;
 
-  const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1).getTime();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-
-  const saleTime = (s: Sale) => {
-    const d = (s as any).saleDate;
-    if (typeof d?.toMillis === "function") return d.toMillis();
-    if (typeof d?.getTime === "function") return d.getTime();
-    return Number(d) || 0;
-  };
-  const ytdSales = mySales
-    .filter((s) => saleTime(s) >= startOfYear)
-    .reduce((sum, s) => sum + s.finalAmount, 0);
-  const mtdSales = mySales
-    .filter((s) => saleTime(s) >= startOfMonth)
-    .reduce((sum, s) => sum + s.finalAmount, 0);
-  const totalSales = mySales.reduce((sum, s) => sum + s.finalAmount, 0);
-  const totalDebt = debtors
-    .filter((d) => d.status === "active")
-    .reduce((sum, d) => sum + d.balanceDue, 0);
   const lowStockItems = products.filter((p) => p.quantityInStock > 0 && p.quantityInStock <= 3);
   const activeDebtorsList = debtors.filter((d) => d.status === "active");
 
   const stats = [
-    { label: "YTD Sales", value: formatCurrency(ytdSales), icon: TrendingUp, color: "text-green-600 bg-green-50" },
-    { label: "MTD Sales", value: formatCurrency(mtdSales), icon: Wallet, color: "text-blue-600 bg-blue-50" },
-    { label: "Total Sales", value: formatCurrency(totalSales), icon: Package, color: "text-purple-600 bg-purple-50" },
-    { label: "Debtors Balance", value: formatCurrency(totalDebt), icon: Users, color: "text-red-600 bg-red-50" },
-    { label: "Low Stock Items", value: lowStockItems.length.toString(), icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
-    { label: "Active Debtors", value: activeDebtorsList.length.toString(), icon: Users, color: "text-orange-600 bg-orange-50" },
+    { label: "YTD Sales", value: agg.ytd !== null ? formatCurrency(agg.ytd) : "—", icon: TrendingUp, color: "text-green-600 bg-green-50" },
+    { label: "MTD Sales", value: agg.mtd !== null ? formatCurrency(agg.mtd) : "—", icon: Wallet, color: "text-blue-600 bg-blue-50" },
+    { label: "Total Sales", value: agg.total !== null ? formatCurrency(agg.total) : "—", icon: Package, color: "text-purple-600 bg-purple-50" },
+    { label: "Debtors Balance", value: agg.debtBalance !== null ? formatCurrency(agg.debtBalance) : "—", icon: Users, color: "text-red-600 bg-red-50" },
+    { label: "Low Stock Items", value: agg.lowStock !== null ? agg.lowStock.toString() : "—", icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
+    { label: "Active Debtors", value: agg.activeDebtors !== null ? agg.activeDebtors.toString() : "—", icon: Users, color: "text-orange-600 bg-orange-50" },
   ];
 
   const last30 = getLast30Days();
