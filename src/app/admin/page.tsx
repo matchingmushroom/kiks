@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
-import { collection, query, where, getAggregateFromServer, sum, count } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import { Sale, Product, Debtor, Order, Category } from "@/types";
 import { formatCurrency, formatNumber, toDate } from "@/lib/utils";
 import Link from "next/link";
@@ -54,36 +52,14 @@ export default function AdminDashboardPage() {
     realtime: false, cache: true,
   });
 
-  const [agg, setAgg] = useState<Record<string, number | null>>({
-    total: null, debtBalance: null, lowStock: null, activeDebtors: null,
-  });
-
-  useEffect(() => {
-    const activeDebtorsQ = query(collection(db, "debtors"), where("status", "==", "active"));
-    const lowStockQ = query(collection(db, "products"), where("quantityInStock", ">", 0), where("quantityInStock", "<=", 3));
-
-    Promise.all([
-      getAggregateFromServer(query(collection(db, "sales")), { total: sum("finalAmount") }),
-      getAggregateFromServer(activeDebtorsQ, { total: sum("balanceDue"), count: count() }),
-      getAggregateFromServer(lowStockQ, { count: count() }),
-    ]).then(([all, ad, ls]) => {
-      setAgg({
-        total: all.data().total ?? 0,
-        debtBalance: ad.data().total ?? 0,
-        lowStock: ls.data().count ?? 0,
-        activeDebtors: ad.data().count ?? 0,
-      });
-    }).catch((e) => {
-      console.error("Aggregation queries failed:", e);
-    });
-  }, []);
-
   const isStaff = profile?.role === "staff";
   const mySales = isStaff ? sales.filter((s) => s.recordedBy === profile?.uid) : sales;
   const myOrders = isStaff ? orders.filter((o) => o.processedBy === profile?.uid) : orders;
 
+  const totalSales = sales.reduce((sum, s) => sum + s.finalAmount, 0);
   const lowStockItems = products.filter((p) => p.quantityInStock > 0 && p.quantityInStock <= 3);
   const activeDebtorsList = debtors.filter((d) => d.status === "active");
+  const debtorsBalance = activeDebtorsList.reduce((sum, d) => sum + d.balanceDue, 0);
 
   const last30 = getLast30Days();
   const safeDate = (d: unknown) => {
@@ -109,10 +85,10 @@ export default function AdminDashboardPage() {
   const stats = [
     { label: "YTD Sales", value: formatCurrency(ytdSales), icon: TrendingUp, color: "text-green-600 bg-green-50" },
     { label: "MTD Sales", value: formatCurrency(mtdSales), icon: Wallet, color: "text-blue-600 bg-blue-50" },
-    { label: "Total Sales", value: agg.total !== null ? formatCurrency(agg.total) : "—", icon: Package, color: "text-purple-600 bg-purple-50" },
-    { label: "Debtors Balance", value: agg.debtBalance !== null ? formatCurrency(agg.debtBalance) : "—", icon: Users, color: "text-red-600 bg-red-50" },
-    { label: "Low Stock Items", value: agg.lowStock !== null ? agg.lowStock.toString() : "—", icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
-    { label: "Active Debtors", value: agg.activeDebtors !== null ? agg.activeDebtors.toString() : "—", icon: Users, color: "text-orange-600 bg-orange-50" },
+    { label: "Total Sales", value: formatCurrency(totalSales), icon: Package, color: "text-purple-600 bg-purple-50" },
+    { label: "Debtors Balance", value: formatCurrency(debtorsBalance), icon: Users, color: "text-red-600 bg-red-50" },
+    { label: "Low Stock Items", value: String(lowStockItems.length), icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
+    { label: "Active Debtors", value: String(activeDebtorsList.length), icon: Users, color: "text-orange-600 bg-orange-50" },
   ];
 
   const salesTrend = last30.map((date) => ({
