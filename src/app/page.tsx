@@ -12,13 +12,13 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 function HeroSection({ section }: { section: HomeSection }) {
   const { settings } = useShopSettings();
   return (
-    <section className="relative bg-gradient-to-br from-secondary via-secondary to-primary/20 min-h-[70vh] flex items-center">
+    <section className="relative bg-white min-h-[70vh] flex items-center">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
         <div className="max-w-2xl">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-secondary mb-6">
             {section.title || `Exquisite Jewellery for Every Occasion`}
           </h1>
-          <p className="text-lg sm:text-xl text-secondary-foreground/80 mb-8">
+          <p className="text-lg sm:text-xl text-muted-foreground mb-8">
             {section.subtitle || `Discover our collection at ${settings.shopName}`}
           </p>
           <div className="flex flex-wrap gap-4">

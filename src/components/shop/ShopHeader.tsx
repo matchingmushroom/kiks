@@ -12,7 +12,7 @@ export default function ShopHeader() {
   const { settings } = useShopSettings();
 
   return (
-    <header className="bg-secondary text-secondary-foreground sticky top-0 z-40">
+    <header className="bg-white text-foreground border-b border-border sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2">
@@ -36,7 +36,7 @@ export default function ShopHeader() {
         </div>
       </div>
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-secondary/20 px-4 py-4 space-y-3">
+        <div className="md:hidden border-t border-border px-4 py-4 space-y-3">
           <Link href="/" className="block text-sm hover:text-accent" onClick={() => setMobileMenuOpen(false)}>Home</Link>
           <Link href="/products" className="block text-sm hover:text-accent" onClick={() => setMobileMenuOpen(false)}>Products</Link>
           <Link href="/cart" className="block text-sm hover:text-accent" onClick={() => setMobileMenuOpen(false)}>
