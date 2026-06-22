@@ -269,8 +269,14 @@ function doPost(e) {
     }
 
     if (data.action === "archiveToSheet" && data.driveFolderId) {
-      var cutoff = new Date();
-      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      var archiveStart = data.archiveStart ? new Date(data.archiveStart) : null;
+      var archiveEnd = data.archiveEnd ? new Date(data.archiveEnd) : null;
+      if (!archiveStart || !archiveEnd) {
+        var cutoff = new Date();
+        cutoff.setFullYear(cutoff.getFullYear() - 1);
+        archiveStart = null;
+        archiveEnd = cutoff;
+      }
       var archiveInfo = getArchiveSheet(data.driveFolderId);
       var tabs = archiveInfo.tabs;
       var collections = [
@@ -282,7 +288,10 @@ function doPost(e) {
       var totals = {};
       for (var c = 0; c < collections.length; c++) {
         var col = collections[c];
-        var docs = firestoreQuery(col.name, [[col.dateField, "<", cutoff]]);
+        var whereClauses = archiveStart
+          ? [[col.dateField, ">=", archiveStart], [col.dateField, "<", archiveEnd]]
+          : [[col.dateField, "<", archiveEnd]];
+        var docs = firestoreQuery(col.name, whereClauses);
         var archivedCount = 0;
         for (var d = 0; d < docs.length; d++) {
           docs[d].dateField = docs[d][col.dateField] instanceof Date
@@ -479,12 +488,18 @@ function doBackup() {
     console.log("doBackup: no attachments, email NOT sent");
   }
 
-  // Chain archive: move data older than 12 months to Google Sheet
+  // Chain archive: move previous fiscal year data to Google Sheet
   if (driveFolderId) {
     try {
-      var cutoff = new Date();
-      cutoff.setFullYear(cutoff.getFullYear() - 1);
-      console.log("doBackup: starting archive chain, cutoff=" + cutoff);
+      var cfgArch = firestoreGet(CONFIG_DOC);
+      var archiveStart = cfgArch && cfgArch.archiveFYStart ? new Date(cfgArch.archiveFYStart) : null;
+      var archiveEnd = cfgArch && cfgArch.archiveFYEnd ? new Date(cfgArch.archiveFYEnd) : null;
+      if (!archiveStart || !archiveEnd) {
+        var cutoff = new Date();
+        cutoff.setFullYear(cutoff.getFullYear() - 1);
+        archiveEnd = cutoff;
+      }
+      console.log("doBackup: starting archive chain, archiveStart=" + archiveStart + ", archiveEnd=" + archiveEnd);
       var archiveInfo = getArchiveSheet(driveFolderId);
       var tabs = archiveInfo.tabs;
       var collections = [
@@ -496,7 +511,10 @@ function doBackup() {
       for (var c = 0; c < collections.length; c++) {
         var col = collections[c];
         console.log("doBackup: archiving " + col.name);
-        var docs = firestoreQuery(col.name, [[col.dateField, "<", cutoff]]);
+        var whereClauses = archiveStart
+          ? [[col.dateField, ">=", archiveStart], [col.dateField, "<", archiveEnd]]
+          : [[col.dateField, "<", archiveEnd]];
+        var docs = firestoreQuery(col.name, whereClauses);
         var archived = 0;
         for (var d = 0; d < docs.length; d++) {
           docs[d].dateField = docs[d][col.dateField] instanceof Date

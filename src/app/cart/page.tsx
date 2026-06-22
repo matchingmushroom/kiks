@@ -29,6 +29,7 @@ export default function CartPage() {
   const [orderNumber, setOrderNumber] = useState("");
   const [waLink, setWaLink] = useState("");
   const [orderError, setOrderError] = useState("");
+  const [deliveryLocation, setDeliveryLocation] = useState<"inside_valley" | "outside_valley" | null>(null);
 
   const discount = appliedCoupon
     ? appliedCoupon.discountType === "percentage"
@@ -36,7 +37,14 @@ export default function CartPage() {
       : appliedCoupon.discountValue
     : 0;
 
-  const finalTotal = Math.max(0, totalAmount - discount);
+  const baseDeliveryFee = deliveryLocation === "inside_valley"
+    ? (settings.deliveryFeeInsideValley ?? 0)
+    : deliveryLocation === "outside_valley"
+      ? (settings.deliveryFeeOutsideValley ?? 0)
+      : 0;
+  const deliveryFee = (settings.freeDeliveryThreshold && totalAmount >= settings.freeDeliveryThreshold) ? 0 : baseDeliveryFee;
+
+  const finalTotal = Math.max(0, totalAmount - discount) + deliveryFee;
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -114,11 +122,13 @@ export default function CartPage() {
         subtotal: i.price * i.quantity,
       }));
 
-      const orderData = {
+      const orderData: Record<string, unknown> = {
         orderNumber: orderNum,
         customer: { name: customerName, phone: customerPhone, address: customerAddress || null },
         items: itemsData,
         totalAmount: finalTotal,
+        deliveryFee: deliveryFee > 0 ? deliveryFee : null,
+        deliveryLocation: deliveryLocation,
         couponApplied: appliedCoupon ? { code: appliedCoupon.code, discountValue: discount } : null,
         status: "pending",
         notes: "",
@@ -149,6 +159,8 @@ export default function CartPage() {
         customerAddress,
         appliedCoupon?.code,
         discount,
+        deliveryFee,
+        deliveryLocation ?? undefined,
       );
       console.log("[cart] setting success state");
       setWaLink(wLink);
@@ -272,6 +284,13 @@ export default function CartPage() {
                 </div>
               )}
 
+              {deliveryLocation && (
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>Delivery Fee ({deliveryLocation === "inside_valley" ? "Inside Valley" : "Outside Valley"})</span>
+                  <span>{deliveryFee === 0 ? <span className="text-green-600">Free</span> : `Rs. ${formatNumber(deliveryFee)}`}</span>
+                </div>
+              )}
+
               <div className="flex justify-between text-lg font-bold text-secondary pt-2 border-t border-border">
                 <span>Total</span>
                 <span>Rs. {formatNumber(finalTotal)}</span>
@@ -303,6 +322,26 @@ export default function CartPage() {
                   <CheckCircle className="h-4 w-4" /> Coupon applied!
                 </p>
               )}
+
+              <div className="pt-2 space-y-2">
+                <p className="text-sm font-medium text-secondary">Delivery Location</p>
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="deliveryLocation" value="inside_valley"
+                      checked={deliveryLocation === "inside_valley"}
+                      onChange={() => setDeliveryLocation("inside_valley")}
+                      className="accent-primary" />
+                    Inside Valley
+                  </label>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="radio" name="deliveryLocation" value="outside_valley"
+                      checked={deliveryLocation === "outside_valley"}
+                      onChange={() => setDeliveryLocation("outside_valley")}
+                      className="accent-primary" />
+                    Outside Valley
+                  </label>
+                </div>
+              </div>
 
               <div className="space-y-3 pt-2">
                 <input

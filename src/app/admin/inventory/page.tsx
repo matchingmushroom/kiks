@@ -4,7 +4,8 @@ import { useState, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Product, InventoryLog, Category } from "@/types";
-import { formatCurrency, formatDateTime, toDate } from "@/lib/utils";
+import { formatCurrency, formatDateTime, toDate, getUseBsCalendar } from "@/lib/utils";
+import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   addDoc, collection, updateDoc, doc, Timestamp, getDoc,
@@ -55,7 +56,7 @@ export default function AdminInventoryPage() {
       return matchSearch;
     });
     let start = 0, end = Infinity;
-    if (reportRange === "ytd") { start = new Date(new Date().getFullYear(), 0, 1).getTime(); }
+    if (reportRange === "ytd") { start = getUseBsCalendar() ? getFiscalYearStartEpoch() : new Date(new Date().getFullYear(), 0, 1).getTime(); }
     else if (reportRange === "mtd") { start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime(); }
     else if (reportRange === "custom" && dateFrom && dateTo) {
       start = new Date(dateFrom).getTime();

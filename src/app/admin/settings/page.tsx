@@ -6,7 +6,8 @@ import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from "firebase/fi
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Save, Image, Download, Mail, Database, Trash2 } from "lucide-react";
+import { Save, Image, Download, Mail, Database, Trash2, Calendar } from "lucide-react";
+import { getPreviousFYRange } from "@/lib/nepaliDate";
 
 interface Settings {
   shopName: string;
@@ -17,6 +18,10 @@ interface Settings {
   whatsappNumber: string;
   currency: string;
   website: string;
+  useBsCalendar?: boolean;
+  deliveryFeeInsideValley?: number;
+  deliveryFeeOutsideValley?: number;
+  freeDeliveryThreshold?: number;
 }
 
 interface EmailBackupConfig {
@@ -28,6 +33,8 @@ interface EmailBackupConfig {
   gasWebhookUrl: string;
   imageDriveFolderId: string;
   billDriveFolderId: string;
+  archiveFYStart?: number;
+  archiveFYEnd?: number;
 }
 
 const defaults: Settings = {
@@ -91,9 +98,17 @@ export default function SettingsPage() {
     setArchiving(true);
     setArchiveStatus(null);
     try {
+      // Compute previous FY dates
+      const prevFY = getPreviousFYRange();
+      const archiveStart = prevFY.start.getTime();
+      const archiveEnd = prevFY.end.getTime();
+      // Store FY dates in config for automatic doBackup to reference
+      await setDoc(doc(db, "shop_settings", "emailBackupConfig"), { archiveFYStart: archiveStart, archiveFYEnd: archiveEnd }, { merge: true });
+      setEmailConfig((prev) => ({ ...prev, archiveFYStart: archiveStart, archiveFYEnd: archiveEnd }));
+
       const res = await fetch(emailConfig.gasWebhookUrl, {
         method: "POST",
-        body: JSON.stringify({ action: "archiveToSheet", driveFolderId: emailConfig.driveFolderId }),
+        body: JSON.stringify({ action: "archiveToSheet", driveFolderId: emailConfig.driveFolderId, archiveStart, archiveEnd }),
       });
       const data = await res.json();
       if (data.status === "ok") {
@@ -142,6 +157,11 @@ export default function SettingsPage() {
         if (emailSnap.exists()) {
           setEmailConfig({ ...emailDefaults, ...emailSnap.data() } as EmailBackupConfig);
         }
+        // Store archive FY dates for GAS doBackup to reference
+        const prevFY = getPreviousFYRange();
+        const archiveStart = prevFY.start.getTime();
+        const archiveEnd = prevFY.end.getTime();
+        await setDoc(doc(db, "shop_settings", "emailBackupConfig"), { archiveFYStart: archiveStart, archiveFYEnd: archiveEnd }, { merge: true });
       } catch {
         /* use defaults */
       }
@@ -270,6 +290,49 @@ export default function SettingsPage() {
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               <p className="text-xs text-muted-foreground mt-1">Used in coupon terms and public links</p>
             </div>
+          </div>
+
+          <div className="flex items-center gap-3 pt-4 border-t border-border">
+            <Calendar className="h-5 w-5 text-primary" />
+            <div className="flex-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={!!form.useBsCalendar}
+                  onChange={(e) => setForm({ ...form, useBsCalendar: e.target.checked })}
+                  className="accent-primary w-4 h-4" />
+                <span className="text-sm font-medium text-secondary">Bikram Sambat Calendar (BS)</span>
+              </label>
+              <p className="text-xs text-muted-foreground mt-1 ml-6">
+                Display dates in BS format (e.g. 2082 Shrawan 08). YTD filters use fiscal year (Shrawan 1 – Ashad 32). Dashboard shows FYTD stats alongside YTD.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-4 border-t border-border">
+            <h3 className="text-sm font-semibold text-secondary">Delivery Fee</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Inside Valley (Rs.)</label>
+                <input type="number" value={form.deliveryFeeInsideValley ?? ""}
+                  onChange={(e) => setForm({ ...form, deliveryFeeInsideValley: e.target.value ? Number(e.target.value) : undefined })}
+                  min={0} step={10}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Outside Valley (Rs.)</label>
+                <input type="number" value={form.deliveryFeeOutsideValley ?? ""}
+                  onChange={(e) => setForm({ ...form, deliveryFeeOutsideValley: e.target.value ? Number(e.target.value) : undefined })}
+                  min={0} step={10}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Free Delivery Above (Rs.)</label>
+                <input type="number" value={form.freeDeliveryThreshold ?? ""}
+                  onChange={(e) => setForm({ ...form, freeDeliveryThreshold: e.target.value ? Number(e.target.value) : undefined })}
+                  min={0} step={100}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Delivery fee is applied at checkout based on the customer's location selection.</p>
           </div>
 
           <div className="flex items-center gap-3 pt-4 border-t border-border">
@@ -407,7 +470,7 @@ export default function SettingsPage() {
             <h2 className="text-lg font-semibold text-secondary">Archive Old Data</h2>
           </div>
           <p className="text-sm text-muted-foreground">
-            Move data older than 12 months from Firestore to Google Sheets to reduce read costs.
+            Move data from the previous completed fiscal year (Shrawan 1 – Ashad 32) from Firestore to Google Sheets to reduce read costs.
             Archived data remains accessible in the app (marked with "Archived" badge).
             Affected collections: Sales, Purchases, Expenses, Invoices.
           </p>

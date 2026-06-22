@@ -10,6 +10,8 @@ export function generateWhatsAppLink(
   customerAddress: string,
   couponCode?: string,
   discount?: number,
+  deliveryFee?: number,
+  deliveryLocation?: string,
 ): string {
   const lines = items.map(
     (item) =>
@@ -25,8 +27,13 @@ export function generateWhatsAppLink(
   ];
   if (couponCode && discount && discount > 0) {
     messageParts.push(`*Coupon:* ${couponCode} (-Rs. ${formatNumber(discount)})`);
-    messageParts.push("");
   }
+  if (deliveryLocation) {
+    const loc = deliveryLocation === "inside_valley" ? "Inside Valley" : "Outside Valley";
+    const fee = deliveryFee && deliveryFee > 0 ? `Rs. ${formatNumber(deliveryFee)}` : "Free";
+    messageParts.push(`*Delivery:* ${loc} (${fee})`);
+  }
+  messageParts.push("");
   messageParts.push(`*Total: Rs. ${formatNumber(total)}*`);
   messageParts.push("");
   messageParts.push("Thank you!");

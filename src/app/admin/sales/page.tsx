@@ -5,7 +5,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Sale, Product, Order, Customer, Invoice } from "@/types";
-import { formatCurrency, formatDate, formatDateTime, generateCouponCode, toDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatDateTime, generateCouponCode, toDate, getUseBsCalendar } from "@/lib/utils";
+import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -154,7 +155,7 @@ function SalesContent() {
     }
     let start = 0, end = Infinity;
     if (reportRange === "ytd") {
-      start = new Date(new Date().getFullYear(), 0, 1).getTime();
+      start = getUseBsCalendar() ? getFiscalYearStartEpoch() : new Date(new Date().getFullYear(), 0, 1).getTime();
     } else if (reportRange === "mtd") {
       start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
     } else if (reportRange === "custom" && dateFrom && dateTo) {

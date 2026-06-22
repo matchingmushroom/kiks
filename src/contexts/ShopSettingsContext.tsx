@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from "react
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { ShopSettings } from "@/types";
+import { setUseBsCalendar } from "@/lib/utils";
 
 const defaultSettings: ShopSettings = {
   shopName: "KIKS Collections",
@@ -34,7 +35,9 @@ export function ShopSettingsProvider({ children }: { children: ReactNode }) {
       doc(db, "shop_settings", "config"),
       (docSnap) => {
         if (docSnap.exists()) {
-          setSettings(docSnap.data() as ShopSettings);
+          const s = docSnap.data() as ShopSettings;
+          setSettings(s);
+          setUseBsCalendar(!!s.useBsCalendar);
         }
         setLoading(false);
       },

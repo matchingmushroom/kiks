@@ -7,7 +7,8 @@ import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import {
   Account, AccountTransaction,
 } from "@/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, getUseBsCalendar } from "@/lib/utils";
+import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
 import { getDoc, doc, setDoc, Timestamp, addDoc, collection } from "firebase/firestore";
@@ -55,7 +56,7 @@ function PnLSection() {
   const { settings } = useShopSettings();
   const [pnlData, setPnlData] = useState<PnlResult | null>(null);
   const [pnlLoading, setPnlLoading] = useState(false);
-  const [pnlRange, setPnlRange] = useState<"mtd" | "ytd" | "custom">("mtd");
+  const [pnlRange, setPnlRange] = useState<"mtd" | "ytd" | "fytd" | "custom">("mtd");
   const [customStart, setCustomStart] = useState(startOfMonth.toISOString().slice(0, 10));
   const [customEnd, setCustomEnd] = useState(today.toISOString().slice(0, 10));
 
@@ -63,7 +64,11 @@ function PnLSection() {
     if (!settings.gasWebhookUrl) return;
     let start: string, end: string;
     if (pnlRange === "mtd") { start = startOfMonth.toISOString().slice(0, 10); end = today.toISOString().slice(0, 10); }
-    else if (pnlRange === "ytd") { start = startOfYear.toISOString().slice(0, 10); end = today.toISOString().slice(0, 10); }
+    else if (pnlRange === "ytd") {
+      start = getUseBsCalendar() ? new Date(getFiscalYearStartEpoch()).toISOString().slice(0, 10) : startOfYear.toISOString().slice(0, 10);
+      end = today.toISOString().slice(0, 10);
+    }
+    else if (pnlRange === "fytd") { start = new Date(getFiscalYearStartEpoch()).toISOString().slice(0, 10); end = today.toISOString().slice(0, 10); }
     else { start = customStart; end = customEnd; }
 
     setPnlLoading(true);
@@ -83,7 +88,7 @@ function PnLSection() {
     if (!pnl) return;
     const rows = [
       ["Metric", "Value"],
-      ["Period", pnlRange === "mtd" ? "Month to Date" : pnlRange === "ytd" ? "Year to Date" : `${customStart} to ${customEnd}`],
+      ["Period", pnlRange === "mtd" ? "Month to Date" : pnlRange === "ytd" ? "Year to Date" : pnlRange === "fytd" ? "Fiscal Year to Date" : `${customStart} to ${customEnd}`],
       ["Gross Revenue", pnl.grossRevenue.toString()],
       ["COGS", pnl.cogs.toString()],
       ["Gross Profit", pnl.grossProfit.toString()],
@@ -102,12 +107,12 @@ function PnLSection() {
   return (
     <div>
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        {(["mtd", "ytd", "custom"] as const).map((r) => (
-          <button key={r} onClick={() => setPnlRange(r)}
-            className={`px-3 py-1.5 text-xs rounded-full border capitalize ${pnlRange === r ? "bg-primary text-white border-primary" : "bg-white text-muted-foreground border-border"}`}>
-            {r === "mtd" ? "Month to Date" : r === "ytd" ? "Year to Date" : "Custom Range"}
-          </button>
-        ))}
+          {(["mtd", "ytd", "fytd", "custom"] as const).map((r) => (
+            <button key={r} onClick={() => setPnlRange(r)}
+              className={`px-3 py-1.5 text-xs rounded-full border capitalize ${pnlRange === r ? "bg-primary text-white border-primary" : "bg-white text-muted-foreground border-border"}`}>
+              {r === "mtd" ? "Month to Date" : r === "ytd" ? "Year to Date" : r === "fytd" ? "Fiscal Year to Date" : "Custom Range"}
+            </button>
+          ))}
         {pnlRange === "custom" && (
           <>
             <input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="px-3 py-1.5 border border-border rounded-lg text-sm" />

@@ -1,5 +1,10 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { formatBS, formatBSDateTime } from "./nepaliDate";
+
+let _useBs = false;
+export const setUseBsCalendar = (v: boolean) => { _useBs = v; };
+export const getUseBsCalendar = () => _useBs;
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -25,21 +30,25 @@ export function toDate(v: unknown): Date {
 }
 
 export function formatDate(timestamp: unknown): string {
+  const d = toDate(timestamp);
+  if (_useBs) return formatBS(d);
   return new Intl.DateTimeFormat("en-IN", {
     year: "numeric",
     month: "short",
     day: "2-digit",
-  }).format(toDate(timestamp));
+  }).format(d);
 }
 
 export function formatDateTime(timestamp: unknown): string {
+  const d = toDate(timestamp);
+  if (_useBs) return formatBSDateTime(d);
   return new Intl.DateTimeFormat("en-IN", {
     year: "numeric",
     month: "short",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(toDate(timestamp));
+  }).format(d);
 }
 
 export function generateOrderNumber(): string {

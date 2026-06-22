@@ -2,10 +2,12 @@
 
 import { useState, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Sale, Product, Debtor, Order, Category } from "@/types";
 import { formatCurrency, formatNumber, toDate } from "@/lib/utils";
+import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import Link from "next/link";
 import {
   Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
@@ -31,6 +33,8 @@ function getLast30Days() {
 
 export default function AdminDashboardPage() {
   const { profile } = useAuth();
+  const { settings } = useShopSettings();
+  const useBs = !!settings.useBsCalendar;
   const { data: sales } = useFirestore<Sale>("sales", {
     constraints: [orderBy("saleDate", "desc"), limit(200)],
     realtime: false, cache: true,
@@ -81,14 +85,32 @@ export default function AdminDashboardPage() {
   const mtdSales = mySales
     .filter((s) => safeDate(s.saleDate) >= mtdStart)
     .reduce((sum, s) => sum + s.finalAmount, 0);
+  const fytdStart = new Date(getFiscalYearStartEpoch()).toISOString().slice(0, 10);
+  const fytdSales = mySales
+    .filter((s) => safeDate(s.saleDate) >= fytdStart)
+    .reduce((sum, s) => sum + s.finalAmount, 0);
+  const fytdDebtors = activeDebtorsList
+    .filter((d) => safeDate(d.createdAt) >= fytdStart)
+    .reduce((sum, d) => sum + d.balanceDue, 0);
+  const fytdActiveDebtors = activeDebtorsList
+    .filter((d) => safeDate(d.createdAt) >= fytdStart)
+    .length;
+
+  const fytdStats = useBs
+    ? [
+        { label: "FYTD Sales", value: formatCurrency(fytdSales), icon: TrendingUp, color: "text-emerald-600 bg-emerald-50" },
+        { label: "FYTD Debtors", value: formatCurrency(fytdDebtors), icon: Users, color: "text-rose-600 bg-rose-50" },
+        { label: "FYTD Debtors Count", value: String(fytdActiveDebtors), icon: Users, color: "text-teal-600 bg-teal-50" },
+      ]
+    : [];
 
   const stats = [
-    { label: "YTD Sales", value: formatCurrency(ytdSales), icon: TrendingUp, color: "text-green-600 bg-green-50" },
-    { label: "MTD Sales", value: formatCurrency(mtdSales), icon: Wallet, color: "text-blue-600 bg-blue-50" },
-    { label: "Total Sales", value: formatCurrency(totalSales), icon: Package, color: "text-purple-600 bg-purple-50" },
-    { label: "Debtors Balance", value: formatCurrency(debtorsBalance), icon: Users, color: "text-red-600 bg-red-50" },
-    { label: "Low Stock Items", value: String(lowStockItems.length), icon: AlertTriangle, color: "text-amber-600 bg-amber-50" },
-    { label: "Active Debtors", value: String(activeDebtorsList.length), icon: Users, color: "text-orange-600 bg-orange-50" },
+    { label: "YTD Sales", value: formatCurrency(ytdSales), icon: TrendingUp, color: "text-green-600 bg-green-50", fytd: fytdStats[0] },
+    { label: "MTD Sales", value: formatCurrency(mtdSales), icon: Wallet, color: "text-blue-600 bg-blue-50", fytd: undefined },
+    { label: "Total Sales", value: formatCurrency(totalSales), icon: Package, color: "text-purple-600 bg-purple-50", fytd: undefined },
+    { label: "Debtors Balance", value: formatCurrency(debtorsBalance), icon: Users, color: "text-red-600 bg-red-50", fytd: fytdStats[1] },
+    { label: "Low Stock Items", value: String(lowStockItems.length), icon: AlertTriangle, color: "text-amber-600 bg-amber-50", fytd: undefined },
+    { label: "Active Debtors", value: String(activeDebtorsList.length), icon: Users, color: "text-orange-600 bg-orange-50", fytd: fytdStats[2] },
   ];
 
   const salesTrend = last30.map((date) => ({
@@ -159,11 +181,12 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-          {stats.map((stat) => {
+          {stats.flatMap((stat) => {
+            const cards: React.ReactNode[] = [];
             const isLink = stat.label === "Low Stock Items" || stat.label === "Active Debtors";
             const href = stat.label === "Low Stock Items" ? "/admin/inventory" : "/admin/debtors";
             const Card = ({ children }: { children: React.ReactNode }) => isLink ? <Link href={href} className="block">{children}</Link> : <>{children}</>;
-            return (
+            cards.push(
               <Card key={stat.label}>
                 <div className="bg-white rounded-xl border border-border p-3 shadow-sm hover:shadow-md transition-shadow">
                   <div className={`inline-flex p-1.5 rounded-lg ${stat.color} mb-2`}>
@@ -174,6 +197,20 @@ export default function AdminDashboardPage() {
                 </div>
               </Card>
             );
+            if (stat.fytd) {
+              cards.push(
+                <div key={stat.label + "-fytd"}>
+                  <div className="bg-white rounded-xl border border-border p-3 shadow-sm hover:shadow-md transition-shadow">
+                    <div className={`inline-flex p-1.5 rounded-lg ${stat.fytd.color} mb-2`}>
+                      <stat.icon className="h-3.5 w-3.5" />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{stat.fytd.label}</p>
+                    <p className="text-sm font-bold text-secondary mt-0.5">{stat.fytd.value}</p>
+                  </div>
+                </div>
+              );
+            }
+            return cards;
           })}
         </div>
 

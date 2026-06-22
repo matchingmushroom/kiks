@@ -24,6 +24,7 @@
     "@radix-ui/react-toast": "^1.2.11",
     "@radix-ui/react-tooltip": "^1.2.5",
     "@react-pdf/renderer": "^4.3.2",
+    "@remotemerge/nepali-date-converter": "^1.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^11.6.1",

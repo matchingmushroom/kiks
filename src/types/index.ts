@@ -87,6 +87,8 @@ export interface Order {
   customer: { name: string; phone: string; address: string };
   items: OrderItem[];
   totalAmount: number;
+  deliveryFee?: number;
+  deliveryLocation?: "inside_valley" | "outside_valley";
   couponApplied: { code: string; discountValue: number } | null;
   status: "pending" | "confirmed" | "shipped" | "delivered" | "cancelled";
   notes: string;
@@ -379,6 +381,10 @@ export interface ShopSettings {
   gasWebhookUrl?: string;
   emailTo?: string;
   driveFolderId?: string;
+  useBsCalendar?: boolean;
+  deliveryFeeInsideValley?: number;
+  deliveryFeeOutsideValley?: number;
+  freeDeliveryThreshold?: number;
 }
 
 export interface PaymentHistoryEntry {

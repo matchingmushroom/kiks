@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit, useDataCache } from "@/hooks/useFirestore";
 import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor } from "@/types";
-import { formatCurrency, formatDate, toDate, compressImageUnder200KB } from "@/lib/utils";
+import { formatCurrency, formatDate, toDate, compressImageUnder200KB, getUseBsCalendar } from "@/lib/utils";
+import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -624,7 +625,7 @@ function PurchasesContent() {
 
   const filteredData = useMemo(() => {
     let start = 0, end = Infinity;
-    if (reportRange === "ytd") { start = new Date(new Date().getFullYear(), 0, 1).getTime(); }
+    if (reportRange === "ytd") { start = getUseBsCalendar() ? getFiscalYearStartEpoch() : new Date(new Date().getFullYear(), 0, 1).getTime(); }
     else if (reportRange === "mtd") { start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime(); }
     else if (reportRange === "custom" && dateFrom && dateTo) {
       start = new Date(dateFrom).getTime();

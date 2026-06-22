@@ -5,7 +5,8 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Order, Coupon } from "@/types";
-import { formatCurrency, formatDateTime, formatNumber, toDate } from "@/lib/utils";
+import { formatCurrency, formatDateTime, formatNumber, toDate, getUseBsCalendar } from "@/lib/utils";
+import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { updateDoc, doc, Timestamp, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
@@ -61,7 +62,7 @@ export default function AdminOrdersPage() {
       return matchSearch && matchStatus;
     });
     let start = 0, end = Infinity;
-    if (reportRange === "ytd") { start = new Date(new Date().getFullYear(), 0, 1).getTime(); }
+    if (reportRange === "ytd") { start = getUseBsCalendar() ? getFiscalYearStartEpoch() : new Date(new Date().getFullYear(), 0, 1).getTime(); }
     else if (reportRange === "mtd") { start = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime(); }
     else if (reportRange === "custom" && dateFrom && dateTo) {
       start = new Date(dateFrom).getTime();
@@ -323,6 +324,12 @@ export default function AdminOrdersPage() {
                         {order.customer?.address && (
                           <p className="text-sm text-muted-foreground">{order.customer.address}</p>
                         )}
+                        {order.deliveryLocation && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Delivery: {order.deliveryLocation === "inside_valley" ? "Inside Valley" : "Outside Valley"}
+                            {order.deliveryFee != null && order.deliveryFee > 0 && ` (Rs. ${formatNumber(order.deliveryFee)})`}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <h3 className="text-xs font-medium text-muted-foreground mb-2">UPDATE STATUS</h3>
@@ -419,13 +426,19 @@ export default function AdminOrdersPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="text-xs font-medium text-muted-foreground mb-2">CUSTOMER DETAILS</h3>
-                    <p className="text-sm">{selectedOrder.customer?.name}</p>
-                    <p className="text-sm text-muted-foreground">{selectedOrder.customer?.phone}</p>
-                    {selectedOrder.customer?.address && (
-                      <p className="text-sm text-muted-foreground">{selectedOrder.customer.address}</p>
-                    )}
+                    <div>
+                      <h3 className="text-xs font-medium text-muted-foreground mb-2">CUSTOMER DETAILS</h3>
+                      <p className="text-sm">{selectedOrder.customer?.name}</p>
+                      <p className="text-sm text-muted-foreground">{selectedOrder.customer?.phone}</p>
+                      {selectedOrder.customer?.address && (
+                        <p className="text-sm text-muted-foreground">{selectedOrder.customer.address}</p>
+                      )}
+                      {selectedOrder.deliveryLocation && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Delivery: {selectedOrder.deliveryLocation === "inside_valley" ? "Inside Valley" : "Outside Valley"}
+                          {selectedOrder.deliveryFee != null && selectedOrder.deliveryFee > 0 && ` (Rs. ${formatNumber(selectedOrder.deliveryFee)})`}
+                        </p>
+                      )}
                   </div>
                   <div>
                     <h3 className="text-xs font-medium text-muted-foreground mb-2">UPDATE STATUS</h3>
