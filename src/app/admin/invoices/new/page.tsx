@@ -7,6 +7,7 @@ import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Product, Customer } from "@/types";
 import { formatCurrency } from "@/lib/utils";
+import { toBS } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
 import { Button } from "@/components/ui/button";
 import { addDoc, collection, setDoc, doc, Timestamp } from "firebase/firestore";
@@ -104,7 +105,8 @@ export default function NewInvoicePage() {
     setSaving(true);
     try {
       const now = new Date();
-      const year = now.getFullYear();
+      const bs = toBS(now);
+      const year = bs.month >= 4 ? bs.year : bs.year - 1;
       const prefix = type === "invoice" ? "INV" : "EST";
       const counterDoc = doc(db, "counters", `${prefix.toLowerCase()}s_${year}`);
       const counterSnap = await import("firebase/firestore").then((m) => m.getDoc(counterDoc));
@@ -114,7 +116,7 @@ export default function NewInvoicePage() {
       }
       await setDoc(counterDoc, { lastNumber: seq, year }, { merge: true });
 
-      const invoiceNumber = `${prefix}-${year}-${String(seq).padStart(4, "0")}`;
+      const invoiceNumber = `${prefix}-${String(year).slice(-3)}-${String(seq).padStart(5, "0")}`;
 
       const invId = await generateId("INV");
       await setDoc(doc(db, "invoices", invId), {

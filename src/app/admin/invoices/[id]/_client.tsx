@@ -10,6 +10,7 @@ import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, Timestamp, setDo
 import { db } from "@/lib/firebase";
 import { Invoice } from "@/types";
 import { formatCurrency, formatDate, amountInWords } from "@/lib/utils";
+import { toBS } from "@/lib/nepaliDate";
 import { Button } from "@/components/ui/button";
 import { Printer, Download, Share2, ArrowLeft, RefreshCw, CheckCircle, XCircle } from "lucide-react";
 import { openWhatsApp } from "@/lib/whatsapp";
@@ -85,7 +86,8 @@ export default function InvoiceDetailPage() {
     setConverting(true);
     try {
       const now = new Date();
-      const year = now.getFullYear();
+      const bs = toBS(now);
+      const year = bs.month >= 4 ? bs.year : bs.year - 1;
       const counterDoc = doc(db, "counters", `invoices_${year}`);
       const counterSnap = await getDoc(counterDoc);
       let seq = 1;
@@ -93,7 +95,7 @@ export default function InvoiceDetailPage() {
         seq = (counterSnap.data().lastNumber || 0) + 1;
       }
       await setDoc(counterDoc, { lastNumber: seq, year }, { merge: true });
-      const invoiceNum = `INV-${year}-${String(seq).padStart(4, "0")}`;
+      const invoiceNum = `INV-${String(year).slice(-3)}-${String(seq).padStart(5, "0")}`;
 
       const invId = await generateId("INV");
       await setDoc(doc(db, "invoices", invId), {

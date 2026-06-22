@@ -6,7 +6,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Sale, Product, Order, Customer, Invoice } from "@/types";
 import { formatCurrency, formatDate, formatDateTime, generateCouponCode, toDate, getUseBsCalendar } from "@/lib/utils";
-import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
+import { toBS, getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
 import { useAuth } from "@/contexts/AuthContext";
@@ -344,13 +344,14 @@ function SalesContent() {
       let savedInvId: string | null = null;
       try {
         const now = new Date();
-        const year = now.getFullYear();
+        const bs = toBS(now);
+        const year = bs.month >= 4 ? bs.year : bs.year - 1;
         const invCounterDoc = doc(db, "counters", `invoices_${year}`);
         const invCounterSnap = await getDoc(invCounterDoc);
         let invSeq = 1;
         if (invCounterSnap.exists()) invSeq = (invCounterSnap.data().lastNumber || 0) + 1;
         await setDoc(invCounterDoc, { lastNumber: invSeq, year }, { merge: true });
-        const invoiceNumber = `INV-${year}-${String(invSeq).padStart(4, "0")}`;
+        const invoiceNumber = `INV-${String(year).slice(-3)}-${String(invSeq).padStart(5, "0")}`;
 
         const invId = await generateId("INV");
         await setDoc(doc(db, "invoices", invId), {
