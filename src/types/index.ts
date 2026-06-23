@@ -340,6 +340,7 @@ export interface Supplier {
   id: string;
   name: string;
   phone: string;
+  landline?: string;
   address: string;
   contactPerson: string;
   contactPersonPhone: string;

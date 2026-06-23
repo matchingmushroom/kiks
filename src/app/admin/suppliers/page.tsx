@@ -15,7 +15,7 @@ import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List, Eye } from "lucide-react";
 
 const emptyForm = {
-  name: "", phone: "", address: "", contactPerson: "",
+  name: "", phone: "", landline: "", address: "", contactPerson: "",
   contactPersonPhone: "", website: "", notes: "",
 };
 
@@ -59,7 +59,7 @@ export default function AdminSuppliersPage() {
 
   const openEdit = (s: Supplier) => {
     setForm({
-      name: s.name, phone: s.phone, address: s.address || "",
+      name: s.name, phone: s.phone, landline: s.landline || "", address: s.address || "",
       contactPerson: s.contactPerson || "", contactPersonPhone: s.contactPersonPhone || "",
       website: s.website || "", notes: s.notes || "",
     });
@@ -69,10 +69,12 @@ export default function AdminSuppliersPage() {
 
   const handleSave = async () => {
     if (!form.name) return;
+    if (form.phone.length !== 10) { alert("Mobile Number must be exactly 10 digits."); return; }
+    if (form.contactPersonPhone && form.contactPersonPhone.length !== 10) { alert("Contact Person Mobile must be exactly 10 digits."); return; }
     setSaving(true);
     try {
-      const data = {
-        name: form.name, phone: form.phone, address: form.address,
+      const data: Record<string, unknown> = {
+        name: form.name, phone: form.phone, landline: form.landline || null, address: form.address,
         contactPerson: form.contactPerson, contactPersonPhone: form.contactPersonPhone,
         website: form.website, notes: form.notes,
         updatedAt: Timestamp.fromDate(new Date()),
@@ -145,10 +147,18 @@ export default function AdminSuppliersPage() {
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Phone</label>
-                <input type="text" value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  minLength={6}
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Mobile Number *</label>
+                <input type="tel" value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                  minLength={10} maxLength={10}
+                  placeholder="98XXXXXXXX"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Land Line Number</label>
+                <input type="tel" value={form.landline}
+                  onChange={(e) => setForm({ ...form, landline: e.target.value.replace(/\D/g, "").slice(0, 12) })}
+                  placeholder="01-XXXXXXX"
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
@@ -164,10 +174,11 @@ export default function AdminSuppliersPage() {
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Contact Person Phone</label>
-                <input type="text" value={form.contactPersonPhone}
-                  onChange={(e) => setForm({ ...form, contactPersonPhone: e.target.value })}
-                  minLength={10}
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Contact Person Mobile</label>
+                <input type="tel" value={form.contactPersonPhone}
+                  onChange={(e) => setForm({ ...form, contactPersonPhone: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                  minLength={10} maxLength={10}
+                  placeholder="98XXXXXXXX"
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
@@ -205,7 +216,8 @@ export default function AdminSuppliersPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-secondary text-sm truncate">{s.name}</p>
-                      {s.phone && <p className="text-xs text-muted-foreground">{s.phone}</p>}
+                      {s.phone && <p className="text-xs text-muted-foreground">Mobile: {s.phone}</p>}
+                      {s.landline && <p className="text-xs text-muted-foreground">Landline: {s.landline}</p>}
                     </div>
                   </div>
                   {s.contactPerson && (
@@ -239,7 +251,8 @@ export default function AdminSuppliersPage() {
               <thead>
                 <tr className="bg-muted text-left">
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Name</th>
-                  <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Phone</th>
+                  <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Mobile</th>
+                  <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Landline</th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Contact Person</th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Address</th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Actions</th>
@@ -250,6 +263,7 @@ export default function AdminSuppliersPage() {
                   <tr key={s.id} className="hover:bg-muted/30">
                     <td className="px-4 py-2.5 font-medium text-secondary">{s.name}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">{s.phone || "—"}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{s.landline || "—"}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">{s.contactPerson || "—"}</td>
                     <td className="px-4 py-2.5 text-muted-foreground truncate max-w-[200px]">{s.address || "—"}</td>
                     <td className="px-4 py-2.5 text-right">
@@ -289,7 +303,8 @@ export default function AdminSuppliersPage() {
                   <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Basic Info</h3>
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div><span className="text-muted-foreground">Name:</span> <span className="font-medium ml-1">{detailSupplierData.name}</span></div>
-                    <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium ml-1">{detailSupplierData.phone || "—"}</span></div>
+                    <div><span className="text-muted-foreground">Mobile:</span> <span className="font-medium ml-1">{detailSupplierData.phone || "—"}</span></div>
+                    {detailSupplierData.landline && <div><span className="text-muted-foreground">Landline:</span> <span className="font-medium ml-1">{detailSupplierData.landline}</span></div>}
                     {detailSupplierData.address && <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="font-medium ml-1">{detailSupplierData.address}</span></div>}
                     {detailSupplierData.website && <div><span className="text-muted-foreground">Website:</span> <span className="font-medium ml-1">{detailSupplierData.website}</span></div>}
                   </div>
