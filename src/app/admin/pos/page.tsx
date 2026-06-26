@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit, useDataCache } from "@/hooks/useFirestore";
 import { Product, Coupon } from "@/types";
@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
-  Search, X, Minus, Plus, Trash2, CheckCircle, Percent, Tag,
+  Search, X, Minus, Plus, Trash2, CheckCircle, Percent, Tag, User,
 } from "lucide-react";
 
 interface LineItem {
@@ -30,6 +30,11 @@ type PaymentMode = "cash" | "credit" | "partial";
 
 export default function POSPage() {
   const { refreshCollection } = useDataCache();
+  const searchRef = useRef<HTMLInputElement>(null);
+  const announceRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { searchRef.current?.focus(); }, []);
   const { user, profile } = useAuth();
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc"), limit(500)],
@@ -58,6 +63,12 @@ export default function POSPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (success || error) {
+      announceRef.current?.focus();
+    }
+  }, [success, error]);
 
   const activeProducts = useMemo(() => products.filter((p) => p.isActive), [products]);
 
@@ -355,302 +366,376 @@ export default function POSPage() {
 
   return (
     <AdminLayout>
-      <div className="p-4 max-w-3xl mx-auto space-y-4">
+      <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-5">
+        {/* Screen reader live region */}
+        <div ref={announceRef} tabIndex={-1} className="sr-only" aria-live="assertive" role="status">
+          {success ? "Sale recorded successfully. Ready for next customer." : error ? `Error: ${error}` : ""}
+        </div>
+
         {/* Success banner */}
         {success && (
-          <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm font-medium">
-            <CheckCircle className="h-5 w-5 shrink-0" /> Sale recorded successfully! Ready for next customer.
+          <div role="status" className="flex items-center gap-3 bg-green-50 border-2 border-green-300 text-green-800 px-5 py-4 rounded-xl text-base font-medium">
+            <CheckCircle className="h-6 w-6 shrink-0" aria-hidden="true" />
+            <span>Sale recorded successfully! Ready for next customer.</span>
           </div>
         )}
         {error && (
-          <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm font-medium">
-            <X className="h-5 w-5 shrink-0" /> {error}
+          <div role="alert" className="flex items-center gap-3 bg-red-50 border-2 border-red-300 text-red-800 px-5 py-4 rounded-xl text-base font-medium">
+            <X className="h-6 w-6 shrink-0" aria-hidden="true" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Walk-in toggle + customer */}
-        <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={walkin} onChange={(e) => setWalkin(e.target.checked)}
-                className="accent-primary w-5 h-5" />
-              <span className="text-sm font-semibold text-secondary">Walk-in Customer</span>
-            </label>
-            {walkin ? (
-              <span className="text-xs text-muted-foreground">Bill To: Walk-in Customer</span>
-            ) : (
-              <div className="flex gap-2 flex-1">
-                <input type="text" placeholder="Name" value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="flex-1 px-3 py-1.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                <input type="tel" placeholder="Mobile Number" value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                  maxLength={10}
-                  className="flex-1 px-3 py-1.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              </div>
-            )}
+        {/* Customer section */}
+        <section aria-label="Customer information">
+          <div className="bg-white border border-border rounded-xl p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <label className="flex items-center gap-3 cursor-pointer select-none">
+                <input type="checkbox" checked={walkin} onChange={(e) => setWalkin(e.target.checked)}
+                  className="accent-primary w-6 h-6 rounded" />
+                <span className="text-base font-semibold text-secondary">Walk-in Customer</span>
+              </label>
+              {walkin ? (
+                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
+                  <User className="h-4 w-4" aria-hidden="true" /> Bill To: Walk-in Customer
+                </span>
+              ) : (
+                <div className="flex flex-col sm:flex-row gap-3 flex-1">
+                  <div className="flex-1">
+                    <label htmlFor="cust-name" className="sr-only">Customer Name</label>
+                    <input id="cust-name" type="text" placeholder="Customer Name" value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-colors" />
+                  </div>
+                  <div className="flex-1">
+                    <label htmlFor="cust-phone" className="sr-only">Mobile Number</label>
+                    <input id="cust-phone" type="tel" placeholder="Mobile Number" value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      maxLength={10}
+                      className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-colors" />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </section>
 
         {/* Product search */}
-        <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input type="text" placeholder="Search products by name or SKU..." value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-          </div>
-          {filteredProducts.length > 0 && (
-            <div className="mt-2 border border-border rounded-lg divide-y divide-border max-h-48 overflow-y-auto">
-              {filteredProducts.map((p) => (
-                <button key={p.id} onClick={() => addItem(p)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left">
-                  <span className="font-medium truncate">{p.name}</span>
-                  <span className="text-muted-foreground shrink-0 ml-2">
-                    Rs. {formatNumber(p.price)} {p.quantityInStock !== undefined && <span className="text-xs">(Stock: {p.quantityInStock})</span>}
-                  </span>
-                </button>
-              ))}
+        <section aria-label="Product search">
+          <div className="bg-white border border-border rounded-xl p-5 shadow-sm">
+            <div className="relative">
+              <label htmlFor="product-search" className="sr-only">Search products by name or SKU</label>
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" aria-hidden="true" />
+              <input id="product-search" ref={searchRef} type="search" autoComplete="off"
+                placeholder="Search products by name or SKU..." value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && filteredProducts.length > 0) { addItem(filteredProducts[0]); }
+                }}
+                className="w-full pl-11 pr-4 py-3.5 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-colors" />
             </div>
-          )}
-        </div>
-
-        {/* Cart items */}
-        <div className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-3 min-h-[120px]">
-          {items.length === 0 ? (
-            <p className="text-center text-muted-foreground text-sm py-6">Search and add products above</p>
-          ) : (
-            items.map((item, idx) => (
-              <div key={item.productId}
-                className="flex items-center gap-3 py-2 border-b border-border last:border-b-0">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.productName}</p>
-                  <p className="text-xs text-muted-foreground">Rs. {formatNumber(item.unitPrice)}/unit</p>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
-                    className="p-1 rounded hover:bg-muted transition-colors">
-                    <Minus className="h-3.5 w-3.5" />
+            {filteredProducts.length > 0 && (
+              <div className="mt-3 border-2 border-border rounded-xl divide-y-2 divide-border max-h-56 overflow-y-auto" role="listbox" aria-label="Matching products">
+                {filteredProducts.map((p) => (
+                  <button key={p.id} role="option" aria-selected={false}
+                    onClick={() => addItem(p)}
+                    className="w-full flex items-center justify-between px-4 py-3.5 text-base hover:bg-primary/5 focus:bg-primary/5 outline-none focus:ring-2 focus:ring-inset focus:ring-primary transition-colors text-left">
+                    <span className="font-medium truncate text-secondary">{p.name}</span>
+                    <span className="text-muted-foreground shrink-0 ml-4">
+                      Rs. <strong>{formatNumber(p.price)}</strong>
+                      {p.quantityInStock !== undefined && (
+                        <span className="text-sm ml-2">(Stock: {p.quantityInStock})</span>
+                      )}
+                    </span>
                   </button>
-                  <input type="number" value={item.quantity}
-                    onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
-                    min={1} className="w-10 text-center text-sm border border-border rounded py-1" />
-                  <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
-                    className="p-1 rounded hover:bg-muted transition-colors">
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input type="number" value={item.unitPrice}
-                    onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
-                    min={0} step={10}
-                    className="w-24 text-right text-sm border border-border rounded py-1 px-2" />
-                  <span className="text-sm font-semibold text-secondary w-24 text-right">
-                    Rs. {formatNumber(item.subtotal)}
-                  </span>
-                  <button onClick={() => removeItem(idx)}
-                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Payment mode */}
-        <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-secondary">Payment:</span>
-            {(["cash", "credit", "partial"] as PaymentMode[]).map((mode) => (
-              <button key={mode}
-                onClick={() => { setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
-                className={`px-4 py-1.5 text-xs rounded-full border capitalize font-medium transition-colors ${
-                  paymentMode === mode
-                    ? "bg-primary text-white border-primary"
-                    : "bg-white text-muted-foreground border-border hover:bg-muted"
-                }`}>
-                {mode === "partial" ? "Partial" : mode === "credit" ? "Credit" : "Cash"}
-              </button>
-            ))}
-            {paymentMode === "partial" && (
-              <div className="flex items-center gap-2 ml-2">
-                <span className="text-xs text-muted-foreground">Received:</span>
-                <input type="number" value={receivedAmount || ""}
-                  onChange={(e) => setReceivedAmount(Math.max(0, Number(e.target.value)))}
-                  min={0} placeholder="0"
-                  className="w-24 px-2 py-1 border border-border rounded text-sm text-right" />
+                ))}
               </div>
             )}
           </div>
-        </div>
+        </section>
+
+        {/* Cart items */}
+        <section aria-label="Cart items" ref={summaryRef}>
+          <div className="bg-white border border-border rounded-xl p-5 shadow-sm min-h-[140px]">
+            <h2 className="text-base font-semibold text-secondary mb-3">
+              Items ({items.length})
+            </h2>
+            {items.length === 0 ? (
+              <p className="text-center text-muted-foreground text-base py-8">Search and add products above</p>
+            ) : (
+              <ul className="space-y-3" role="list">
+                {items.map((item, idx) => (
+                  <li key={item.productId}
+                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border-2 border-border rounded-xl">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-base font-medium text-secondary truncate">{item.productName}</p>
+                      <p className="text-sm text-muted-foreground">Rs. {formatNumber(item.unitPrice)} / unit</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
+                        aria-label={`Decrease quantity of ${item.productName}`}
+                        className="p-2 rounded-lg border-2 border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none transition-colors">
+                        <Minus className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                      <label className="sr-only" htmlFor={`qty-${idx}`}>Quantity</label>
+                      <input id={`qty-${idx}`} type="number" value={item.quantity}
+                        onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
+                        min={1}
+                        className="w-14 text-center text-base border-2 border-border rounded-lg py-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                      <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
+                        aria-label={`Increase quantity of ${item.productName}`}
+                        className="p-2 rounded-lg border-2 border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none transition-colors">
+                        <Plus className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="sr-only" htmlFor={`price-${idx}`}>Unit price</label>
+                      <input id={`price-${idx}`} type="number" value={item.unitPrice}
+                        onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
+                        min={0} step={10}
+                        className="w-28 text-right text-base border-2 border-border rounded-lg py-2 px-3 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                      <span className="text-base font-bold text-secondary w-28 text-right">
+                        Rs. {formatNumber(item.subtotal)}
+                      </span>
+                      <button onClick={() => removeItem(idx)}
+                        aria-label={`Remove ${item.productName} from cart`}
+                        className="p-2.5 text-red-600 hover:bg-red-50 focus:bg-red-50 rounded-lg border-2 border-transparent hover:border-red-200 focus:border-red-300 focus:ring-2 focus:ring-red-200 outline-none transition-colors">
+                        <Trash2 className="h-5 w-5" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        {/* Payment mode */}
+        <section aria-label="Payment method">
+          <div className="bg-white border border-border rounded-xl p-5 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <span className="text-base font-semibold text-secondary">Payment</span>
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Payment mode">
+                {(["cash", "credit", "partial"] as PaymentMode[]).map((mode) => (
+                  <button key={mode} role="radio" aria-checked={paymentMode === mode}
+                    onClick={() => { setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
+                    className={`px-6 py-2.5 text-sm rounded-full border-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                      paymentMode === mode
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white text-secondary border-border hover:bg-muted"
+                    }`}>
+                    {mode === "partial" ? "Partial" : mode === "credit" ? "Credit" : "Cash"}
+                  </button>
+                ))}
+              </div>
+              {paymentMode === "partial" && (
+                <div className="flex items-center gap-3">
+                  <label htmlFor="received-amount" className="text-sm text-muted-foreground">Received:</label>
+                  <input id="received-amount" type="number" value={receivedAmount || ""}
+                    onChange={(e) => setReceivedAmount(Math.max(0, Number(e.target.value)))}
+                    min={0} placeholder="0"
+                    className="w-28 px-3 py-2.5 border-2 border-border rounded-lg text-base text-right focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
 
         {/* Discount */}
-        <div className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-secondary flex items-center gap-2">
-              <Percent className="h-4 w-4" /> Discount
-            </span>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setManualDiscountType("percentage")}
-                className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors ${
-                  manualDiscountType === "percentage"
-                    ? "bg-primary text-white border-primary"
-                    : "bg-white text-muted-foreground border-border hover:bg-muted"
-                }`}>%</button>
-              <button onClick={() => setManualDiscountType("fixed")}
-                className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors ${
-                  manualDiscountType === "fixed"
-                    ? "bg-primary text-white border-primary"
-                    : "bg-white text-muted-foreground border-border hover:bg-muted"
-                }`}>Rs.</button>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <input type="number" value={manualDiscountValue || ""}
-              onChange={(e) => setManualDiscountValue(Math.max(0, Number(e.target.value)))}
-              min={0} placeholder="0"
-              className="flex-1 px-3 py-1.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            <span className="text-xs text-muted-foreground shrink-0">
-              {manualDiscountValue > 0 && manualDiscountType === "percentage"
-                ? `= Rs. ${formatNumber(Math.min((totalAmount * manualDiscountValue) / 100, totalAmount))}`
-                : manualDiscountValue > 0
-                  ? `= Rs. ${formatNumber(Math.min(manualDiscountValue, totalAmount))}`
-                  : ""}
-            </span>
-          </div>
-        </div>
-
-        {/* Coupon */}
-        <div className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-          {appliedCoupon && (
+        <section aria-label="Discount">
+          <div className="bg-white border border-border rounded-xl p-5 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm">
-                <Tag className="h-4 w-4 text-green-600" />
-                <span className="font-medium text-green-700">Applied: {appliedCoupon.code}</span>
-                <span className="text-green-600">
-                  ({appliedCoupon.discountType === "percentage" ? `${appliedCoupon.discountValue}%` : `Rs. ${formatNumber(appliedCoupon.discountValue)}`} off)
-                </span>
-              </div>
-              <button onClick={() => { setAppliedCoupon(null); setCouponCodeInput(""); setCouponApplyError(""); }}
-                className="text-xs text-red-500 hover:underline">Remove</button>
-            </div>
-          )}
-          {issueDiscountValue > 0 && (
-            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Tag className="h-4 w-4 text-blue-600" />
-                <span className="font-medium text-blue-700">Will issue: {issueDiscountType === "percentage" ? `${issueDiscountValue}% off` : `Rs. ${formatNumber(issueDiscountValue)} off`}</span>
-              </div>
-              <button onClick={() => { setIssueDiscountValue(0); setIssueDiscountType("percentage"); }}
-                className="text-xs text-red-500 hover:underline">Cancel</button>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <input type="text" value={couponCodeInput}
-              onChange={(e) => { setCouponCodeInput(e.target.value.toUpperCase()); setCouponApplyError(""); }}
-              placeholder="Enter coupon code..."
-              className="flex-1 px-3 py-1.5 border border-border rounded-lg text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-primary" />
-            <Button onClick={() => applyCouponCode(couponCodeInput)}
-              disabled={!couponCodeInput.trim()}
-              variant="accent" size="sm" className="shrink-0">
-              <Tag className="h-3.5 w-3.5" /> Apply
-            </Button>
-          </div>
-          {couponApplyError && (
-            <p className="text-xs text-red-500">{couponApplyError}</p>
-          )}
-          <button onClick={() => setShowIssuePopup(true)}
-            className="text-xs text-muted-foreground hover:text-primary hover:underline">
-            Or issue a new coupon to customer →
-          </button>
-        </div>
-
-        {/* Summary + Record */}
-        <div className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-3">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Subtotal ({items.length} item{items.length !== 1 ? "s" : ""})</span>
-            <span>Rs. {formatNumber(totalAmount)}</span>
-          </div>
-          {manualDiscountValue > 0 && (
-            <div className="flex justify-between text-sm text-green-600">
-              <span>Discount {manualDiscountType === "percentage" ? `(${manualDiscountValue}%)` : ""}</span>
-              <span>- Rs. {formatNumber(manualDiscountType === "percentage"
-                ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
-                : Math.min(manualDiscountValue, totalAmount))}</span>
-            </div>
-          )}
-          {appliedCoupon && (
-            <div className="flex justify-between text-sm text-green-600">
-              <span>Coupon ({appliedCoupon.code})</span>
-              <span>- Rs. {formatNumber(appliedCoupon.discountType === "percentage"
-                ? Math.min((totalAmount * appliedCoupon.discountValue) / 100, appliedCoupon.maxDiscount || Infinity)
-                : appliedCoupon.discountValue)}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-lg font-bold text-secondary border-t border-border pt-2">
-            <span>Total</span>
-            <span>Rs. {formatNumber(finalAmount)}</span>
-          </div>
-          {balanceDue > 0 && (
-            <div className="flex justify-between text-sm text-red-600">
-              <span>Balance Due</span>
-              <span>Rs. {formatNumber(balanceDue)}</span>
-            </div>
-          )}
-          <Button onClick={handleSave} disabled={saving || items.length === 0} variant="accent"
-            className="w-full py-3 text-base">
-            <CheckCircle className="h-5 w-5" /> {saving ? "Recording..." : "Record Sale"}
-          </Button>
-        </div>
-      </div>
-
-      {/* Issue coupon popup */}
-      {showIssuePopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setShowIssuePopup(false)}>
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4"
-            onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-secondary flex items-center gap-2">
-                <Percent className="h-4 w-4" /> Issue Coupon to Customer
-              </h3>
-              <button onClick={() => setShowIssuePopup(false)} className="p-1 hover:bg-muted rounded">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-secondary">Discount:</span>
-                <button onClick={() => setIssueDiscountType("percentage")}
-                  className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors ${
-                    issueDiscountType === "percentage"
+              <span className="text-base font-semibold text-secondary flex items-center gap-2">
+                <Percent className="h-5 w-5" aria-hidden="true" /> Discount
+              </span>
+              <div className="flex items-center gap-1.5" role="radiogroup" aria-label="Discount type">
+                <button role="radio" aria-checked={manualDiscountType === "percentage"}
+                  onClick={() => setManualDiscountType("percentage")}
+                  className={`px-4 py-2 text-sm rounded-full border-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                    manualDiscountType === "percentage"
                       ? "bg-primary text-white border-primary"
-                      : "bg-white text-muted-foreground border-border hover:bg-muted"
+                      : "bg-white text-secondary border-border hover:bg-muted"
                   }`}>%</button>
-                <button onClick={() => setIssueDiscountType("fixed")}
-                  className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors ${
-                    issueDiscountType === "fixed"
+                <button role="radio" aria-checked={manualDiscountType === "fixed"}
+                  onClick={() => setManualDiscountType("fixed")}
+                  className={`px-4 py-2 text-sm rounded-full border-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                    manualDiscountType === "fixed"
                       ? "bg-primary text-white border-primary"
-                      : "bg-white text-muted-foreground border-border hover:bg-muted"
+                      : "bg-white text-secondary border-border hover:bg-muted"
                   }`}>Rs.</button>
               </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex-1">
+                <label htmlFor="manual-discount" className="sr-only">Discount value</label>
+                <input id="manual-discount" type="number" value={manualDiscountValue || ""}
+                  onChange={(e) => setManualDiscountValue(Math.max(0, Number(e.target.value)))}
+                  min={0} placeholder="0"
+                  className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+              </div>
+              {manualDiscountValue > 0 && (
+                <span className="text-sm font-medium text-green-700 shrink-0">
+                  = − Rs. {formatNumber(manualDiscountType === "percentage"
+                    ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
+                    : Math.min(manualDiscountValue, totalAmount))}
+                </span>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Coupon */}
+        <section aria-label="Coupon">
+          <div className="bg-white border border-border rounded-xl p-5 shadow-sm space-y-3">
+            {appliedCoupon && (
+              <div className="flex items-center justify-between bg-green-50 border-2 border-green-200 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <Tag className="h-5 w-5 text-green-600" aria-hidden="true" />
+                  <span className="font-semibold text-green-800">Applied: {appliedCoupon.code}</span>
+                  <span className="text-green-700">
+                    ({appliedCoupon.discountType === "percentage" ? `${appliedCoupon.discountValue}%` : `Rs. ${formatNumber(appliedCoupon.discountValue)}`} off)
+                  </span>
+                </div>
+                <button onClick={() => { setAppliedCoupon(null); setCouponCodeInput(""); setCouponApplyError(""); }}
+                  className="text-sm font-medium text-red-600 hover:text-red-800 hover:underline focus:outline-none focus:ring-2 focus:ring-red-300 rounded px-2 py-1">
+                  Remove
+                </button>
+              </div>
+            )}
+            {issueDiscountValue > 0 && (
+              <div className="flex items-center justify-between bg-blue-50 border-2 border-blue-200 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-3 text-sm">
+                  <Tag className="h-5 w-5 text-blue-600" aria-hidden="true" />
+                  <span className="font-semibold text-blue-800">
+                    Will issue: {issueDiscountType === "percentage" ? `${issueDiscountValue}% off` : `Rs. ${formatNumber(issueDiscountValue)} off`}
+                  </span>
+                </div>
+                <button onClick={() => { setIssueDiscountValue(0); setIssueDiscountType("percentage"); }}
+                  className="text-sm font-medium text-red-600 hover:text-red-800 hover:underline focus:outline-none focus:ring-2 focus:ring-red-300 rounded px-2 py-1">
+                  Cancel
+                </button>
+              </div>
+            )}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="flex-1">
+                <label htmlFor="coupon-code" className="sr-only">Coupon code</label>
+                <input id="coupon-code" type="text" value={couponCodeInput}
+                  onChange={(e) => { setCouponCodeInput(e.target.value.toUpperCase()); setCouponApplyError(""); }}
+                  placeholder="Enter coupon code..."
+                  className="w-full px-4 py-3 border-2 border-border rounded-lg text-base font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+              </div>
+              <Button onClick={() => applyCouponCode(couponCodeInput)}
+                disabled={!couponCodeInput.trim()}
+                variant="accent" size="lg" className="shrink-0">
+                <Tag className="h-5 w-5" aria-hidden="true" /> Apply
+              </Button>
+            </div>
+            {couponApplyError && (
+              <p className="text-sm text-red-600 font-medium" role="alert">{couponApplyError}</p>
+            )}
+            <button onClick={() => setShowIssuePopup(true)}
+              className="text-sm text-muted-foreground hover:text-primary font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded px-1">
+              Or issue a new coupon to customer &rarr;
+            </button>
+          </div>
+        </section>
+
+        {/* Summary + Record */}
+        <section aria-label="Sale summary">
+          <div className="bg-white border-2 border-border rounded-xl p-5 shadow-sm space-y-4">
+            <div className="flex justify-between text-base">
+              <span className="text-muted-foreground">Subtotal ({items.length} item{items.length !== 1 ? "s" : ""})</span>
+              <span className="font-semibold text-secondary">Rs. {formatNumber(totalAmount)}</span>
+            </div>
+            {manualDiscountValue > 0 && (
+              <div className="flex justify-between text-base text-green-700">
+                <span>Discount{manualDiscountType === "percentage" ? ` (${manualDiscountValue}%)` : ""}</span>
+                <span>− Rs. {formatNumber(manualDiscountType === "percentage"
+                  ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
+                  : Math.min(manualDiscountValue, totalAmount))}</span>
+              </div>
+            )}
+            {appliedCoupon && (
+              <div className="flex justify-between text-base text-green-700">
+                <span>Coupon ({appliedCoupon.code})</span>
+                <span>− Rs. {formatNumber(appliedCoupon.discountType === "percentage"
+                  ? Math.min((totalAmount * appliedCoupon.discountValue) / 100, appliedCoupon.maxDiscount || Infinity)
+                  : appliedCoupon.discountValue)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-xl font-bold text-secondary border-t-2 border-border pt-4">
+              <span>Total</span>
+              <span>Rs. {formatNumber(finalAmount)}</span>
+            </div>
+            {balanceDue > 0 && (
+              <div className="flex justify-between text-base text-red-600 font-semibold">
+                <span>Balance Due</span>
+                <span>Rs. {formatNumber(balanceDue)}</span>
+              </div>
+            )}
+            <Button onClick={handleSave} disabled={saving || items.length === 0} variant="accent" size="lg"
+              className="w-full py-4 text-lg font-bold">
+              <CheckCircle className="h-6 w-6" aria-hidden="true" /> {saving ? "Recording..." : "Record Sale"}
+            </Button>
+          </div>
+        </section>
+      </div>
+
+      {/* Issue coupon modal */}
+      {showIssuePopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowIssuePopup(false)}
+          role="dialog" aria-modal="true" aria-labelledby="issue-coupon-title">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-md mx-auto"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 id="issue-coupon-title" className="text-lg font-bold text-secondary flex items-center gap-2">
+                <Percent className="h-5 w-5" aria-hidden="true" /> Issue Coupon to Customer
+              </h2>
+              <button onClick={() => setShowIssuePopup(false)}
+                aria-label="Close coupon dialog"
+                className="p-2 hover:bg-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-5">
+              <fieldset>
+                <legend className="text-base font-semibold text-secondary mb-3">Discount Type</legend>
+                <div className="flex items-center gap-3" role="radiogroup" aria-label="Discount type">
+                  <button role="radio" aria-checked={issueDiscountType === "percentage"}
+                    onClick={() => setIssueDiscountType("percentage")}
+                    className={`px-5 py-2.5 text-sm rounded-full border-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                      issueDiscountType === "percentage"
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white text-secondary border-border hover:bg-muted"
+                    }`}>Percentage (%)</button>
+                  <button role="radio" aria-checked={issueDiscountType === "fixed"}
+                    onClick={() => setIssueDiscountType("fixed")}
+                    className={`px-5 py-2.5 text-sm rounded-full border-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                      issueDiscountType === "fixed"
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white text-secondary border-border hover:bg-muted"
+                    }`}>Fixed (Rs.)</button>
+                </div>
+              </fieldset>
               <div>
-                <input type="number" value={issueDiscountValue || ""}
+                <label htmlFor="issue-discount-value" className="block text-base font-semibold text-secondary mb-2">Discount Value</label>
+                <input id="issue-discount-value" type="number" value={issueDiscountValue || ""}
+                  autoFocus
                   onChange={(e) => setIssueDiscountValue(Math.max(0, Number(e.target.value)))}
                   min={0} placeholder="Enter discount value"
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground bg-muted rounded-lg px-4 py-3">
                 A new coupon code will be generated with this discount. The customer can use it on their next purchase.
               </p>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <Button onClick={() => setShowIssuePopup(false)}
-                  variant="outline" className="flex-1">Cancel</Button>
-                <Button onClick={() => setShowIssuePopup(false)}
+                  variant="outline" size="lg" className="flex-1">Cancel</Button>
+                <Button onClick={() => { if (issueDiscountValue > 0) setShowIssuePopup(false); }}
                   disabled={issueDiscountValue <= 0}
-                  variant="accent" className="flex-1">
-                  <Tag className="h-4 w-4" /> Ready to Issue
+                  variant="accent" size="lg" className="flex-1">
+                  <Tag className="h-5 w-5" aria-hidden="true" /> Ready to Issue
                 </Button>
               </div>
             </div>
