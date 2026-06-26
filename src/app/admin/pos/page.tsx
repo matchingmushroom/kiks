@@ -392,9 +392,9 @@ export default function POSPage() {
 
         {/* Top row: Customer + Search (fixed) */}
         <div className="shrink-0 px-4 pt-3 pb-2">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {/* Customer */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2">
               <label className="flex items-center gap-1.5 cursor-pointer select-none text-nowrap">
                 <input type="checkbox" checked={walkin} onChange={(e) => setWalkin(e.target.checked)}
                   className="accent-primary w-4 h-4 rounded" />
@@ -449,9 +449,9 @@ export default function POSPage() {
           )}
         </div>
 
-        <div className="flex-1 flex gap-3 px-4 pb-3 overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col lg:flex-row gap-3 px-4 pb-3 overflow-hidden min-h-0">
           {/* Left: Cart items (scrollable) */}
-          <section aria-label="Cart items" ref={summaryRef} className="flex-1 flex flex-col min-w-0">
+          <section aria-label="Cart items" ref={summaryRef} className="flex-1 flex flex-col min-w-0 min-h-[120px] lg:min-h-0">
             <div className="flex-1 bg-white border border-border rounded-xl p-3 shadow-sm flex flex-col min-h-0">
               <h2 className="text-xs font-semibold text-secondary mb-2 shrink-0">
                 Items ({items.length})
@@ -462,7 +462,7 @@ export default function POSPage() {
                 <ul className="flex-1 overflow-y-auto space-y-1.5 min-h-0" role="list">
                   {items.map((item, idx) => (
                     <li key={item.productId}
-                      className="flex items-center gap-1.5 p-1.5 border border-border rounded-lg text-xs">
+                      className="flex flex-wrap items-center gap-1.5 p-1.5 border border-border rounded-lg text-xs">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-secondary truncate">{item.productName}</p>
                         <p className="text-muted-foreground">Rs. {formatNumber(item.unitPrice)}/u</p>
@@ -505,7 +505,7 @@ export default function POSPage() {
           </section>
 
           {/* Right: Payment + Discount + Coupon + Summary (fixed column) */}
-          <section aria-label="Payment and discounts" className="w-80 shrink-0 flex flex-col gap-2">
+          <section aria-label="Payment and discounts" className="w-full lg:w-80 shrink-0 flex flex-col gap-2">
             {/* Payment */}
             <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
               <div className="flex items-center gap-1.5 mb-1.5">
@@ -612,8 +612,8 @@ export default function POSPage() {
               </button>
             </div>
 
-            {/* Summary + Record (sticky at bottom) */}
-            <div className="bg-white border-2 border-border rounded-xl p-3 shadow-sm mt-auto space-y-2">
+            {/* Summary + Record (sticky at bottom on desktop) */}
+            <div className="bg-white border-2 border-border rounded-xl p-3 shadow-sm lg:mt-auto space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-semibold text-secondary">Rs. {formatNumber(totalAmount)}</span>
