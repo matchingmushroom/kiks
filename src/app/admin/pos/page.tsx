@@ -418,7 +418,7 @@ export default function POSPage() {
             </div>
 
             {/* Search (flex-1) */}
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-[160px]">
               <label htmlFor="product-search" className="sr-only">Search products</label>
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <input id="product-search" ref={searchRef} type="search" autoComplete="off"
@@ -427,17 +427,17 @@ export default function POSPage() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && filteredProducts.length > 0) { addItem(filteredProducts[0]); }
                 }}
-                className="w-full pl-9 pr-3 py-1.5 border-2 border-border rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                className="w-full pl-9 pr-3 py-3 lg:py-1.5 border-2 border-border rounded-lg text-base lg:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
             </div>
           </div>
 
           {/* Search results dropdown */}
           {filteredProducts.length > 0 && (
-            <div className="mt-1 border-2 border-border rounded-lg divide-y divide-border max-h-32 overflow-y-auto" role="listbox" aria-label="Matching products">
+            <div className="mt-1 border-2 border-border rounded-lg divide-y divide-border max-h-40 overflow-y-auto" role="listbox" aria-label="Matching products">
               {filteredProducts.map((p) => (
                 <button key={p.id} role="option" aria-selected={false}
                   onClick={() => addItem(p)}
-                  className="w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-primary/5 focus:bg-primary/5 outline-none focus:ring-2 focus:ring-inset focus:ring-primary text-left">
+                  className="w-full flex items-center justify-between px-4 py-3 lg:px-3 lg:py-1.5 text-sm lg:text-xs hover:bg-primary/5 focus:bg-primary/5 outline-none focus:ring-2 focus:ring-inset focus:ring-primary text-left">
                   <span className="font-medium truncate text-secondary">{p.name}</span>
                   <span className="text-muted-foreground shrink-0 ml-2">
                     Rs. {formatNumber(p.price)}
