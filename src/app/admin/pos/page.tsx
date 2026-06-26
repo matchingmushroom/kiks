@@ -366,7 +366,7 @@ export default function POSPage() {
 
   return (
     <AdminLayout>
-      <div className="h-dvh flex flex-col overflow-hidden pl-5 pb-5">
+      <div className="h-dvh flex flex-col overflow-hidden pl-5 pb-[50px]">
         {/* Screen reader live region */}
         <div ref={announceRef} tabIndex={-1} className="sr-only" aria-live="assertive" role="status">
           {success ? "Sale recorded successfully. Ready for next customer." : error ? `Error: ${error}` : ""}
