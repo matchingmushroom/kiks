@@ -114,6 +114,9 @@ function PurchasesContent() {
   const [csvPaidAmount, setCsvPaidAmount] = useState(0);
   const [csvBillNo, setCsvBillNo] = useState("");
   const [csvImporting, setCsvImporting] = useState(false);
+  const [csvManualSupplier, setCsvManualSupplier] = useState(false);
+  const [csvBillImageUrl, setCsvBillImageUrl] = useState("");
+  const [csvUploadingBill, setCsvUploadingBill] = useState(false);
 
   const parseCSV = (text: string) => {
     const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -241,6 +244,8 @@ function PurchasesContent() {
       setCsvPaymentMethod("");
       setCsvPaidAmount(0);
       setCsvBillNo("");
+      setCsvBillImageUrl("");
+      setCsvManualSupplier(false);
       setPurchaseSaved(true);
       setTimeout(() => setPurchaseSaved(false), 6000);
     } catch (e: any) {
@@ -739,6 +744,44 @@ function PurchasesContent() {
       console.error("Bill upload failed", e);
       alert("Failed to upload bill: " + (e.message || e));
       setUploadingBill(false);
+    }
+  };
+
+  const csvUploadBillImage = async (file: File) => {
+    setCsvUploadingBill(true);
+    try {
+      const configSnap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      const cfg = configSnap.data() as Record<string, any> | undefined;
+      if (!cfg?.gasWebhookUrl) { alert("GAS Webhook URL not configured."); setCsvUploadingBill(false); return; }
+      const { base64: compressedBase64, mimeType: compressedMime, filename: compressedName } = await compressImageUnder200KB(file);
+      const uploadId = "up_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+      const timeoutId = setTimeout(() => setCsvUploadingBill(false), 30000);
+      const unsub = onSnapshot(doc(db, "pendingUploads", uploadId), (snap) => {
+        const d = snap.data();
+        if (!d || d.status === "pending") return;
+        clearTimeout(timeoutId);
+        unsub();
+        if (d.status === "done") setCsvBillImageUrl(`https://drive.google.com/thumbnail?id=${d.fileId}&sz=w1000`);
+        deleteDoc(doc(db, "pendingUploads", uploadId)).catch(() => {});
+        setCsvUploadingBill(false);
+      });
+      const authToken = await user?.getIdToken();
+      await setDoc(doc(db, "pendingUploads", uploadId), { status: "pending", createdAt: Timestamp.fromDate(new Date()) });
+      fetch(cfg.gasWebhookUrl, {
+        method: "POST", mode: "no-cors",
+        body: JSON.stringify({
+          action: "uploadImage",
+          imageBase64: compressedBase64,
+          filename: "bill_" + compressedName,
+          mimeType: compressedMime,
+          driveFolderId: cfg.billDriveFolderId || cfg.imageDriveFolderId || cfg.driveFolderId || undefined,
+          uploadId, authToken,
+        }),
+      });
+    } catch (e: any) {
+      console.error("CSV bill upload failed", e);
+      alert("Failed to upload bill: " + (e.message || e));
+      setCsvUploadingBill(false);
     }
   };
 
@@ -1758,14 +1801,30 @@ function PurchasesContent() {
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Supplier Name *</label>
-                  <input type="text" value={csvSupplier} onChange={(e) => setCsvSupplier(e.target.value)}
-                    placeholder="Supplier name" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Supplier *</label>
+                  <select value={csvManualSupplier ? "other" : csvSupplier}
+                    onChange={(e) => {
+                      if (e.target.value === "other") { setCsvManualSupplier(true); setCsvSupplier(""); setCsvSupplierPhone(""); }
+                      else if (e.target.value === "") { setCsvSupplier(""); setCsvSupplierPhone(""); setCsvManualSupplier(false); }
+                      else { const s = allSuppliers.find((s) => s.name === e.target.value); setCsvSupplier(s?.name || ""); setCsvSupplierPhone(s?.phone || ""); setCsvManualSupplier(false); }
+                    }}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm">
+                    <option value="">Select supplier</option>
+                    {allSuppliers.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}{s.phone ? ` (${s.phone})` : ""}</option>
+                    ))}
+                    <option value="other">Other (Enter Manually)</option>
+                  </select>
+                  {csvManualSupplier && (
+                    <input type="text" value={csvSupplier} onChange={(e) => setCsvSupplier(e.target.value)}
+                      placeholder="Supplier name" className="w-full mt-1.5 px-3 py-2 border border-border rounded-lg text-sm" />
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Supplier Phone</label>
                   <input type="text" value={csvSupplierPhone} onChange={(e) => setCsvSupplierPhone(e.target.value)}
-                    placeholder="Phone" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+                    placeholder="Phone" readOnly={!csvManualSupplier}
+                    className={`w-full px-3 py-2 border border-border rounded-lg text-sm ${!csvManualSupplier ? "bg-gray-50 text-muted-foreground cursor-not-allowed" : ""}`} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Payment Status</label>
@@ -1798,6 +1857,33 @@ function PurchasesContent() {
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Bill No.</label>
                 <input type="text" value={csvBillNo} onChange={(e) => setCsvBillNo(e.target.value)}
                   placeholder="Bill reference" className="w-full max-w-xs px-3 py-2 border border-border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Upload Copy of Bill</label>
+                <div className="flex items-center gap-2">
+                  {csvBillImageUrl ? (
+                    <div className="flex items-center gap-2">
+                      <a href={csvBillImageUrl.replace("&sz=w1000", "&sz=w2000")} target="_blank" rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                        <FileImage className="h-3.5 w-3.5" /> View Bill
+                      </a>
+                      <button onClick={() => setCsvBillImageUrl("")} className="text-xs text-red-500 hover:underline">Remove</button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium cursor-pointer">
+                      {csvUploadingBill ? (
+                        <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...</>
+                      ) : (
+                        <><Upload className="h-3.5 w-3.5" /> Choose File</>
+                      )}
+                      <input type="file" accept="image/*" className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) { await csvUploadBillImage(file); e.target.value = ""; }
+                        }} />
+                    </label>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Select CSV File</label>
