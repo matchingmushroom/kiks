@@ -224,6 +224,11 @@ export default function PublicInvoicePage() {
                     : `Rs. ${invoice.couponIssued.discountValue} off`}
                   {invoice.couponIssued.terms ? ` · ${invoice.couponIssued.terms}` : ""}
                 </p>
+                {invoice.customer?.name && (
+                  <p className="text-blue-600 text-xs mt-1">
+                    Issued to: {invoice.customer.name}{invoice.customer.phone ? ` (${invoice.customer.phone})` : ""}
+                  </p>
+                )}
               </div>
             )}
 

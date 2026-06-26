@@ -523,11 +523,11 @@ export default function POSPage() {
 
         {/* Coupon */}
         <div className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-          {appliedCoupon ? (
+          {appliedCoupon && (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm">
                 <Tag className="h-4 w-4 text-green-600" />
-                <span className="font-medium text-green-700">Coupon: {appliedCoupon.code}</span>
+                <span className="font-medium text-green-700">Applied: {appliedCoupon.code}</span>
                 <span className="text-green-600">
                   ({appliedCoupon.discountType === "percentage" ? `${appliedCoupon.discountValue}%` : `Rs. ${formatNumber(appliedCoupon.discountValue)}`} off)
                 </span>
@@ -535,28 +535,35 @@ export default function POSPage() {
               <button onClick={() => { setAppliedCoupon(null); setCouponCodeInput(""); setCouponApplyError(""); }}
                 className="text-xs text-red-500 hover:underline">Remove</button>
             </div>
-          ) : (
-            <>
-              <div className="flex items-center gap-2">
-                <input type="text" value={couponCodeInput}
-                  onChange={(e) => { setCouponCodeInput(e.target.value.toUpperCase()); setCouponApplyError(""); }}
-                  placeholder="Enter coupon code..."
-                  className="flex-1 px-3 py-1.5 border border-border rounded-lg text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-primary" />
-                <Button onClick={() => applyCouponCode(couponCodeInput)}
-                  disabled={!couponCodeInput.trim()}
-                  variant="accent" size="sm" className="shrink-0">
-                  <Tag className="h-3.5 w-3.5" /> Apply
-                </Button>
-              </div>
-              {couponApplyError && (
-                <p className="text-xs text-red-500">{couponApplyError}</p>
-              )}
-              <button onClick={() => setShowIssuePopup(true)}
-                className="text-xs text-muted-foreground hover:text-primary hover:underline">
-                Or issue a new coupon to customer →
-              </button>
-            </>
           )}
+          {issueDiscountValue > 0 && (
+            <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Tag className="h-4 w-4 text-blue-600" />
+                <span className="font-medium text-blue-700">Will issue: {issueDiscountType === "percentage" ? `${issueDiscountValue}% off` : `Rs. ${formatNumber(issueDiscountValue)} off`}</span>
+              </div>
+              <button onClick={() => { setIssueDiscountValue(0); setIssueDiscountType("percentage"); }}
+                className="text-xs text-red-500 hover:underline">Cancel</button>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <input type="text" value={couponCodeInput}
+              onChange={(e) => { setCouponCodeInput(e.target.value.toUpperCase()); setCouponApplyError(""); }}
+              placeholder="Enter coupon code..."
+              className="flex-1 px-3 py-1.5 border border-border rounded-lg text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-primary" />
+            <Button onClick={() => applyCouponCode(couponCodeInput)}
+              disabled={!couponCodeInput.trim()}
+              variant="accent" size="sm" className="shrink-0">
+              <Tag className="h-3.5 w-3.5" /> Apply
+            </Button>
+          </div>
+          {couponApplyError && (
+            <p className="text-xs text-red-500">{couponApplyError}</p>
+          )}
+          <button onClick={() => setShowIssuePopup(true)}
+            className="text-xs text-muted-foreground hover:text-primary hover:underline">
+            Or issue a new coupon to customer →
+          </button>
         </div>
 
         {/* Summary + Record */}

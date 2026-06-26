@@ -316,6 +316,12 @@ export default function AdminCouponsPage() {
                         {c.validFrom && <span>From: {formatDate(c.validFrom)}</span>}
                         {c.validUntil && <span>To: {formatDate(c.validUntil)}</span>}
                       </div>
+                      {c.issuedToCustomer?.name && (
+                        <div className="text-xs text-muted-foreground">
+                          Issued to: <span className="font-medium text-secondary">{c.issuedToCustomer.name}</span>
+                          {c.issuedToCustomer.phone ? ` (${c.issuedToCustomer.phone})` : ""}
+                        </div>
+                      )}
                       <div className="text-xs">
                         {c.restrictedToPhones?.length ? (
                           <span className="font-medium">{c.restrictedToPhones.join(", ")}</span>
@@ -350,6 +356,7 @@ export default function AdminCouponsPage() {
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Code</th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Discount</th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Type</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Issued To</th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Usage</th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Status</th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Actions</th>
@@ -379,6 +386,9 @@ export default function AdminCouponsPage() {
                             {c.couponType ? (
                               <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded text-xs">{c.couponType}</span>
                             ) : <span className="text-xs text-muted-foreground">General</span>}
+                          </td>
+                          <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                            {c.issuedToCustomer?.name ? `${c.issuedToCustomer.name}${c.issuedToCustomer.phone ? ` (${c.issuedToCustomer.phone})` : ""}` : "—"}
                           </td>
                           <td className="px-4 py-2.5 text-xs text-muted-foreground">{c.usedCount || 0}/{c.usageLimit || "∞"}</td>
                           <td className="px-4 py-2.5">
