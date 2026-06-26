@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { ArrowLeft } from "lucide-react";
 
@@ -20,6 +21,7 @@ const ERROR_MAP: Record<string, string> = {
 };
 
 export default function LoginPage() {
+  const { settings } = useShopSettings();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -64,7 +66,7 @@ export default function LoginPage() {
 
         <div className="bg-white rounded-xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <img src="/logo.svg" alt="KIKS Collections" className="h-12 mx-auto mb-4" />
+            <img src="/logo.svg" alt={settings.shopName} className="h-12 mx-auto mb-4" />
             <h1 className="text-xl font-bold text-secondary">Admin Login</h1>
             <p className="text-sm text-muted-foreground mt-1">Sign in to your dashboard</p>
           </div>

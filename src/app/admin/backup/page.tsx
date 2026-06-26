@@ -111,7 +111,7 @@ export default function AdminBackupPage() {
       const debtorReport = generateDebtorReport(debtors);
 
       const combined: ReportData = {
-        title: `KIKS Collections Report - ${new Date(start).toISOString().slice(0, 10)} to ${new Date(end).toISOString().slice(0, 10)}`,
+        title: `${process.env.NEXT_PUBLIC_SHOP_NAME || "KIKS Collections"} Report - ${new Date(start).toISOString().slice(0, 10)} to ${new Date(end).toISOString().slice(0, 10)}`,
         headers: [],
         rows: [],
       };
@@ -145,7 +145,7 @@ export default function AdminBackupPage() {
   };
 
   const handleEmailBackup = () => {
-    const subject = encodeURIComponent("KIKS Collections Backup");
+    const subject = encodeURIComponent(`${process.env.NEXT_PUBLIC_SHOP_NAME || "KIKS Collections"} Backup`);
     const body = encodeURIComponent(
       "Please run CSV backup from the admin dashboard and attach the generated files.\n\n" +
       "To set up automated email backup:\n" +

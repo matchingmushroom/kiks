@@ -16,7 +16,7 @@ import ShopFooter from "@/components/shop/ShopFooter";
 export default function CartPage() {
   const { items, removeItem, updateQuantity, totalAmount, clearCart } = useCart();
   const { settings } = useShopSettings();
-  useEffect(() => { document.title = "Cart - KIKS Collections"; }, []);
+  useEffect(() => { document.title = `Cart - ${settings.shopName}`; }, [settings.shopName]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerAddress, setCustomerAddress] = useState("");

@@ -127,9 +127,9 @@ export default function AdminOrdersPage() {
         lines.push(`Use promo code *${coupon.code}* — ${benefit} on your next purchase!`);
         lines.push("");
       }
-      lines.push("Thank you for shopping with KIKS Collections! We hope to see you again!");
+      lines.push(`Thank you for shopping with ${settings.shopName}! We hope to see you again!`);
     } else {
-      lines.push("Thank you for choosing KIKS Collections!");
+      lines.push(`Thank you for choosing ${settings.shopName}!`);
     }
 
     const msg = encodeURIComponent(lines.join("\n"));

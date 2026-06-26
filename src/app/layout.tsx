@@ -15,17 +15,19 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteName = process.env.NEXT_PUBLIC_SHOP_NAME || "KIKS Collections";
+
 export const metadata: Metadata = {
   title: {
-    default: "KIKS Collections - Exquisite Jewellery",
-    template: "%s - KIKS Collections",
+    default: `${siteName} - Exquisite Jewellery`,
+    template: `%s - ${siteName}`,
   },
   description: "Premium jewellery shop in Nepal — Rings, Necklaces, Earrings, Bracelets and more. Handcrafted gold and silver jewellery with purity certification.",
-  keywords: ["jewellery", "gold", "rings", "necklaces", "Nepal", "KIKS Collections", "earrings", "bracelets"],
+  keywords: ["jewellery", "gold", "rings", "necklaces", "Nepal", siteName, "earrings", "bracelets"],
   openGraph: {
-    title: "KIKS Collections - Exquisite Jewellery",
+    title: `${siteName} - Exquisite Jewellery`,
     description: "Premium jewellery shop in Nepal — Rings, Necklaces, Earrings, Bracelets and more.",
-    siteName: "KIKS Collections",
+    siteName,
     type: "website",
   },
 };

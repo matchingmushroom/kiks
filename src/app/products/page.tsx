@@ -2,13 +2,15 @@
 
 import { useState, useEffect } from "react";
 import { useFirestore, where } from "@/hooks/useFirestore";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Product, Category } from "@/types";
 import ProductCard from "@/components/shop/ProductCard";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 
 export default function ProductsPage() {
-  useEffect(() => { document.title = "Products - KIKS Collections"; }, []);
+  const { settings } = useShopSettings();
+  useEffect(() => { document.title = `Products - ${settings.shopName}`; }, [settings.shopName]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const { data: categories, error: catError } = useFirestore<Category>("categories", {
     constraints: [where("isActive", "==", true)],
