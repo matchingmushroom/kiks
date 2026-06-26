@@ -366,319 +366,291 @@ export default function POSPage() {
 
   return (
     <AdminLayout>
-      <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-5">
+      <div className="h-dvh flex flex-col overflow-hidden">
         {/* Screen reader live region */}
         <div ref={announceRef} tabIndex={-1} className="sr-only" aria-live="assertive" role="status">
           {success ? "Sale recorded successfully. Ready for next customer." : error ? `Error: ${error}` : ""}
         </div>
 
-        {/* Success banner */}
-        {success && (
-          <div role="status" className="flex items-center gap-3 bg-green-50 border-2 border-green-300 text-green-800 px-5 py-4 rounded-xl text-base font-medium">
-            <CheckCircle className="h-6 w-6 shrink-0" aria-hidden="true" />
-            <span>Sale recorded successfully! Ready for next customer.</span>
-          </div>
-        )}
-        {error && (
-          <div role="alert" className="flex items-center gap-3 bg-red-50 border-2 border-red-300 text-red-800 px-5 py-4 rounded-xl text-base font-medium">
-            <X className="h-6 w-6 shrink-0" aria-hidden="true" />
-            <span>{error}</span>
+        {/* Banners */}
+        {(success || error) && (
+          <div className="shrink-0 px-4 pt-2">
+            {success && (
+              <div role="status" className="flex items-center gap-2 bg-green-50 border border-green-300 text-green-800 px-4 py-2 rounded-lg text-sm font-medium">
+                <CheckCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span>Sale recorded! Ready for next customer.</span>
+              </div>
+            )}
+            {error && (
+              <div role="alert" className="flex items-center gap-2 bg-red-50 border border-red-300 text-red-800 px-4 py-2 rounded-lg text-sm font-medium">
+                <X className="h-5 w-5 shrink-0" aria-hidden="true" />
+                <span>{error}</span>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Customer section */}
-        <section aria-label="Customer information">
-          <div className="bg-white border border-border rounded-xl p-5 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <label className="flex items-center gap-3 cursor-pointer select-none">
+        {/* Top row: Customer + Search (fixed) */}
+        <div className="shrink-0 px-4 pt-3 pb-2">
+          <div className="flex items-center gap-3">
+            {/* Customer */}
+            <div className="flex items-center gap-2 shrink-0">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-nowrap">
                 <input type="checkbox" checked={walkin} onChange={(e) => setWalkin(e.target.checked)}
-                  className="accent-primary w-6 h-6 rounded" />
-                <span className="text-base font-semibold text-secondary">Walk-in Customer</span>
+                  className="accent-primary w-4 h-4 rounded" />
+                <span className="text-xs font-semibold text-secondary">Walk-in</span>
               </label>
               {walkin ? (
-                <span className="text-sm text-muted-foreground flex items-center gap-1.5">
-                  <User className="h-4 w-4" aria-hidden="true" /> Bill To: Walk-in Customer
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <User className="h-3 w-3" aria-hidden="true" /> Walk-in Customer
                 </span>
               ) : (
-                <div className="flex flex-col sm:flex-row gap-3 flex-1">
-                  <div className="flex-1">
-                    <label htmlFor="cust-name" className="sr-only">Customer Name</label>
-                    <input id="cust-name" type="text" placeholder="Customer Name" value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-colors" />
-                  </div>
-                  <div className="flex-1">
-                    <label htmlFor="cust-phone" className="sr-only">Mobile Number</label>
-                    <input id="cust-phone" type="tel" placeholder="Mobile Number" value={customerPhone}
-                      onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                      maxLength={10}
-                      className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-colors" />
-                  </div>
+                <div className="flex gap-1.5">
+                  <input id="cust-name" type="text" placeholder="Name" value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-28 px-2 py-1.5 border-2 border-border rounded-md text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                  <input id="cust-phone" type="tel" placeholder="Phone" value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    maxLength={10}
+                    className="w-28 px-2 py-1.5 border-2 border-border rounded-md text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                 </div>
               )}
             </div>
-          </div>
-        </section>
 
-        {/* Product search */}
-        <section aria-label="Product search">
-          <div className="bg-white border border-border rounded-xl p-5 shadow-sm">
-            <div className="relative">
-              <label htmlFor="product-search" className="sr-only">Search products by name or SKU</label>
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            {/* Search (flex-1) */}
+            <div className="relative flex-1">
+              <label htmlFor="product-search" className="sr-only">Search products</label>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
               <input id="product-search" ref={searchRef} type="search" autoComplete="off"
-                placeholder="Search products by name or SKU..." value={productSearch}
+                placeholder="Search name or SKU..." value={productSearch}
                 onChange={(e) => setProductSearch(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && filteredProducts.length > 0) { addItem(filteredProducts[0]); }
                 }}
-                className="w-full pl-11 pr-4 py-3.5 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-colors" />
+                className="w-full pl-9 pr-3 py-1.5 border-2 border-border rounded-lg text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
             </div>
-            {filteredProducts.length > 0 && (
-              <div className="mt-3 border-2 border-border rounded-xl divide-y-2 divide-border max-h-56 overflow-y-auto" role="listbox" aria-label="Matching products">
-                {filteredProducts.map((p) => (
-                  <button key={p.id} role="option" aria-selected={false}
-                    onClick={() => addItem(p)}
-                    className="w-full flex items-center justify-between px-4 py-3.5 text-base hover:bg-primary/5 focus:bg-primary/5 outline-none focus:ring-2 focus:ring-inset focus:ring-primary transition-colors text-left">
-                    <span className="font-medium truncate text-secondary">{p.name}</span>
-                    <span className="text-muted-foreground shrink-0 ml-4">
-                      Rs. <strong>{formatNumber(p.price)}</strong>
-                      {p.quantityInStock !== undefined && (
-                        <span className="text-sm ml-2">(Stock: {p.quantityInStock})</span>
-                      )}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
-        </section>
 
-        {/* Cart items */}
-        <section aria-label="Cart items" ref={summaryRef}>
-          <div className="bg-white border border-border rounded-xl p-5 shadow-sm min-h-[140px]">
-            <h2 className="text-base font-semibold text-secondary mb-3">
-              Items ({items.length})
-            </h2>
-            {items.length === 0 ? (
-              <p className="text-center text-muted-foreground text-base py-8">Search and add products above</p>
-            ) : (
-              <ul className="space-y-3" role="list">
-                {items.map((item, idx) => (
-                  <li key={item.productId}
-                    className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border-2 border-border rounded-xl">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-base font-medium text-secondary truncate">{item.productName}</p>
-                      <p className="text-sm text-muted-foreground">Rs. {formatNumber(item.unitPrice)} / unit</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
-                        aria-label={`Decrease quantity of ${item.productName}`}
-                        className="p-2 rounded-lg border-2 border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none transition-colors">
-                        <Minus className="h-5 w-5" aria-hidden="true" />
-                      </button>
-                      <label className="sr-only" htmlFor={`qty-${idx}`}>Quantity</label>
-                      <input id={`qty-${idx}`} type="number" value={item.quantity}
-                        onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
-                        min={1}
-                        className="w-14 text-center text-base border-2 border-border rounded-lg py-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-                      <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
-                        aria-label={`Increase quantity of ${item.productName}`}
-                        className="p-2 rounded-lg border-2 border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none transition-colors">
-                        <Plus className="h-5 w-5" aria-hidden="true" />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <label className="sr-only" htmlFor={`price-${idx}`}>Unit price</label>
-                      <input id={`price-${idx}`} type="number" value={item.unitPrice}
-                        onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
-                        min={0} step={10}
-                        className="w-28 text-right text-base border-2 border-border rounded-lg py-2 px-3 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-                      <span className="text-base font-bold text-secondary w-28 text-right">
-                        Rs. {formatNumber(item.subtotal)}
-                      </span>
-                      <button onClick={() => removeItem(idx)}
-                        aria-label={`Remove ${item.productName} from cart`}
-                        className="p-2.5 text-red-600 hover:bg-red-50 focus:bg-red-50 rounded-lg border-2 border-transparent hover:border-red-200 focus:border-red-300 focus:ring-2 focus:ring-red-200 outline-none transition-colors">
-                        <Trash2 className="h-5 w-5" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
+          {/* Search results dropdown */}
+          {filteredProducts.length > 0 && (
+            <div className="mt-1 border-2 border-border rounded-lg divide-y divide-border max-h-32 overflow-y-auto" role="listbox" aria-label="Matching products">
+              {filteredProducts.map((p) => (
+                <button key={p.id} role="option" aria-selected={false}
+                  onClick={() => addItem(p)}
+                  className="w-full flex items-center justify-between px-3 py-1.5 text-xs hover:bg-primary/5 focus:bg-primary/5 outline-none focus:ring-2 focus:ring-inset focus:ring-primary text-left">
+                  <span className="font-medium truncate text-secondary">{p.name}</span>
+                  <span className="text-muted-foreground shrink-0 ml-2">
+                    Rs. {formatNumber(p.price)}
+                    {p.quantityInStock !== undefined && <span className="ml-1.5">(S: {p.quantityInStock})</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
-        {/* Payment mode */}
-        <section aria-label="Payment method">
-          <div className="bg-white border border-border rounded-xl p-5 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <span className="text-base font-semibold text-secondary">Payment</span>
-              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Payment mode">
-                {(["cash", "credit", "partial"] as PaymentMode[]).map((mode) => (
-                  <button key={mode} role="radio" aria-checked={paymentMode === mode}
-                    onClick={() => { setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
-                    className={`px-6 py-2.5 text-sm rounded-full border-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
-                      paymentMode === mode
-                        ? "bg-primary text-white border-primary"
-                        : "bg-white text-secondary border-border hover:bg-muted"
-                    }`}>
-                    {mode === "partial" ? "Partial" : mode === "credit" ? "Credit" : "Cash"}
-                  </button>
-                ))}
+        <div className="flex-1 flex gap-3 px-4 pb-3 overflow-hidden min-h-0">
+          {/* Left: Cart items (scrollable) */}
+          <section aria-label="Cart items" ref={summaryRef} className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 bg-white border border-border rounded-xl p-3 shadow-sm flex flex-col min-h-0">
+              <h2 className="text-xs font-semibold text-secondary mb-2 shrink-0">
+                Items ({items.length})
+              </h2>
+              {items.length === 0 ? (
+                <p className="text-center text-muted-foreground text-xs py-6">Search and add products above</p>
+              ) : (
+                <ul className="flex-1 overflow-y-auto space-y-1.5 min-h-0" role="list">
+                  {items.map((item, idx) => (
+                    <li key={item.productId}
+                      className="flex items-center gap-1.5 p-1.5 border border-border rounded-lg text-xs">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-secondary truncate">{item.productName}</p>
+                        <p className="text-muted-foreground">Rs. {formatNumber(item.unitPrice)}/u</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
+                          aria-label={`Decrease qty of ${item.productName}`}
+                          className="p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                          <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                        <input id={`qty-${idx}`} type="number" value={item.quantity}
+                          onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
+                          min={1}
+                          className="w-9 text-center text-xs border border-border rounded py-1 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                        <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
+                          aria-label={`Increase qty of ${item.productName}`}
+                          className="p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <input id={`price-${idx}`} type="number" value={item.unitPrice}
+                          onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
+                          min={0} step={10}
+                          className="w-16 text-right text-xs border border-border rounded py-1 px-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                        <span className="font-semibold text-secondary w-16 text-right text-xs">
+                          {formatNumber(item.subtotal)}
+                        </span>
+                        <button onClick={() => removeItem(idx)}
+                          aria-label={`Remove ${item.productName}`}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded focus:ring-2 focus:ring-red-300 outline-none">
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
+
+          {/* Right: Payment + Discount + Coupon + Summary (fixed column) */}
+          <section aria-label="Payment and discounts" className="w-80 shrink-0 flex flex-col gap-2">
+            {/* Payment */}
+            <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-xs font-semibold text-secondary">Payment</span>
+                <div className="flex gap-1" role="radiogroup" aria-label="Payment mode">
+                  {(["cash", "credit", "partial"] as PaymentMode[]).map((mode) => (
+                    <button key={mode} role="radio" aria-checked={paymentMode === mode}
+                      onClick={() => { setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
+                      className={`px-2.5 py-1 text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                        paymentMode === mode
+                          ? "bg-primary text-white border-primary"
+                          : "bg-white text-secondary border-border hover:bg-muted"
+                      }`}>
+                      {mode === "partial" ? "Partial" : mode === "credit" ? "Credit" : "Cash"}
+                    </button>
+                  ))}
+                </div>
               </div>
               {paymentMode === "partial" && (
-                <div className="flex items-center gap-3">
-                  <label htmlFor="received-amount" className="text-sm text-muted-foreground">Received:</label>
+                <div className="flex items-center gap-1.5">
+                  <label htmlFor="received-amount" className="text-[11px] text-muted-foreground">Rcvd:</label>
                   <input id="received-amount" type="number" value={receivedAmount || ""}
                     onChange={(e) => setReceivedAmount(Math.max(0, Number(e.target.value)))}
                     min={0} placeholder="0"
-                    className="w-28 px-3 py-2.5 border-2 border-border rounded-lg text-base text-right focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                    className="w-20 px-2 py-1 border-2 border-border rounded text-xs text-right focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                 </div>
               )}
             </div>
-          </div>
-        </section>
 
-        {/* Discount */}
-        <section aria-label="Discount">
-          <div className="bg-white border border-border rounded-xl p-5 shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-base font-semibold text-secondary flex items-center gap-2">
-                <Percent className="h-5 w-5" aria-hidden="true" /> Discount
-              </span>
-              <div className="flex items-center gap-1.5" role="radiogroup" aria-label="Discount type">
-                <button role="radio" aria-checked={manualDiscountType === "percentage"}
-                  onClick={() => setManualDiscountType("percentage")}
-                  className={`px-4 py-2 text-sm rounded-full border-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
-                    manualDiscountType === "percentage"
-                      ? "bg-primary text-white border-primary"
-                      : "bg-white text-secondary border-border hover:bg-muted"
-                  }`}>%</button>
-                <button role="radio" aria-checked={manualDiscountType === "fixed"}
-                  onClick={() => setManualDiscountType("fixed")}
-                  className={`px-4 py-2 text-sm rounded-full border-2 font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
-                    manualDiscountType === "fixed"
-                      ? "bg-primary text-white border-primary"
-                      : "bg-white text-secondary border-border hover:bg-muted"
-                  }`}>Rs.</button>
+            {/* Discount */}
+            <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Percent className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                <span className="text-xs font-semibold text-secondary">Discount</span>
+                <div className="flex gap-1 ml-auto" role="radiogroup" aria-label="Discount type">
+                  <button role="radio" aria-checked={manualDiscountType === "percentage"}
+                    onClick={() => setManualDiscountType("percentage")}
+                    className={`px-2 py-1 text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                      manualDiscountType === "percentage"
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white text-secondary border-border hover:bg-muted"
+                    }`}>%</button>
+                  <button role="radio" aria-checked={manualDiscountType === "fixed"}
+                    onClick={() => setManualDiscountType("fixed")}
+                    className={`px-2 py-1 text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                      manualDiscountType === "fixed"
+                        ? "bg-primary text-white border-primary"
+                        : "bg-white text-secondary border-border hover:bg-muted"
+                    }`}>Rs.</button>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                <label htmlFor="manual-discount" className="sr-only">Discount value</label>
+              <div className="flex items-center gap-1.5">
                 <input id="manual-discount" type="number" value={manualDiscountValue || ""}
                   onChange={(e) => setManualDiscountValue(Math.max(0, Number(e.target.value)))}
                   min={0} placeholder="0"
-                  className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                  className="flex-1 px-2.5 py-1.5 border-2 border-border rounded text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                {manualDiscountValue > 0 && (
+                  <span className="text-[11px] font-medium text-green-700 shrink-0">
+                    −{formatNumber(manualDiscountType === "percentage"
+                      ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
+                      : Math.min(manualDiscountValue, totalAmount))}
+                  </span>
+                )}
               </div>
-              {manualDiscountValue > 0 && (
-                <span className="text-sm font-medium text-green-700 shrink-0">
-                  = − Rs. {formatNumber(manualDiscountType === "percentage"
-                    ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
-                    : Math.min(manualDiscountValue, totalAmount))}
-                </span>
-              )}
             </div>
-          </div>
-        </section>
 
-        {/* Coupon */}
-        <section aria-label="Coupon">
-          <div className="bg-white border border-border rounded-xl p-5 shadow-sm space-y-3">
-            {appliedCoupon && (
-              <div className="flex items-center justify-between bg-green-50 border-2 border-green-200 rounded-xl px-4 py-3">
-                <div className="flex items-center gap-3 text-sm">
-                  <Tag className="h-5 w-5 text-green-600" aria-hidden="true" />
-                  <span className="font-semibold text-green-800">Applied: {appliedCoupon.code}</span>
-                  <span className="text-green-700">
-                    ({appliedCoupon.discountType === "percentage" ? `${appliedCoupon.discountValue}%` : `Rs. ${formatNumber(appliedCoupon.discountValue)}`} off)
+            {/* Coupon */}
+            <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
+              {appliedCoupon && (
+                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5 mb-1.5">
+                  <span className="text-[11px] font-semibold text-green-800 truncate">
+                    {appliedCoupon.code} ({appliedCoupon.discountType === "percentage" ? `${appliedCoupon.discountValue}%` : `Rs. ${formatNumber(appliedCoupon.discountValue)}`})
                   </span>
+                  <button onClick={() => { setAppliedCoupon(null); setCouponCodeInput(""); setCouponApplyError(""); }}
+                    className="text-[11px] font-medium text-red-600 hover:underline shrink-0 ml-1">✕</button>
                 </div>
-                <button onClick={() => { setAppliedCoupon(null); setCouponCodeInput(""); setCouponApplyError(""); }}
-                  className="text-sm font-medium text-red-600 hover:text-red-800 hover:underline focus:outline-none focus:ring-2 focus:ring-red-300 rounded px-2 py-1">
-                  Remove
-                </button>
-              </div>
-            )}
-            {issueDiscountValue > 0 && (
-              <div className="flex items-center justify-between bg-blue-50 border-2 border-blue-200 rounded-xl px-4 py-3">
-                <div className="flex items-center gap-3 text-sm">
-                  <Tag className="h-5 w-5 text-blue-600" aria-hidden="true" />
-                  <span className="font-semibold text-blue-800">
-                    Will issue: {issueDiscountType === "percentage" ? `${issueDiscountValue}% off` : `Rs. ${formatNumber(issueDiscountValue)} off`}
+              )}
+              {issueDiscountValue > 0 && (
+                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 mb-1.5">
+                  <span className="text-[11px] font-semibold text-blue-800">
+                    Issue: {issueDiscountType === "percentage" ? `${issueDiscountValue}% off` : `Rs. ${formatNumber(issueDiscountValue)} off`}
                   </span>
+                  <button onClick={() => { setIssueDiscountValue(0); setIssueDiscountType("percentage"); }}
+                    className="text-[11px] font-medium text-red-600 hover:underline shrink-0 ml-1">✕</button>
                 </div>
-                <button onClick={() => { setIssueDiscountValue(0); setIssueDiscountType("percentage"); }}
-                  className="text-sm font-medium text-red-600 hover:text-red-800 hover:underline focus:outline-none focus:ring-2 focus:ring-red-300 rounded px-2 py-1">
-                  Cancel
-                </button>
-              </div>
-            )}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-              <div className="flex-1">
-                <label htmlFor="coupon-code" className="sr-only">Coupon code</label>
+              )}
+              <div className="flex gap-1.5">
                 <input id="coupon-code" type="text" value={couponCodeInput}
                   onChange={(e) => { setCouponCodeInput(e.target.value.toUpperCase()); setCouponApplyError(""); }}
-                  placeholder="Enter coupon code..."
-                  className="w-full px-4 py-3 border-2 border-border rounded-lg text-base font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                  placeholder="Code..."
+                  className="flex-1 px-2.5 py-1.5 border-2 border-border rounded text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                <Button onClick={() => applyCouponCode(couponCodeInput)}
+                  disabled={!couponCodeInput.trim()}
+                  variant="accent" size="sm" className="px-2.5 py-1 text-[11px] h-auto min-h-0">
+                  Apply
+                </Button>
               </div>
-              <Button onClick={() => applyCouponCode(couponCodeInput)}
-                disabled={!couponCodeInput.trim()}
-                variant="accent" size="lg" className="shrink-0">
-                <Tag className="h-5 w-5" aria-hidden="true" /> Apply
+              {couponApplyError && (
+                <p className="text-[11px] text-red-600 font-medium mt-1" role="alert">{couponApplyError}</p>
+              )}
+              <button onClick={() => setShowIssuePopup(true)}
+                className="text-[11px] text-muted-foreground hover:text-primary font-medium mt-1 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded px-0.5">
+                Issue new &rarr;
+              </button>
+            </div>
+
+            {/* Summary + Record (sticky at bottom) */}
+            <div className="bg-white border-2 border-border rounded-xl p-3 shadow-sm mt-auto space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="font-semibold text-secondary">Rs. {formatNumber(totalAmount)}</span>
+              </div>
+              {manualDiscountValue > 0 && (
+                <div className="flex justify-between text-[11px] text-green-700">
+                  <span>Discount{manualDiscountType === "percentage" ? ` (${manualDiscountValue}%)` : ""}</span>
+                  <span>− Rs. {formatNumber(manualDiscountType === "percentage"
+                    ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
+                    : Math.min(manualDiscountValue, totalAmount))}</span>
+                </div>
+              )}
+              {appliedCoupon && (
+                <div className="flex justify-between text-[11px] text-green-700">
+                  <span>Coupon ({appliedCoupon.code})</span>
+                  <span>− Rs. {formatNumber(appliedCoupon.discountType === "percentage"
+                    ? Math.min((totalAmount * appliedCoupon.discountValue) / 100, appliedCoupon.maxDiscount || Infinity)
+                    : appliedCoupon.discountValue)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-base font-bold text-secondary border-t-2 border-border pt-2">
+                <span>Total</span>
+                <span>Rs. {formatNumber(finalAmount)}</span>
+              </div>
+              {balanceDue > 0 && (
+                <div className="flex justify-between text-[11px] text-red-600 font-semibold">
+                  <span>Balance Due</span>
+                  <span>Rs. {formatNumber(balanceDue)}</span>
+                </div>
+              )}
+              <Button onClick={handleSave} disabled={saving || items.length === 0} variant="accent"
+                className="w-full py-3 text-sm font-bold">
+                <CheckCircle className="h-5 w-5" aria-hidden="true" /> {saving ? "Recording..." : "Record Sale"}
               </Button>
             </div>
-            {couponApplyError && (
-              <p className="text-sm text-red-600 font-medium" role="alert">{couponApplyError}</p>
-            )}
-            <button onClick={() => setShowIssuePopup(true)}
-              className="text-sm text-muted-foreground hover:text-primary font-medium hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded px-1">
-              Or issue a new coupon to customer &rarr;
-            </button>
-          </div>
-        </section>
-
-        {/* Summary + Record */}
-        <section aria-label="Sale summary">
-          <div className="bg-white border-2 border-border rounded-xl p-5 shadow-sm space-y-4">
-            <div className="flex justify-between text-base">
-              <span className="text-muted-foreground">Subtotal ({items.length} item{items.length !== 1 ? "s" : ""})</span>
-              <span className="font-semibold text-secondary">Rs. {formatNumber(totalAmount)}</span>
-            </div>
-            {manualDiscountValue > 0 && (
-              <div className="flex justify-between text-base text-green-700">
-                <span>Discount{manualDiscountType === "percentage" ? ` (${manualDiscountValue}%)` : ""}</span>
-                <span>− Rs. {formatNumber(manualDiscountType === "percentage"
-                  ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
-                  : Math.min(manualDiscountValue, totalAmount))}</span>
-              </div>
-            )}
-            {appliedCoupon && (
-              <div className="flex justify-between text-base text-green-700">
-                <span>Coupon ({appliedCoupon.code})</span>
-                <span>− Rs. {formatNumber(appliedCoupon.discountType === "percentage"
-                  ? Math.min((totalAmount * appliedCoupon.discountValue) / 100, appliedCoupon.maxDiscount || Infinity)
-                  : appliedCoupon.discountValue)}</span>
-              </div>
-            )}
-            <div className="flex justify-between text-xl font-bold text-secondary border-t-2 border-border pt-4">
-              <span>Total</span>
-              <span>Rs. {formatNumber(finalAmount)}</span>
-            </div>
-            {balanceDue > 0 && (
-              <div className="flex justify-between text-base text-red-600 font-semibold">
-                <span>Balance Due</span>
-                <span>Rs. {formatNumber(balanceDue)}</span>
-              </div>
-            )}
-            <Button onClick={handleSave} disabled={saving || items.length === 0} variant="accent" size="lg"
-              className="w-full py-4 text-lg font-bold">
-              <CheckCircle className="h-6 w-6" aria-hidden="true" /> {saving ? "Recording..." : "Record Sale"}
-            </Button>
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
 
       {/* Issue coupon modal */}
