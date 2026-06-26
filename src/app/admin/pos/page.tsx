@@ -391,44 +391,38 @@ export default function POSPage() {
         )}
 
         {/* Top row: Customer + Search (fixed) */}
-        <div className="shrink-0 px-4 pt-3 pb-2">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Customer */}
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-nowrap">
-                <input type="checkbox" checked={walkin} onChange={(e) => setWalkin(e.target.checked)}
-                  className="accent-primary w-4 h-4 rounded" />
-                <span className="text-xs font-semibold text-secondary">Walk-in</span>
-              </label>
-              {walkin ? (
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                  <User className="h-3 w-3" aria-hidden="true" /> Walk-in Customer
-                </span>
-              ) : (
-                <div className="flex gap-1.5">
-                  <input id="cust-name" type="text" placeholder="Name" value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-28 px-2 py-1.5 border-2 border-border rounded-md text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-                  <input id="cust-phone" type="tel" placeholder="Phone" value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                    maxLength={10}
-                    className="w-28 px-2 py-1.5 border-2 border-border rounded-md text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-                </div>
-              )}
-            </div>
+        <div className="shrink-0 px-4 pt-3 pb-2 space-y-2">
+          {/* Customer */}
+          <div className="flex flex-col lg:flex-row lg:items-center gap-2">
+            <label className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input type="checkbox" checked={walkin} onChange={(e) => setWalkin(e.target.checked)}
+                className="accent-primary w-5 h-5 rounded" />
+              <span className="text-sm lg:text-xs font-semibold text-secondary">Walk-in Customer</span>
+            </label>
+            {!walkin && (
+              <div className="flex flex-col lg:flex-row gap-1.5 w-full lg:w-auto">
+                <input id="cust-name" type="text" placeholder="Customer Name" value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full lg:w-32 px-3 py-2 lg:px-2 lg:py-1.5 border-2 border-border rounded-md text-sm lg:text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                <input id="cust-phone" type="tel" placeholder="Mobile Number" value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  maxLength={10}
+                  className="w-full lg:w-32 px-3 py-2 lg:px-2 lg:py-1.5 border-2 border-border rounded-md text-sm lg:text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+              </div>
+            )}
+          </div>
 
-            {/* Search (flex-1) */}
-            <div className="relative flex-1 min-w-[160px]">
-              <label htmlFor="product-search" className="sr-only">Search products</label>
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" aria-hidden="true" />
-              <input id="product-search" ref={searchRef} type="search" autoComplete="off"
-                placeholder="Search name or SKU..." value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && filteredProducts.length > 0) { addItem(filteredProducts[0]); }
-                }}
-                className="w-full pl-9 pr-3 py-3 lg:py-1.5 border-2 border-border rounded-lg text-base lg:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-            </div>
+          {/* Search */}
+          <div className="relative">
+            <label htmlFor="product-search" className="sr-only">Search products</label>
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 lg:h-4 lg:w-4 text-muted-foreground" aria-hidden="true" />
+            <input id="product-search" ref={searchRef} type="search" autoComplete="off"
+              placeholder="Search product name or SKU..." value={productSearch}
+              onChange={(e) => setProductSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && filteredProducts.length > 0) { addItem(filteredProducts[0]); }
+              }}
+              className="w-full pl-11 lg:pl-9 pr-4 py-3 lg:py-1.5 border-2 border-border rounded-lg text-base lg:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
           </div>
 
           {/* Search results dropdown */}
@@ -462,39 +456,39 @@ export default function POSPage() {
                 <ul className="flex-1 overflow-y-auto space-y-1.5 min-h-0" role="list">
                   {items.map((item, idx) => (
                     <li key={item.productId}
-                      className="flex flex-wrap items-center gap-1.5 p-1.5 border border-border rounded-lg text-xs">
+                      className="flex items-center gap-2 p-2 lg:p-1.5 border border-border rounded-lg text-xs">
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-secondary truncate">{item.productName}</p>
                         <p className="text-muted-foreground">Rs. {formatNumber(item.unitPrice)}/u</p>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 shrink-0">
                         <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
                           aria-label={`Decrease qty of ${item.productName}`}
-                          className="p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
-                          <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                          className="p-1.5 lg:p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                          <Minus className="h-4 w-4 lg:h-3.5 lg:w-3.5" aria-hidden="true" />
                         </button>
                         <input id={`qty-${idx}`} type="number" value={item.quantity}
                           onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
                           min={1}
-                          className="w-9 text-center text-xs border border-border rounded py-1 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                          className="w-10 lg:w-9 text-center text-sm lg:text-xs border border-border rounded py-1.5 lg:py-1 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                         <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
                           aria-label={`Increase qty of ${item.productName}`}
-                          className="p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
-                          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                          className="p-1.5 lg:p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                          <Plus className="h-4 w-4 lg:h-3.5 lg:w-3.5" aria-hidden="true" />
                         </button>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 shrink-0">
                         <input id={`price-${idx}`} type="number" value={item.unitPrice}
                           onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
                           min={0} step={10}
-                          className="w-16 text-right text-xs border border-border rounded py-1 px-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-                        <span className="font-semibold text-secondary w-16 text-right text-xs">
+                          className="w-20 lg:w-16 text-right text-sm lg:text-xs border border-border rounded py-1.5 lg:py-1 px-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                        <span className="font-semibold text-secondary w-20 lg:w-16 text-right text-sm lg:text-xs">
                           {formatNumber(item.subtotal)}
                         </span>
                         <button onClick={() => removeItem(idx)}
                           aria-label={`Remove ${item.productName}`}
-                          className="p-1 text-red-500 hover:bg-red-50 rounded focus:ring-2 focus:ring-red-300 outline-none">
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          className="p-1.5 lg:p-1 text-red-500 hover:bg-red-50 rounded focus:ring-2 focus:ring-red-300 outline-none">
+                          <Trash2 className="h-4 w-4 lg:h-3.5 lg:w-3.5" aria-hidden="true" />
                         </button>
                       </div>
                     </li>
@@ -514,7 +508,7 @@ export default function POSPage() {
                   {(["cash", "credit", "partial"] as PaymentMode[]).map((mode) => (
                     <button key={mode} role="radio" aria-checked={paymentMode === mode}
                       onClick={() => { setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
-                      className={`px-2.5 py-1 text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                      className={`px-3 lg:px-2.5 py-1.5 lg:py-1 text-xs lg:text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
                         paymentMode === mode
                           ? "bg-primary text-white border-primary"
                           : "bg-white text-secondary border-border hover:bg-muted"
@@ -526,11 +520,11 @@ export default function POSPage() {
               </div>
               {paymentMode === "partial" && (
                 <div className="flex items-center gap-1.5">
-                  <label htmlFor="received-amount" className="text-[11px] text-muted-foreground">Rcvd:</label>
+                  <label htmlFor="received-amount" className="text-xs lg:text-[11px] text-muted-foreground">Received:</label>
                   <input id="received-amount" type="number" value={receivedAmount || ""}
                     onChange={(e) => setReceivedAmount(Math.max(0, Number(e.target.value)))}
                     min={0} placeholder="0"
-                    className="w-20 px-2 py-1 border-2 border-border rounded text-xs text-right focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                    className="flex-1 lg:w-20 px-3 py-2 lg:px-2 lg:py-1 border-2 border-border rounded text-sm lg:text-xs text-right focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                 </div>
               )}
             </div>
@@ -543,14 +537,14 @@ export default function POSPage() {
                 <div className="flex gap-1 ml-auto" role="radiogroup" aria-label="Discount type">
                   <button role="radio" aria-checked={manualDiscountType === "percentage"}
                     onClick={() => setManualDiscountType("percentage")}
-                    className={`px-2 py-1 text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                    className={`px-3 lg:px-2 py-1.5 lg:py-1 text-xs lg:text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
                       manualDiscountType === "percentage"
                         ? "bg-primary text-white border-primary"
                         : "bg-white text-secondary border-border hover:bg-muted"
                     }`}>%</button>
                   <button role="radio" aria-checked={manualDiscountType === "fixed"}
                     onClick={() => setManualDiscountType("fixed")}
-                    className={`px-2 py-1 text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                    className={`px-3 lg:px-2 py-1.5 lg:py-1 text-xs lg:text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
                       manualDiscountType === "fixed"
                         ? "bg-primary text-white border-primary"
                         : "bg-white text-secondary border-border hover:bg-muted"
@@ -561,9 +555,9 @@ export default function POSPage() {
                 <input id="manual-discount" type="number" value={manualDiscountValue || ""}
                   onChange={(e) => setManualDiscountValue(Math.max(0, Number(e.target.value)))}
                   min={0} placeholder="0"
-                  className="flex-1 px-2.5 py-1.5 border-2 border-border rounded text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                  className="flex-1 px-3 lg:px-2.5 py-2 lg:py-1.5 border-2 border-border rounded text-sm lg:text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                 {manualDiscountValue > 0 && (
-                  <span className="text-[11px] font-medium text-green-700 shrink-0">
+                  <span className="text-xs lg:text-[11px] font-medium text-green-700 shrink-0">
                     −{formatNumber(manualDiscountType === "percentage"
                       ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
                       : Math.min(manualDiscountValue, totalAmount))}
@@ -575,39 +569,39 @@ export default function POSPage() {
             {/* Coupon */}
             <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
               {appliedCoupon && (
-                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5 mb-1.5">
-                  <span className="text-[11px] font-semibold text-green-800 truncate">
+                <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 lg:px-2.5 py-2 lg:py-1.5 mb-1.5">
+                  <span className="text-xs lg:text-[11px] font-semibold text-green-800 truncate">
                     {appliedCoupon.code} ({appliedCoupon.discountType === "percentage" ? `${appliedCoupon.discountValue}%` : `Rs. ${formatNumber(appliedCoupon.discountValue)}`})
                   </span>
                   <button onClick={() => { setAppliedCoupon(null); setCouponCodeInput(""); setCouponApplyError(""); }}
-                    className="text-[11px] font-medium text-red-600 hover:underline shrink-0 ml-1">✕</button>
+                    className="text-xs lg:text-[11px] font-medium text-red-600 hover:underline shrink-0 ml-1">✕</button>
                 </div>
               )}
               {issueDiscountValue > 0 && (
-                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-2.5 py-1.5 mb-1.5">
-                  <span className="text-[11px] font-semibold text-blue-800">
+                <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-3 lg:px-2.5 py-2 lg:py-1.5 mb-1.5">
+                  <span className="text-xs lg:text-[11px] font-semibold text-blue-800">
                     Issue: {issueDiscountType === "percentage" ? `${issueDiscountValue}% off` : `Rs. ${formatNumber(issueDiscountValue)} off`}
                   </span>
                   <button onClick={() => { setIssueDiscountValue(0); setIssueDiscountType("percentage"); }}
-                    className="text-[11px] font-medium text-red-600 hover:underline shrink-0 ml-1">✕</button>
+                    className="text-xs lg:text-[11px] font-medium text-red-600 hover:underline shrink-0 ml-1">✕</button>
                 </div>
               )}
               <div className="flex gap-1.5">
                 <input id="coupon-code" type="text" value={couponCodeInput}
                   onChange={(e) => { setCouponCodeInput(e.target.value.toUpperCase()); setCouponApplyError(""); }}
-                  placeholder="Code..."
-                  className="flex-1 px-2.5 py-1.5 border-2 border-border rounded text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                  placeholder="Coupon code..."
+                  className="flex-1 px-3 lg:px-2.5 py-2 lg:py-1.5 border-2 border-border rounded text-sm lg:text-xs font-mono uppercase focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                 <Button onClick={() => applyCouponCode(couponCodeInput)}
                   disabled={!couponCodeInput.trim()}
-                  variant="accent" size="sm" className="px-2.5 py-1 text-[11px] h-auto min-h-0">
+                  variant="accent" size="sm" className="px-3 lg:px-2.5 py-2 lg:py-1 text-sm lg:text-[11px] h-auto min-h-0">
                   Apply
                 </Button>
               </div>
               {couponApplyError && (
-                <p className="text-[11px] text-red-600 font-medium mt-1" role="alert">{couponApplyError}</p>
+                <p className="text-xs lg:text-[11px] text-red-600 font-medium mt-1" role="alert">{couponApplyError}</p>
               )}
               <button onClick={() => setShowIssuePopup(true)}
-                className="text-[11px] text-muted-foreground hover:text-primary font-medium mt-1 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded px-0.5">
+                className="text-xs lg:text-[11px] text-muted-foreground hover:text-primary font-medium mt-1 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded px-0.5">
                 Issue new &rarr;
               </button>
             </div>
