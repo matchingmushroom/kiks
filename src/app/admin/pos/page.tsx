@@ -453,43 +453,47 @@ export default function POSPage() {
               {items.length === 0 ? (
                 <p className="text-center text-muted-foreground text-xs py-6">Search and add products above</p>
               ) : (
-                <ul className="flex-1 overflow-y-auto space-y-1.5 min-h-0" role="list">
+                <ul className="flex-1 overflow-y-auto space-y-2 min-h-0" role="list">
                   {items.map((item, idx) => (
                     <li key={item.productId}
-                      className="flex items-center gap-2 p-2 lg:p-1.5 border border-border rounded-lg text-xs">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-secondary truncate">{item.productName}</p>
-                        <p className="text-muted-foreground">Rs. {formatNumber(item.unitPrice)}/u</p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
-                          aria-label={`Decrease qty of ${item.productName}`}
-                          className="p-1.5 lg:p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
-                          <Minus className="h-4 w-4 lg:h-3.5 lg:w-3.5" aria-hidden="true" />
-                        </button>
-                        <input id={`qty-${idx}`} type="number" value={item.quantity}
-                          onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
-                          min={1}
-                          className="w-10 lg:w-9 text-center text-sm lg:text-xs border border-border rounded py-1.5 lg:py-1 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-                        <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
-                          aria-label={`Increase qty of ${item.productName}`}
-                          className="p-1.5 lg:p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
-                          <Plus className="h-4 w-4 lg:h-3.5 lg:w-3.5" aria-hidden="true" />
+                      className="grid grid-cols-2 gap-x-3 gap-y-1.5 p-3 border border-border rounded-lg bg-white shadow-sm text-xs">
+                      <div className="col-span-2 flex items-start justify-between">
+                        <p className="font-semibold text-secondary leading-tight truncate pr-2">{item.productName}</p>
+                        <button onClick={() => removeItem(idx)}
+                          aria-label={`Remove ${item.productName}`}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded shrink-0 focus:ring-2 focus:ring-red-300 outline-none">
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div>
+                        <label htmlFor={`price-${idx}`} className="block text-[11px] text-muted-foreground mb-0.5">Rate</label>
                         <input id={`price-${idx}`} type="number" value={item.unitPrice}
                           onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
                           min={0} step={10}
-                          className="w-20 lg:w-16 text-right text-sm lg:text-xs border border-border rounded py-1.5 lg:py-1 px-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-                        <span className="font-semibold text-secondary w-20 lg:w-16 text-right text-sm lg:text-xs">
-                          {formatNumber(item.subtotal)}
-                        </span>
-                        <button onClick={() => removeItem(idx)}
-                          aria-label={`Remove ${item.productName}`}
-                          className="p-1.5 lg:p-1 text-red-500 hover:bg-red-50 rounded focus:ring-2 focus:ring-red-300 outline-none">
-                          <Trash2 className="h-4 w-4 lg:h-3.5 lg:w-3.5" aria-hidden="true" />
-                        </button>
+                          className="w-full text-sm lg:text-xs border border-border rounded py-1.5 px-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-[11px] text-muted-foreground mb-0.5">Subtotal</span>
+                        <span className="font-semibold text-secondary text-sm lg:text-xs">Rs. {formatNumber(item.subtotal)}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-[11px] text-muted-foreground mb-0.5">Qty</label>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
+                            aria-label={`Decrease qty of ${item.productName}`}
+                            className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                            <Minus className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                          <input id={`qty-${idx}`} type="number" value={item.quantity}
+                            onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
+                            min={1}
+                            className="flex-1 text-center text-sm lg:text-xs border border-border rounded py-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                          <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
+                            aria-label={`Increase qty of ${item.productName}`}
+                            className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                            <Plus className="h-4 w-4" aria-hidden="true" />
+                          </button>
+                        </div>
                       </div>
                     </li>
                   ))}
