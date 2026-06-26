@@ -30,6 +30,7 @@ import {
   Wallet,
   Sparkles,
   ClipboardList,
+  Zap,
 } from "lucide-react";
 
 interface NavItem {
@@ -44,6 +45,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: "Dashboard", href: "/admin", icon: <LayoutDashboard className="h-4 w-4" /> },
   { divider: true, section: "SALES" },
+  { label: "POS", href: "/admin/pos", icon: <Zap className="h-4 w-4" />, permission: "manage_sales" },
   { label: "Sales", href: "/admin/sales", icon: <ShoppingCart className="h-4 w-4" />, permission: "manage_sales" },
   { label: "Invoices", href: "/admin/invoices", icon: <FileText className="h-4 w-4" />, permission: "manage_invoices" },
   { label: "Orders", href: "/admin/orders", icon: <Truck className="h-4 w-4" />, permission: "manage_orders" },
