@@ -50,7 +50,8 @@ export default function POSPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponCodeInput, setCouponCodeInput] = useState("");
   const [couponApplyError, setCouponApplyError] = useState("");
-  const [issueCouponTemplate, setIssueCouponTemplate] = useState<Coupon | null>(null);
+  const [issueDiscountType, setIssueDiscountType] = useState<"percentage" | "fixed">("percentage");
+  const [issueDiscountValue, setIssueDiscountValue] = useState(0);
   const [showIssuePopup, setShowIssuePopup] = useState(false);
   const [manualDiscountType, setManualDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [manualDiscountValue, setManualDiscountValue] = useState(0);
@@ -90,9 +91,7 @@ export default function POSPage() {
   const finalAmount = Math.max(0, totalAmount - discount);
   const balanceDue = paymentMode === "credit" ? finalAmount : paymentMode === "partial" ? Math.max(0, finalAmount - receivedAmount) : 0;
 
-  const couponTemplates = useMemo(() =>
-    allCoupons.filter((c) => c.isActive && c.couponType !== "For Confirmed Buyers"),
-  [allCoupons]);
+
 
   const availableStock = (productId: string): number => {
     const p = activeProducts.find((p) => p.id === productId);
@@ -146,7 +145,8 @@ export default function POSPage() {
     setAppliedCoupon(null);
     setCouponCodeInput("");
     setCouponApplyError("");
-    setIssueCouponTemplate(null);
+    setIssueDiscountValue(0);
+    setIssueDiscountType("percentage");
     setReceivedAmount(0);
     setPaymentMode("cash");
     setManualDiscountValue(0);
@@ -306,25 +306,25 @@ export default function POSPage() {
       } catch (e) { console.error("Debtor creation failed", e); }
 
       try {
-        if (issueCouponTemplate) {
+        if (issueDiscountValue > 0) {
           const siteSnap = await getDoc(doc(db, "shop_settings", "config"));
           const siteUrl = ((siteSnap.data() as Record<string, unknown>)?.website || "").toString().replace(/\/$/, "");
           const siteText = siteUrl ? `our website ${siteUrl}` : "our website";
           const newCode = generateCouponCode();
           const terms = `To be Used within 1 Months for purchase through ${siteText} during checkout or at our store's checkout counter`;
           await setDoc(doc(db, "coupons", newCode), {
-            code: newCode, discountType: issueCouponTemplate.discountType, discountValue: issueCouponTemplate.discountValue,
+            code: newCode, discountType: issueDiscountType, discountValue: issueDiscountValue,
             minPurchaseAmount: 0, maxDiscount: 200,
             validFrom: Timestamp.fromDate(new Date()),
             validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
-            usageLimit: 1, usedCount: 0, isActive: true, couponType: issueCouponTemplate.couponType,
+            usageLimit: 1, usedCount: 0, isActive: true, couponType: "POS Issued",
             terms,
             issuedToCustomer: { name: cName, phone: cPhone },
             issuedForOrderId: saleId, createdAt: Timestamp.fromDate(new Date()), createdBy: user?.uid || "",
           });
           if (savedInvId) {
             await updateDoc(doc(db, "invoices", savedInvId), {
-              couponIssued: { code: newCode, discountValue: issueCouponTemplate.discountValue, discountType: issueCouponTemplate.discountType, terms },
+              couponIssued: { code: newCode, discountValue: issueDiscountValue, discountType: issueDiscountType, terms },
               updatedAt: Timestamp.fromDate(new Date()),
             });
           }
@@ -612,27 +612,41 @@ export default function POSPage() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
-              {couponTemplates.map((c) => (
-                <button key={c.id} onClick={() => { setIssueCouponTemplate(c); setShowIssuePopup(false); }}
-                  className="w-full text-left px-3 py-2.5 border border-border rounded-lg text-sm hover:bg-muted transition-colors">
-                  <span className="font-mono font-medium text-secondary">{c.code}</span>
-                  <span className="text-muted-foreground ml-2">
-                    — {c.discountType === "percentage" ? `${c.discountValue}% off` : `Rs. ${formatNumber(c.discountValue)} off`}
-                    {c.minPurchaseAmount > 0 && ` (min ${formatNumber(c.minPurchaseAmount)})`}
-                  </span>
-                </button>
-              ))}
-              {couponTemplates.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">No coupon templates available.</p>
-              )}
-            </div>
-            {issueCouponTemplate && (
-              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm">
-                <span className="text-green-700 font-medium">Selected: {issueCouponTemplate.code}</span>
-                <button onClick={() => setIssueCouponTemplate(null)} className="text-xs text-red-500 hover:underline">Clear</button>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-secondary">Discount:</span>
+                <button onClick={() => setIssueDiscountType("percentage")}
+                  className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors ${
+                    issueDiscountType === "percentage"
+                      ? "bg-primary text-white border-primary"
+                      : "bg-white text-muted-foreground border-border hover:bg-muted"
+                  }`}>%</button>
+                <button onClick={() => setIssueDiscountType("fixed")}
+                  className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors ${
+                    issueDiscountType === "fixed"
+                      ? "bg-primary text-white border-primary"
+                      : "bg-white text-muted-foreground border-border hover:bg-muted"
+                  }`}>Rs.</button>
               </div>
-            )}
+              <div>
+                <input type="number" value={issueDiscountValue || ""}
+                  onChange={(e) => setIssueDiscountValue(Math.max(0, Number(e.target.value)))}
+                  min={0} placeholder="Enter discount value"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                A new coupon code will be generated with this discount. The customer can use it on their next purchase.
+              </p>
+              <div className="flex gap-2">
+                <Button onClick={() => setShowIssuePopup(false)}
+                  variant="outline" className="flex-1">Cancel</Button>
+                <Button onClick={() => setShowIssuePopup(false)}
+                  disabled={issueDiscountValue <= 0}
+                  variant="accent" className="flex-1">
+                  <Tag className="h-4 w-4" /> Ready to Issue
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}
