@@ -49,6 +49,8 @@ export default function POSPage() {
   const [receivedAmount, setReceivedAmount] = useState(0);
   const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
   const [showCouponPopup, setShowCouponPopup] = useState(false);
+  const [manualDiscountType, setManualDiscountType] = useState<"percentage" | "fixed">("percentage");
+  const [manualDiscountValue, setManualDiscountValue] = useState(0);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -68,11 +70,19 @@ export default function POSPage() {
   [items]);
 
   const discount = useMemo(() => {
-    if (!selectedCoupon) return 0;
-    return selectedCoupon.discountType === "percentage"
-      ? Math.min((totalAmount * selectedCoupon.discountValue) / 100, selectedCoupon.maxDiscount || Infinity)
-      : selectedCoupon.discountValue;
-  }, [selectedCoupon, totalAmount]);
+    let total = 0;
+    if (manualDiscountValue > 0) {
+      total += manualDiscountType === "percentage"
+        ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
+        : Math.min(manualDiscountValue, totalAmount);
+    }
+    if (selectedCoupon) {
+      total += selectedCoupon.discountType === "percentage"
+        ? Math.min((totalAmount * selectedCoupon.discountValue) / 100, selectedCoupon.maxDiscount || Infinity)
+        : selectedCoupon.discountValue;
+    }
+    return Math.min(total, totalAmount);
+  }, [selectedCoupon, totalAmount, manualDiscountValue, manualDiscountType]);
 
   const finalAmount = Math.max(0, totalAmount - discount);
   const balanceDue = paymentMode === "credit" ? finalAmount : paymentMode === "partial" ? Math.max(0, finalAmount - receivedAmount) : 0;
@@ -134,6 +144,8 @@ export default function POSPage() {
     setSelectedCoupon(null);
     setReceivedAmount(0);
     setPaymentMode("cash");
+    setManualDiscountValue(0);
+    setManualDiscountType("percentage");
     setCustomerName("");
     setCustomerPhone("");
     setWalkin(true);
@@ -439,6 +451,42 @@ export default function POSPage() {
           </div>
         </div>
 
+        {/* Discount */}
+        <div className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-secondary flex items-center gap-2">
+              <Percent className="h-4 w-4" /> Discount
+            </span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setManualDiscountType("percentage")}
+                className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors ${
+                  manualDiscountType === "percentage"
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white text-muted-foreground border-border hover:bg-muted"
+                }`}>%</button>
+              <button onClick={() => setManualDiscountType("fixed")}
+                className={`px-3 py-1 text-xs rounded-full border font-medium transition-colors ${
+                  manualDiscountType === "fixed"
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white text-muted-foreground border-border hover:bg-muted"
+                }`}>Rs.</button>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <input type="number" value={manualDiscountValue || ""}
+              onChange={(e) => setManualDiscountValue(Math.max(0, Number(e.target.value)))}
+              min={0} placeholder="0"
+              className="flex-1 px-3 py-1.5 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <span className="text-xs text-muted-foreground shrink-0">
+              {manualDiscountValue > 0 && manualDiscountType === "percentage"
+                ? `= Rs. ${formatNumber(Math.min((totalAmount * manualDiscountValue) / 100, totalAmount))}`
+                : manualDiscountValue > 0
+                  ? `= Rs. ${formatNumber(Math.min(manualDiscountValue, totalAmount))}`
+                  : ""}
+            </span>
+          </div>
+        </div>
+
         {/* Coupon */}
         <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
           <button onClick={() => setShowCouponPopup(true)}
@@ -457,10 +505,20 @@ export default function POSPage() {
             <span className="text-muted-foreground">Subtotal ({items.length} item{items.length !== 1 ? "s" : ""})</span>
             <span>Rs. {formatNumber(totalAmount)}</span>
           </div>
-          {discount > 0 && (
+          {manualDiscountValue > 0 && (
             <div className="flex justify-between text-sm text-green-600">
-              <span>Discount</span>
-              <span>- Rs. {formatNumber(discount)}</span>
+              <span>Discount {manualDiscountType === "percentage" ? `(${manualDiscountValue}%)` : ""}</span>
+              <span>- Rs. {formatNumber(manualDiscountType === "percentage"
+                ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
+                : Math.min(manualDiscountValue, totalAmount))}</span>
+            </div>
+          )}
+          {selectedCoupon && (
+            <div className="flex justify-between text-sm text-green-600">
+              <span>Coupon ({selectedCoupon.code})</span>
+              <span>- Rs. {formatNumber(selectedCoupon.discountType === "percentage"
+                ? Math.min((totalAmount * selectedCoupon.discountValue) / 100, selectedCoupon.maxDiscount || Infinity)
+                : selectedCoupon.discountValue)}</span>
             </div>
           )}
           <div className="flex justify-between text-lg font-bold text-secondary border-t border-border pt-2">
