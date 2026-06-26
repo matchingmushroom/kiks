@@ -47,8 +47,11 @@ export default function POSPage() {
   const [productSearch, setProductSearch] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
   const [receivedAmount, setReceivedAmount] = useState(0);
-  const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
-  const [showCouponPopup, setShowCouponPopup] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponCodeInput, setCouponCodeInput] = useState("");
+  const [couponApplyError, setCouponApplyError] = useState("");
+  const [issueCouponTemplate, setIssueCouponTemplate] = useState<Coupon | null>(null);
+  const [showIssuePopup, setShowIssuePopup] = useState(false);
   const [manualDiscountType, setManualDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [manualDiscountValue, setManualDiscountValue] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -76,18 +79,18 @@ export default function POSPage() {
         ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
         : Math.min(manualDiscountValue, totalAmount);
     }
-    if (selectedCoupon) {
-      total += selectedCoupon.discountType === "percentage"
-        ? Math.min((totalAmount * selectedCoupon.discountValue) / 100, selectedCoupon.maxDiscount || Infinity)
-        : selectedCoupon.discountValue;
+    if (appliedCoupon) {
+      total += appliedCoupon.discountType === "percentage"
+        ? Math.min((totalAmount * appliedCoupon.discountValue) / 100, appliedCoupon.maxDiscount || Infinity)
+        : appliedCoupon.discountValue;
     }
     return Math.min(total, totalAmount);
-  }, [selectedCoupon, totalAmount, manualDiscountValue, manualDiscountType]);
+  }, [appliedCoupon, totalAmount, manualDiscountValue, manualDiscountType]);
 
   const finalAmount = Math.max(0, totalAmount - discount);
   const balanceDue = paymentMode === "credit" ? finalAmount : paymentMode === "partial" ? Math.max(0, finalAmount - receivedAmount) : 0;
 
-  const activeCoupons = useMemo(() =>
+  const couponTemplates = useMemo(() =>
     allCoupons.filter((c) => c.isActive && c.couponType !== "For Confirmed Buyers"),
   [allCoupons]);
 
@@ -135,13 +138,15 @@ export default function POSPage() {
 
   const removeItem = (index: number) => {
     setItems(items.filter((_, i) => i !== index));
-    if (selectedCoupon) setSelectedCoupon(null);
   };
 
   const clearForm = () => {
     setItems([]);
     setProductSearch("");
-    setSelectedCoupon(null);
+    setAppliedCoupon(null);
+    setCouponCodeInput("");
+    setCouponApplyError("");
+    setIssueCouponTemplate(null);
     setReceivedAmount(0);
     setPaymentMode("cash");
     setManualDiscountValue(0);
@@ -149,6 +154,26 @@ export default function POSPage() {
     setCustomerName("");
     setCustomerPhone("");
     setWalkin(true);
+  };
+
+  const applyCouponCode = (code: string) => {
+    setCouponApplyError("");
+    const trimmed = code.trim().toUpperCase();
+    if (!trimmed) { setCouponApplyError("Enter a coupon code."); return; }
+    const coupon = allCoupons.find((c) => c.code.toUpperCase() === trimmed);
+    if (!coupon) { setCouponApplyError("Coupon not found."); return; }
+    if (!coupon.isActive) { setCouponApplyError("This coupon is no longer active."); return; }
+    const now = Date.now();
+    const vf = coupon.validFrom as unknown;
+    const vu = coupon.validUntil as unknown;
+    const from = vf && typeof vf === "object" && "toMillis" in vf ? (vf as { toMillis: () => number }).toMillis() : (coupon.validFrom as number) || 0;
+    const until = vu && typeof vu === "object" && "toMillis" in vu ? (vu as { toMillis: () => number }).toMillis() : (coupon.validUntil as number) || 0;
+    if (from && now < from) { setCouponApplyError("This coupon is not yet valid."); return; }
+    if (until && now > until) { setCouponApplyError("This coupon has expired."); return; }
+    if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) { setCouponApplyError("This coupon usage limit is reached."); return; }
+    if (coupon.minPurchaseAmount > 0 && totalAmount < coupon.minPurchaseAmount) { setCouponApplyError(`Minimum purchase of Rs. ${formatNumber(coupon.minPurchaseAmount)} required.`); return; }
+    setAppliedCoupon(coupon);
+    setCouponCodeInput("");
   };
 
   const handleSave = async () => {
@@ -187,7 +212,7 @@ export default function POSPage() {
         finalAmount,
         payment: { method: "cash", receivedAmount, balanceDue },
         warranty: { period: "", terms: "", startDate: Timestamp.fromDate(new Date()), endDate: Timestamp.fromDate(new Date()) },
-        couponIssued: null,
+        couponIssued: appliedCoupon ? { code: appliedCoupon.code, discountValue: appliedCoupon.discountValue, discountType: appliedCoupon.discountType } : null,
         notes: walkin ? "POS sale - Walk-in" : "POS sale",
         saleDate: Timestamp.fromDate(new Date()),
         recordedBy: user?.uid || "",
@@ -281,30 +306,39 @@ export default function POSPage() {
       } catch (e) { console.error("Debtor creation failed", e); }
 
       try {
-        if (selectedCoupon) {
+        if (issueCouponTemplate) {
           const siteSnap = await getDoc(doc(db, "shop_settings", "config"));
           const siteUrl = ((siteSnap.data() as Record<string, unknown>)?.website || "").toString().replace(/\/$/, "");
           const siteText = siteUrl ? `our website ${siteUrl}` : "our website";
-          const couponCode = generateCouponCode();
+          const newCode = generateCouponCode();
           const terms = `To be Used within 1 Months for purchase through ${siteText} during checkout or at our store's checkout counter`;
-          await setDoc(doc(db, "coupons", couponCode), {
-            code: couponCode, discountType: selectedCoupon.discountType, discountValue: selectedCoupon.discountValue,
+          await setDoc(doc(db, "coupons", newCode), {
+            code: newCode, discountType: issueCouponTemplate.discountType, discountValue: issueCouponTemplate.discountValue,
             minPurchaseAmount: 0, maxDiscount: 200,
             validFrom: Timestamp.fromDate(new Date()),
             validUntil: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
-            usageLimit: 1, usedCount: 0, isActive: true, couponType: selectedCoupon.couponType,
+            usageLimit: 1, usedCount: 0, isActive: true, couponType: issueCouponTemplate.couponType,
             terms,
             issuedToCustomer: { name: cName, phone: cPhone },
             issuedForOrderId: saleId, createdAt: Timestamp.fromDate(new Date()), createdBy: user?.uid || "",
           });
           if (savedInvId) {
             await updateDoc(doc(db, "invoices", savedInvId), {
-              couponIssued: { code: couponCode, discountValue: selectedCoupon.discountValue, discountType: selectedCoupon.discountType, terms },
+              couponIssued: { code: newCode, discountValue: issueCouponTemplate.discountValue, discountType: issueCouponTemplate.discountType, terms },
               updatedAt: Timestamp.fromDate(new Date()),
             });
           }
         }
-      } catch (e) { console.error("Coupon creation failed", e); }
+      } catch (e) { console.error("Coupon issue failed", e); }
+
+      try {
+        if (appliedCoupon) {
+          await updateDoc(doc(db, "coupons", appliedCoupon.id), {
+            usedCount: (appliedCoupon.usedCount || 0) + 1,
+            updatedAt: Timestamp.fromDate(new Date()),
+          });
+        }
+      } catch (e) { console.error("Coupon usage update failed", e); }
 
       setSuccess(true);
       clearForm();
@@ -488,14 +522,40 @@ export default function POSPage() {
         </div>
 
         {/* Coupon */}
-        <div className="bg-white border border-border rounded-xl p-4 shadow-sm">
-          <button onClick={() => setShowCouponPopup(true)}
-            className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
-            <Tag className="h-4 w-4" /> {selectedCoupon ? `Coupon: ${selectedCoupon.code} (-${selectedCoupon.discountType === "percentage" ? selectedCoupon.discountValue + "%" : "Rs. " + selectedCoupon.discountValue})` : "Add Coupon (optional)"}
-          </button>
-          {selectedCoupon && (
-            <button onClick={() => setSelectedCoupon(null)}
-              className="ml-3 text-xs text-red-500 hover:underline">Remove</button>
+        <div className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm">
+                <Tag className="h-4 w-4 text-green-600" />
+                <span className="font-medium text-green-700">Coupon: {appliedCoupon.code}</span>
+                <span className="text-green-600">
+                  ({appliedCoupon.discountType === "percentage" ? `${appliedCoupon.discountValue}%` : `Rs. ${formatNumber(appliedCoupon.discountValue)}`} off)
+                </span>
+              </div>
+              <button onClick={() => { setAppliedCoupon(null); setCouponCodeInput(""); setCouponApplyError(""); }}
+                className="text-xs text-red-500 hover:underline">Remove</button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <input type="text" value={couponCodeInput}
+                  onChange={(e) => { setCouponCodeInput(e.target.value.toUpperCase()); setCouponApplyError(""); }}
+                  placeholder="Enter coupon code..."
+                  className="flex-1 px-3 py-1.5 border border-border rounded-lg text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-primary" />
+                <Button onClick={() => applyCouponCode(couponCodeInput)}
+                  disabled={!couponCodeInput.trim()}
+                  variant="accent" size="sm" className="shrink-0">
+                  <Tag className="h-3.5 w-3.5" /> Apply
+                </Button>
+              </div>
+              {couponApplyError && (
+                <p className="text-xs text-red-500">{couponApplyError}</p>
+              )}
+              <button onClick={() => setShowIssuePopup(true)}
+                className="text-xs text-muted-foreground hover:text-primary hover:underline">
+                Or issue a new coupon to customer →
+              </button>
+            </>
           )}
         </div>
 
@@ -513,12 +573,12 @@ export default function POSPage() {
                 : Math.min(manualDiscountValue, totalAmount))}</span>
             </div>
           )}
-          {selectedCoupon && (
+          {appliedCoupon && (
             <div className="flex justify-between text-sm text-green-600">
-              <span>Coupon ({selectedCoupon.code})</span>
-              <span>- Rs. {formatNumber(selectedCoupon.discountType === "percentage"
-                ? Math.min((totalAmount * selectedCoupon.discountValue) / 100, selectedCoupon.maxDiscount || Infinity)
-                : selectedCoupon.discountValue)}</span>
+              <span>Coupon ({appliedCoupon.code})</span>
+              <span>- Rs. {formatNumber(appliedCoupon.discountType === "percentage"
+                ? Math.min((totalAmount * appliedCoupon.discountValue) / 100, appliedCoupon.maxDiscount || Infinity)
+                : appliedCoupon.discountValue)}</span>
             </div>
           )}
           <div className="flex justify-between text-lg font-bold text-secondary border-t border-border pt-2">
@@ -538,27 +598,23 @@ export default function POSPage() {
         </div>
       </div>
 
-      {/* Coupon popup */}
-      {showCouponPopup && (
+      {/* Issue coupon popup */}
+      {showIssuePopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-          onClick={() => setShowCouponPopup(false)}>
+          onClick={() => setShowIssuePopup(false)}>
           <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4"
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-secondary flex items-center gap-2">
-                <Percent className="h-4 w-4" /> Select Coupon to Issue
+                <Percent className="h-4 w-4" /> Issue Coupon to Customer
               </h3>
-              <button onClick={() => setShowCouponPopup(false)} className="p-1 hover:bg-muted rounded">
+              <button onClick={() => setShowIssuePopup(false)} className="p-1 hover:bg-muted rounded">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="space-y-2 max-h-60 overflow-y-auto mb-4">
-              <button onClick={() => { setSelectedCoupon(null); setShowCouponPopup(false); }}
-                className="w-full text-left px-3 py-2.5 border border-border rounded-lg text-sm hover:bg-muted transition-colors">
-                <span className="text-muted-foreground">No coupon</span>
-              </button>
-              {activeCoupons.map((c) => (
-                <button key={c.id} onClick={() => { setSelectedCoupon(c); setShowCouponPopup(false); }}
+              {couponTemplates.map((c) => (
+                <button key={c.id} onClick={() => { setIssueCouponTemplate(c); setShowIssuePopup(false); }}
                   className="w-full text-left px-3 py-2.5 border border-border rounded-lg text-sm hover:bg-muted transition-colors">
                   <span className="font-mono font-medium text-secondary">{c.code}</span>
                   <span className="text-muted-foreground ml-2">
@@ -567,10 +623,16 @@ export default function POSPage() {
                   </span>
                 </button>
               ))}
-              {activeCoupons.length === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-4">No active coupons available.</p>
+              {couponTemplates.length === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-4">No coupon templates available.</p>
               )}
             </div>
+            {issueCouponTemplate && (
+              <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm">
+                <span className="text-green-700 font-medium">Selected: {issueCouponTemplate.code}</span>
+                <button onClick={() => setIssueCouponTemplate(null)} className="text-xs text-red-500 hover:underline">Clear</button>
+              </div>
+            )}
           </div>
         </div>
       )}
