@@ -132,7 +132,25 @@ export default function AdminDashboardPage() {
   });
   const todayPaymentsTotal = todayBankCredits.reduce((s, t) => s + t.amount, 0);
 
+  // Transfer effects: debits that reduce cash/bank
+  const todayTxFilter = (t: AccountTransaction) => {
+    const d = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number)).getTime();
+    return d >= todayStart && d < todayEnd && t.referenceType === "transfer";
+  };
+  const todayCashDebits = myTransactions
+    .filter((t) => todayTxFilter(t) && t.accountId === "cash_in_hand" && t.type === "debit")
+    .reduce((s, t) => s + t.amount, 0);
+  const todayBankDebits = myTransactions
+    .filter((t) => todayTxFilter(t) && t.accountId === "bank_account" && t.type === "debit")
+    .reduce((s, t) => s + t.amount, 0);
 
+  // All cash received today (sales + partial + QR from POS all go to cash_in_hand)
+  const todayCashReceived = myTransactions
+    .filter((t) => {
+      const d = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number)).getTime();
+      return d >= todayStart && d < todayEnd && t.accountId === "cash_in_hand" && t.type === "credit" && t.referenceType === "sale";
+    })
+    .reduce((s, t) => s + t.amount, 0);
 
   const fytdStart = new Date(getFiscalYearStartEpoch()).toISOString().slice(0, 10);
   const fytdSales = mySales
@@ -285,8 +303,8 @@ export default function AdminDashboardPage() {
             />
             <DailyCard
               title="Cash In Hand"
-              value={formatCurrency(openingCash + todayCash)}
-              sub={`Opening: ${formatCurrency(openingCash)} | Sales: ${formatCurrency(todayCash)} (${todayCashSales.length} txns)`}
+              value={formatCurrency(openingCash + todayCashReceived - todayCashDebits)}
+              sub={`Opening: ${formatCurrency(openingCash)} | Received: ${formatCurrency(todayCashReceived)}${todayCashDebits > 0 ? ` | Transfers Out: -${formatCurrency(todayCashDebits)}` : ""}`}
               gradient="from-green-50 to-green-100/50"
               border="border-green-200"
               onClick={() => setShowCashModal(true)}
@@ -294,8 +312,8 @@ export default function AdminDashboardPage() {
             />
             <DailyCard
               title="QR / Bank Received"
-              value={formatCurrency(openingBank + todayQrBank)}
-              sub={`Opening: ${formatCurrency(openingBank)} | Sales: ${formatCurrency(todayQrBank)} (${todayQrSales.length} txns)`}
+              value={formatCurrency(openingBank + todayQrBank - todayBankDebits)}
+              sub={`Opening: ${formatCurrency(openingBank)} | Sales: ${formatCurrency(todayQrBank)}${todayBankDebits > 0 ? ` | Transfers Out: -${formatCurrency(todayBankDebits)}` : ""}`}
               gradient="from-blue-50 to-blue-100/50"
               border="border-blue-200"
               onClick={() => setShowQrModal(true)}
