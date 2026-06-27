@@ -354,9 +354,9 @@ export default function AdminDashboardPage() {
                   <th className="px-3 py-2 font-medium">Time</th>
                   <th className="px-3 py-2 font-medium">Customer</th>
                   <th className="px-3 py-2 font-medium">Method</th>
-                  <th className="px-3 py-2 font-medium text-right">Received</th>
                   <th className="px-3 py-2 font-medium text-right">Sub Total</th>
                   <th className="px-3 py-2 font-medium text-right">Discount</th>
+                  <th className="px-3 py-2 font-medium text-right">Received</th>
                   <th className="px-3 py-2 font-medium text-right">Due</th>
                   <th className="px-3 py-2 font-medium text-right">Total</th>
                 </tr>
@@ -368,9 +368,9 @@ export default function AdminDashboardPage() {
                     <td className="px-3 py-2">{new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
                     <td className="px-3 py-2">{s.customer?.name || <span className="text-muted-foreground italic">Walk-in</span>}</td>
                     <td className="px-3 py-2 capitalize">{s.payment?.method || s.saleType}</td>
-                    <td className="px-3 py-2 text-right font-medium">{formatCurrency(s.payment?.receivedAmount || 0)}</td>
                     <td className="px-3 py-2 text-right text-muted-foreground">{formatCurrency(s.totalAmount)}</td>
                     <td className="px-3 py-2 text-right text-red-500">{(s.discountAmount || 0) > 0 ? `-${formatCurrency(s.discountAmount)}` : "-"}</td>
+                    <td className="px-3 py-2 text-right font-medium">{formatCurrency(s.payment?.receivedAmount || 0)}</td>
                     <td className="px-3 py-2 text-right text-red-500">{(s.payment?.balanceDue || 0) > 0 ? formatCurrency(s.payment.balanceDue) : "-"}</td>
                     <td className="px-3 py-2 text-right font-semibold">{formatCurrency(s.finalAmount)}</td>
                   </tr>
@@ -379,9 +379,9 @@ export default function AdminDashboardPage() {
               <tfoot>
                 <tr className="border-t-2 border-border font-semibold text-sm">
                   <td colSpan={4} className="px-3 py-2 text-right">Total</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(todaySales.reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0))}</td>
                   <td className="px-3 py-2 text-right">{formatCurrency(todaySales.reduce((s, x) => s + x.totalAmount, 0))}</td>
                   <td className="px-3 py-2 text-right text-red-500">{formatCurrency(todaySales.reduce((s, x) => s + (x.discountAmount || 0), 0))}</td>
+                  <td className="px-3 py-2 text-right">{formatCurrency(todaySales.reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0))}</td>
                   <td className="px-3 py-2 text-right text-red-500">{formatCurrency(todaySales.reduce((s, x) => s + (x.payment?.balanceDue || 0), 0))}</td>
                   <td className="px-3 py-2 text-right">{formatCurrency(todayTotal)}</td>
                 </tr>
