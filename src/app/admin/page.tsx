@@ -788,11 +788,12 @@ async function downloadCSV(data: any[], filename: string, isTransaction = false,
       i.onerror = reject;
       i.src = url;
     });
+    const scale = 3;
     const canvas = document.createElement("canvas");
-    canvas.width = 40;
-    canvas.height = 20;
+    canvas.width = 40 * scale;
+    canvas.height = 20 * scale;
     const ctx = canvas.getContext("2d")!;
-    ctx.drawImage(img, 0, 0, 40, 20);
+    ctx.drawImage(img, 0, 0, 40 * scale, 20 * scale);
     URL.revokeObjectURL(url);
     const png = canvas.toDataURL("image/png");
     doc.addImage(png, "PNG", pageWidth / 2 - 20, 8, 40, 16);
