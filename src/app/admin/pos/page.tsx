@@ -26,7 +26,7 @@ interface LineItem {
   subtotal: number;
 }
 
-type PaymentMode = "cash" | "credit" | "partial";
+type PaymentMode = "cash" | "qr" | "partial";
 
 export default function POSPage() {
   const { refreshCollection } = useDataCache();
@@ -100,7 +100,7 @@ export default function POSPage() {
   }, [appliedCoupon, totalAmount, manualDiscountValue, manualDiscountType]);
 
   const finalAmount = Math.max(0, totalAmount - discount);
-  const balanceDue = paymentMode === "credit" ? finalAmount : paymentMode === "partial" ? Math.max(0, finalAmount - receivedAmount) : 0;
+  const balanceDue = paymentMode === "partial" ? Math.max(0, finalAmount - receivedAmount) : 0;
 
 
 
@@ -203,7 +203,7 @@ export default function POSPage() {
       const cName = walkin ? "Walk-in Customer" : customerName;
       const cPhone = walkin ? "" : customerPhone;
       const saleType = balanceDue > 0 ? (receivedAmount > 0 ? "partial" : "credit") : "cash";
-      const effectiveReceived = paymentMode === "cash" ? finalAmount : receivedAmount;
+      const effectiveReceived = paymentMode === "cash" || paymentMode === "qr" ? finalAmount : receivedAmount;
 
       const saleId = await generateId("SALE");
       await setDoc(doc(db, "sales", saleId), {
@@ -222,7 +222,7 @@ export default function POSPage() {
         totalAmount,
         discountAmount: discount,
         finalAmount,
-        payment: { method: "cash", receivedAmount: effectiveReceived, balanceDue },
+        payment: { method: paymentMode === "partial" ? (receivedAmount > 0 ? "partial" : "credit") : paymentMode, receivedAmount: effectiveReceived, balanceDue },
         warranty: { period: "", terms: "", startDate: Timestamp.fromDate(new Date()), endDate: Timestamp.fromDate(new Date()) },
         couponIssued: appliedCoupon ? { code: appliedCoupon.code, discountValue: appliedCoupon.discountValue, discountType: appliedCoupon.discountType } : null,
         notes: walkin ? "POS sale - Walk-in" : "POS sale",
@@ -294,7 +294,7 @@ export default function POSPage() {
       try {
         if (effectiveReceived > 0) {
           await addDoc(collection(db, "accountTransactions"), {
-            accountId: resolveAccount("cash"), type: "credit", amount: effectiveReceived,
+            accountId: "cash_in_hand", type: "credit", amount: effectiveReceived,
             description: `POS sale to ${cName}`, date: Timestamp.fromDate(new Date()),
             referenceType: "sale", referenceId: saleId, recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
           });
@@ -510,7 +510,7 @@ export default function POSPage() {
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="text-xs font-semibold text-secondary">Payment</span>
                 <div className="flex gap-1" role="radiogroup" aria-label="Payment mode">
-                  {(["cash", "credit", "partial"] as PaymentMode[]).map((mode) => (
+                  {(["cash", "qr", "partial"] as PaymentMode[]).map((mode) => (
                     <button key={mode} role="radio" aria-checked={paymentMode === mode}
                       onClick={() => { setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
                       className={`px-3 lg:px-2.5 py-1.5 lg:py-1 text-xs lg:text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
@@ -518,7 +518,7 @@ export default function POSPage() {
                           ? "bg-primary text-white border-primary"
                           : "bg-white text-secondary border-border hover:bg-muted"
                       }`}>
-                      {mode === "partial" ? "Partial" : mode === "credit" ? "Credit" : "Cash"}
+                      {mode === "partial" ? "Partial" : mode === "qr" ? "QR" : "Cash"}
                     </button>
                   ))}
                 </div>
