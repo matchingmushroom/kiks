@@ -67,6 +67,7 @@ export default function AdminDashboardPage() {
     realtime: false, cache: true,
   });
 
+  const currentUserName = profile?.displayName || "";
   const isStaff = profile?.role === "staff";
   const mySales = isStaff ? sales.filter((s) => s.recordedBy === profile?.uid) : sales;
   const myOrders = isStaff ? orders.filter((o) => o.processedBy === profile?.uid) : orders;
@@ -264,7 +265,7 @@ export default function AdminDashboardPage() {
               gradient="from-primary/10 to-primary/5"
               border="border-primary/20"
               onClick={() => setShowTodaySales(true)}
-              onDownload={() => downloadCSV(todaySales, `today-sales-${todayStr}`)}
+              onDownload={() => downloadCSV(todaySales, `today-sales-${todayStr}`, false, currentUserName)}
             />
             <DailyCard
               title="Cash In Hand"
@@ -273,7 +274,7 @@ export default function AdminDashboardPage() {
               gradient="from-green-50 to-green-100/50"
               border="border-green-200"
               onClick={() => setShowCashModal(true)}
-              onDownload={() => downloadCSV(todayCashSales, `today-cash-${todayStr}`)}
+              onDownload={() => downloadCSV(todayCashSales, `today-cash-${todayStr}`, false, currentUserName)}
             />
             <DailyCard
               title="QR / Bank Received"
@@ -282,7 +283,7 @@ export default function AdminDashboardPage() {
               gradient="from-blue-50 to-blue-100/50"
               border="border-blue-200"
               onClick={() => setShowQrModal(true)}
-              onDownload={() => downloadCSV(todayQrSales, `today-qr-bank-${todayStr}`)}
+              onDownload={() => downloadCSV(todayQrSales, `today-qr-bank-${todayStr}`, false, currentUserName)}
             />
             <DailyCard
               title="Debtor (Credit Given)"
@@ -291,7 +292,7 @@ export default function AdminDashboardPage() {
               gradient="from-rose-50 to-rose-100/50"
               border="border-rose-200"
               onClick={() => setShowDebtorModal(true)}
-              onDownload={() => downloadCSV(todayDebtorSales, `today-debtor-${todayStr}`)}
+              onDownload={() => downloadCSV(todayDebtorSales, `today-debtor-${todayStr}`, false, currentUserName)}
             />
             <DailyCard
               title="Payments (Bank Deposit)"
@@ -300,14 +301,14 @@ export default function AdminDashboardPage() {
               gradient="from-purple-50 to-purple-100/50"
               border="border-purple-200"
               onClick={() => setShowPaymentsModal(true)}
-              onDownload={() => downloadCSV(todayBankCredits, `today-payments-${todayStr}`, true)}
+              onDownload={() => downloadCSV(todayBankCredits, `today-payments-${todayStr}`, true, currentUserName)}
             />
           </div>
         </div>
 
         {/* ── Modals ── */}
         <DailyModal title="Today's Sales" show={showTodaySales} onClose={() => setShowTodaySales(false)} date={todayStr}
-          onDownload={() => downloadCSV(todaySales, `today-sales-${todayStr}`)}>
+          onDownload={() => downloadCSV(todaySales, `today-sales-${todayStr}`, false, currentUserName)}>
           {todaySales.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No sales today</p>
           ) : (
@@ -355,7 +356,7 @@ export default function AdminDashboardPage() {
         </DailyModal>
 
         <DailyModal title="Cash In Hand — Today" show={showCashModal} onClose={() => setShowCashModal(false)} date={todayStr}
-          onDownload={() => downloadCSV(todayCashSales, `today-cash-${todayStr}`)}>
+          onDownload={() => downloadCSV(todayCashSales, `today-cash-${todayStr}`, false, currentUserName)}>
           {todayCashSales.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No cash transactions today</p>
           ) : (
@@ -392,7 +393,7 @@ export default function AdminDashboardPage() {
         </DailyModal>
 
         <DailyModal title="QR / Bank Received — Today" show={showQrModal} onClose={() => setShowQrModal(false)} date={todayStr}
-          onDownload={() => downloadCSV(todayQrSales, `today-qr-bank-${todayStr}`)}>
+          onDownload={() => downloadCSV(todayQrSales, `today-qr-bank-${todayStr}`, false, currentUserName)}>
           {todayQrSales.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No QR/bank transactions today</p>
           ) : (
@@ -431,7 +432,7 @@ export default function AdminDashboardPage() {
         </DailyModal>
 
         <DailyModal title="Debtor (Credit Given) — Today" show={showDebtorModal} onClose={() => setShowDebtorModal(false)} date={todayStr}
-          onDownload={() => downloadCSV(todayDebtorSales, `today-debtor-${todayStr}`)}>
+          onDownload={() => downloadCSV(todayDebtorSales, `today-debtor-${todayStr}`, false, currentUserName)}>
           {todayDebtorSales.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No credit transactions today</p>
           ) : (
@@ -473,7 +474,7 @@ export default function AdminDashboardPage() {
         </DailyModal>
 
         <DailyModal title="Payments (Bank Deposit) — Today" show={showPaymentsModal} onClose={() => setShowPaymentsModal(false)} date={todayStr}
-          onDownload={() => downloadCSV(todayBankCredits, `today-payments-${todayStr}`, true)}>
+          onDownload={() => downloadCSV(todayBankCredits, `today-payments-${todayStr}`, true, currentUserName)}>
           {todayBankCredits.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No bank deposits today</p>
           ) : (
@@ -736,16 +737,38 @@ function DailyModal({ title, show, onClose, children, date, onDownload }: {
   );
 }
 
-function downloadCSV(data: any[], filename: string, isTransaction = false) {
+async function downloadCSV(data: any[], filename: string, isTransaction = false, userName = "") {
   if (data.length === 0) return;
   const fmtTime = (d: any) =>
     new Date(d?.seconds ? d.seconds * 1000 : d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
+  let startY = 15;
+  try {
+    const resp = await fetch("/logo.svg");
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = url;
+    });
+    const canvas = document.createElement("canvas");
+    canvas.width = 40;
+    canvas.height = 20;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0, 40, 20);
+    URL.revokeObjectURL(url);
+    const png = canvas.toDataURL("image/png");
+    doc.addImage(png, "PNG", pageWidth / 2 - 20, 8, 40, 16);
+    startY = 28;
+  } catch { /* logo not available, skip */ }
   doc.setFontSize(14);
-  doc.text("Today's Report", pageWidth / 2, 15, { align: "center" });
+  doc.text("Today's Report", pageWidth / 2, startY, { align: "center" });
   doc.setFontSize(9);
-  doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 21, { align: "center" });
+  doc.text(`Generated by: ${userName || "Unknown"} | ${new Date().toLocaleString()}`, pageWidth / 2, startY + 6, { align: "center" });
+  const tableStart = startY + 10;
   if (isTransaction) {
     const rows = data.map((t: any) => [
       t.id?.slice(0, 8) || "", fmtTime(t.date), t.description || "",
@@ -754,20 +777,20 @@ function downloadCSV(data: any[], filename: string, isTransaction = false) {
     autoTable(doc, {
       head: [["Transaction ID", "Time", "Description", "Reference Type", "Amount"]],
       body: rows,
-      startY: 25,
+      startY: tableStart,
       styles: { fontSize: 8, cellPadding: 1.5 },
       headStyles: { fillColor: [51, 51, 51] },
     });
   } else {
     const rows = data.map((s: any) => [
       s.id?.slice(0, 8) || "", fmtTime(s.saleDate), s.customer?.name || "Walk-in",
-      s.payment?.method || s.saleType || "", s.payment?.receivedAmount ?? 0,
-      s.totalAmount ?? 0, s.discountAmount ?? 0, s.payment?.balanceDue ?? 0, s.finalAmount ?? 0,
+      s.payment?.method || s.saleType || "", s.totalAmount ?? 0,
+      s.discountAmount ?? 0, s.payment?.receivedAmount ?? 0, s.payment?.balanceDue ?? 0, s.finalAmount ?? 0,
     ]);
     autoTable(doc, {
-      head: [["Sale ID", "Time", "Customer", "Method", "Received", "Sub Total", "Discount", "Due", "Total"]],
+      head: [["Sale ID", "Time", "Customer", "Method", "Sub Total", "Discount", "Received", "Due", "Total"]],
       body: rows,
-      startY: 25,
+      startY: tableStart,
       styles: { fontSize: 8, cellPadding: 1.5 },
       headStyles: { fillColor: [51, 51, 51] },
     });
