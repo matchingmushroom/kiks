@@ -23,6 +23,7 @@ export default function ReconciliationPage() {
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("");
   const [physicalQtys, setPhysicalQtys] = useState<Record<string, number>>({});
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [results, setResults] = useState<{ product: string; before: number; after: number; diff: number }[]>([]);
@@ -178,7 +179,7 @@ export default function ReconciliationPage() {
                   const diff = physical - system;
                   const val = Math.abs(diff) * (p.costPrice || 0);
                   return (
-                    <tr key={p.id} className={`hover:bg-muted/30 ${diff !== 0 ? "bg-amber-50/50" : ""}`}>
+                    <tr key={p.id} className={`hover:bg-muted/30 cursor-pointer ${diff !== 0 ? "bg-amber-50/50" : ""}`} onClick={() => setDetailProduct(p)}>
                       <td className="px-4 py-2.5 font-medium text-secondary">{p.name}</td>
                       <td className="px-4 py-2.5 text-muted-foreground">{categoryMap.get(p.categoryId) || "—"}</td>
                       <td className="px-4 py-2.5 text-right">{system}</td>
@@ -201,7 +202,53 @@ export default function ReconciliationPage() {
             </table>
           </div>
         )}
+      {detailProduct && (
+          <DetailModal title={`Product Details - ${detailProduct.name}`} onClose={() => setDetailProduct(null)}>
+            <div className="space-y-2 text-sm">
+              <Row label="SKU" value={detailProduct.sku || "—"} />
+              <Row label="Name" value={detailProduct.name} />
+              <Row label="Category" value={categoryMap.get(detailProduct.categoryId) || "—"} />
+              <Row label="Price" value={formatCurrency(detailProduct.price)} />
+              <Row label="Cost Price" value={detailProduct.costPrice ? formatCurrency(detailProduct.costPrice) : "—"} />
+              <Row label="System Qty" value={String(detailProduct.quantityInStock)} />
+              <Row label="Physical Qty" value={String(physicalQtys[detailProduct.id] ?? detailProduct.quantityInStock)} />
+              <Row label="Variance" value={String(variance(detailProduct.id))} />
+              <Row label="Value at Cost" value={detailProduct.costPrice ? formatCurrency(Math.abs(variance(detailProduct.id)) * detailProduct.costPrice) : "—"} />
+              <Row label="Metal Type" value={detailProduct.metalType || "—"} />
+              <Row label="Purity" value={detailProduct.purity || "—"} />
+              <Row label="Weight" value={detailProduct.weight ? `${detailProduct.weight}g` : "—"} />
+              <Row label="Status" value={detailProduct.isActive ? "Active" : "Inactive"} />
+            </div>
+          </DetailModal>
+        )}
       </div>
     </AdminLayout>
+  );
+}
+
+function Row({ label, value, bold }: { label: string; value: React.ReactNode; bold?: boolean }) {
+  return (
+    <div className="flex justify-between items-start py-1 border-b border-border last:border-0">
+      <span className="text-muted-foreground text-xs shrink-0 mr-4">{label}</span>
+      <span className={`text-right ${bold ? "font-bold text-secondary" : "text-secondary font-medium"}`}>{value}</span>
+    </div>
+  );
+}
+
+function DetailModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
+          <h2 className="text-base font-bold text-secondary">{title}</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }

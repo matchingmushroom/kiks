@@ -7,6 +7,7 @@ import { Debtor } from "@/types";
 import { formatCurrency, formatDate, formatDateTime, toDate, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { resolveAccount } from "@/lib/accounts";
+import { createJournalEntry, buildDebtorPaymentJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   updateDoc, doc, Timestamp, arrayUnion, addDoc, collection,
@@ -106,6 +107,11 @@ export default function AdminDebtorsPage() {
         recordedBy: user?.uid || "",
         createdAt: Timestamp.fromDate(new Date()),
       });
+
+      try {
+        const dje = buildDebtorPaymentJournal(debtor.customerName, amount, paymentForm.method, debtor.id, user?.uid || "", profile?.displayName || "");
+        await createJournalEntry(dje);
+      } catch (e) { console.error("Debtor payment journal entry failed", e); }
 
       // Sync payment to linked sale(s) and invoice(s)
       let syncErrMsg: string | null = null;

@@ -8,6 +8,7 @@ import { formatCurrency, formatDate, toDate, getUseBsCalendar } from "@/lib/util
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
+import { createJournalEntry, buildExpenseJournal, buildTransferJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import {
@@ -113,6 +114,8 @@ export default function AdminExpensesPage() {
     setArchiveLoading(false);
   };
 
+  const [detailExpense, setDetailExpense] = useState<Expense | null>(null);
+  const [detailTransfer, setDetailTransfer] = useState<Transfer | null>(null);
   const [showRecurringForm, setShowRecurringForm] = useState(false);
   const [editingRecurringId, setEditingRecurringId] = useState<string | null>(null);
   const [recurringForm, setRecurringForm] = useState(emptyRecurring);
@@ -223,6 +226,20 @@ export default function AdminExpensesPage() {
             createdAt: Timestamp.fromDate(new Date()),
           });
         }
+        // Update journal entry for edited expense
+        try {
+          const jeSnap = await getDocs(query(collection(db, "journalEntries"), where("referenceType", "==", "expense"), where("referenceId", "==", editingId)));
+          for (const je of jeSnap.docs) await deleteDoc(doc(db, "journalEntries", je.id));
+          const expenseEntry: Expense = {
+            id: editingId, title: form.title, amount: Number(form.amount),
+            head: form.head, customHead: form.customHead, description: form.description,
+            date: new Date(form.date).getTime(), paymentMethod: form.paymentMethod,
+            receiptUrl: form.receiptUrl, recordedBy: user?.uid || "",
+            createdAt: Date.now(), updatedAt: Date.now(),
+          };
+          const eje = buildExpenseJournal(expenseEntry, profile?.displayName || "");
+          await createJournalEntry(eje);
+        } catch (e) { console.error("Expense edit journal sync failed", e); }
       } else {
         const expenseId = await generateId("EXP");
         await setDoc(doc(db, "expenses", expenseId), {
@@ -239,6 +256,17 @@ export default function AdminExpensesPage() {
           recordedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
+        try {
+          const expenseEntry: Expense = {
+            id: expenseId, title: form.title, amount: Number(form.amount),
+            head: form.head, customHead: form.customHead, description: form.description,
+            date: new Date(form.date).getTime(), paymentMethod: form.paymentMethod,
+            receiptUrl: form.receiptUrl, recordedBy: user?.uid || "",
+            createdAt: Date.now(), updatedAt: Date.now(),
+          };
+          const eje = buildExpenseJournal(expenseEntry, profile?.displayName || "");
+          await createJournalEntry(eje);
+        } catch (e) { console.error("Expense journal entry failed", e); }
       }
       setShowForm(false);
       setForm(emptyForm);
@@ -253,6 +281,10 @@ export default function AdminExpensesPage() {
     const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "expense"), where("referenceId", "==", id)));
     for (const tx of txSnap.docs) {
       await deleteDoc(doc(db, "accountTransactions", tx.id));
+    }
+    const jeSnap = await getDocs(query(collection(db, "journalEntries"), where("referenceType", "==", "expense"), where("referenceId", "==", id)));
+    for (const je of jeSnap.docs) {
+      await deleteDoc(doc(db, "journalEntries", je.id));
     }
     await deleteDoc(doc(db, "expenses", id));
   };
@@ -288,6 +320,17 @@ export default function AdminExpensesPage() {
           recordedBy: user?.uid || "",
           createdAt: now,
         });
+        try {
+          const recExp: Expense = {
+            id: expenseId, title: t.title, amount: t.amount,
+            head: t.head, customHead: t.customHead || "", description: t.description || "",
+            date: Date.now(), paymentMethod: t.paymentMethod,
+            receiptUrl: "", recordedBy: user?.uid || "",
+            createdAt: Date.now(), updatedAt: Date.now(),
+          };
+          const rje = buildExpenseJournal(recExp, profile?.displayName || "");
+          await createJournalEntry(rje);
+        } catch (e) { console.error("Recurring expense journal entry failed", e); }
         const nextDate = new Date(t.nextDueDate);
         switch (t.frequency) {
           case "weekly": nextDate.setDate(nextDate.getDate() + 7); break;
@@ -361,6 +404,7 @@ export default function AdminExpensesPage() {
         recipientPhone: transferForm.type === "advance" ? transferForm.recipientPhone : "",
         notes: transferForm.notes,
         recordedBy: user?.uid || "",
+        recordedByName: profile?.displayName || "",
         createdAt: now,
         updatedAt: now,
       });
@@ -392,6 +436,21 @@ export default function AdminExpensesPage() {
           createdAt: now,
         });
       }
+      try {
+        const transferEntry: Transfer = {
+          id: transferId, type: transferForm.type, amount: Number(transferForm.amount),
+          description: transferForm.description, date: new Date(transferForm.date).getTime(),
+          fromAccountId: transferForm.fromAccountId,
+          toAccountId: transferForm.type === "bank_deposit" ? transferForm.toAccountId : "",
+          recipientName: transferForm.type === "advance" ? transferForm.recipientName : "",
+          recipientPhone: transferForm.type === "advance" ? transferForm.recipientPhone : "",
+          notes: transferForm.notes,
+          recordedBy: user?.uid || "", recordedByName: profile?.displayName || "",
+          createdAt: Date.now(), updatedAt: Date.now(),
+        };
+        const tje = buildTransferJournal(transferEntry, profile?.displayName || "System");
+        await createJournalEntry(tje);
+      } catch (e) { console.error("Transfer journal entry failed", e); }
       setShowTransferForm(false);
       setTransferForm({
         type: "bank_deposit", amount: 0, description: "", date: new Date().toISOString().slice(0, 10),
@@ -612,7 +671,7 @@ export default function AdminExpensesPage() {
             ) : viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {filtered.map((e) => (
-                  <div key={e.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                  <div key={e.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer" onClick={() => setDetailExpense(e)}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-secondary text-sm truncate">{e.title}</p>
@@ -628,10 +687,10 @@ export default function AdminExpensesPage() {
                     </div>
                     {e.description && <p className="text-xs text-muted-foreground truncate">{e.description}</p>}
                     <div className="flex gap-2 pt-1">
-                      <Button onClick={() => openEdit(e)} size="sm" variant="outline" className="text-xs">
+                      <Button onClick={(ev) => { ev.stopPropagation(); openEdit(e); }} size="sm" variant="outline" className="text-xs">
                         <Edit2 className="h-3 w-3" /> Edit
                       </Button>
-                      <Button onClick={() => handleDelete(e.id)} size="sm" variant="outline" className="text-xs text-red-500">
+                      <Button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} size="sm" variant="outline" className="text-xs text-red-500">
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -653,7 +712,7 @@ export default function AdminExpensesPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filtered.map((e) => (
-                      <tr key={e.id} className="hover:bg-muted/30">
+                      <tr key={e.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setDetailExpense(e)}>
                         <td className="px-4 py-2.5 text-sm font-medium text-secondary">{e.title}</td>
                         <td className="px-4 py-2.5 text-sm text-muted-foreground">
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">{e.head}</span>
@@ -663,10 +722,10 @@ export default function AdminExpensesPage() {
                         <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(e.date)}</td>
                         <td className="px-4 py-2.5 text-sm text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => openEdit(e)} className="p-1 hover:bg-muted rounded" title="Edit">
+                            <button onClick={(ev) => { ev.stopPropagation(); openEdit(e); }} className="p-1 hover:bg-muted rounded" title="Edit">
                               <Edit2 className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => handleDelete(e.id)} className="p-1 hover:bg-muted rounded text-red-500" title="Delete">
+                            <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="p-1 hover:bg-muted rounded text-red-500" title="Delete">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -808,7 +867,7 @@ export default function AdminExpensesPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {transfers.map((t) => (
-                      <tr key={t.id} className="hover:bg-muted/30">
+                      <tr key={t.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setDetailTransfer(t)}>
                         <td className="px-4 py-2.5">
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                             t.type === "bank_deposit" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"
@@ -824,7 +883,7 @@ export default function AdminExpensesPage() {
                         </td>
                         <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(t.date)}</td>
                         <td className="px-4 py-2.5 text-sm text-right">
-                          <button onClick={() => deleteTransfer(t.id)} className="p-1 hover:bg-muted rounded text-red-500" title="Delete">
+                          <button onClick={(ev) => { ev.stopPropagation(); deleteTransfer(t.id); }} className="p-1 hover:bg-muted rounded text-red-500" title="Delete">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </td>
@@ -992,6 +1051,72 @@ export default function AdminExpensesPage() {
           </div>
         </div>
       )}
+
+      {detailExpense && (
+        <DetailModal title={`Expense - ${detailExpense.title}`} onClose={() => setDetailExpense(null)}>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><span className="text-muted-foreground">Title</span><p className="font-medium">{detailExpense.title}</p></div>
+              <div><span className="text-muted-foreground">Head</span><p className="font-medium">{detailExpense.head}</p></div>
+              {detailExpense.customHead && <div><span className="text-muted-foreground">Custom Head</span><p className="font-medium">{detailExpense.customHead}</p></div>}
+              <div><span className="text-muted-foreground">Amount</span><p className="font-medium">{formatCurrency(detailExpense.amount)}</p></div>
+              <div><span className="text-muted-foreground">Payment Method</span><p className="font-medium capitalize">{detailExpense.paymentMethod}</p></div>
+              <div><span className="text-muted-foreground">Date</span><p className="font-medium">{formatDate(detailExpense.date)}</p></div>
+            </div>
+            {detailExpense.description && (
+              <div className="text-sm"><span className="text-muted-foreground">Description</span><p className="mt-0.5">{detailExpense.description}</p></div>
+            )}
+            {detailExpense.receiptUrl && (
+              <div className="text-sm"><span className="text-muted-foreground">Receipt</span><p className="mt-0.5"><a href={detailExpense.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-primary underline">View Receipt</a></p></div>
+            )}
+            <div className="text-sm"><span className="text-muted-foreground">Recorded By (ID)</span><p className="mt-0.5 font-mono text-xs">{detailExpense.recordedBy}</p></div>
+          </div>
+        </DetailModal>
+      )}
+      {detailTransfer && (
+        <DetailModal title={`Transfer - ${detailTransfer.description}`} onClose={() => setDetailTransfer(null)}>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div><span className="text-muted-foreground">Type</span><p className="font-medium capitalize">{detailTransfer.type === "bank_deposit" ? "Bank Deposit" : "Advance"}</p></div>
+              <div><span className="text-muted-foreground">Description</span><p className="font-medium">{detailTransfer.description}</p></div>
+              <div><span className="text-muted-foreground">Amount</span><p className="font-medium">{formatCurrency(detailTransfer.amount)}</p></div>
+              <div><span className="text-muted-foreground">From</span><p className="font-medium capitalize">{detailTransfer.fromAccountId?.replace("_", " ")}</p></div>
+              <div><span className="text-muted-foreground">To / Recipient</span><p className="font-medium">{detailTransfer.type === "bank_deposit" ? (detailTransfer.toAccountId || "").replace("_", " ") : (detailTransfer.recipientName || "-")}</p></div>
+              <div><span className="text-muted-foreground">Date</span><p className="font-medium">{formatDate(detailTransfer.date)}</p></div>
+            </div>
+            {detailTransfer.settledAmount !== undefined && (
+              <div className="text-sm"><span className="text-muted-foreground">Settled Amount</span><p className="font-medium mt-0.5">{formatCurrency(detailTransfer.settledAmount)}</p></div>
+            )}
+            {detailTransfer.status && (
+              <div className="text-sm"><span className="text-muted-foreground">Status</span><p className="font-medium mt-0.5 capitalize">{detailTransfer.status}</p></div>
+            )}
+            {detailTransfer.recordedByName && (
+              <div className="text-sm"><span className="text-muted-foreground">Recorded By</span><p className="font-medium mt-0.5">{detailTransfer.recordedByName}</p></div>
+            )}
+            {detailTransfer.notes && (
+              <div className="text-sm"><span className="text-muted-foreground">Notes</span><p className="mt-0.5">{detailTransfer.notes}</p></div>
+            )}
+          </div>
+        </DetailModal>
+      )}
     </AdminLayout>
+  );
+}
+
+function DetailModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
+          <h2 className="text-base font-bold text-secondary">{title}</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }

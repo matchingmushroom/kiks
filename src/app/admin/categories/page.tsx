@@ -35,6 +35,7 @@ export default function AdminCategoriesPage() {
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [detailCat, setDetailCat] = useState<Category | null>(null);
 
   const openAdd = () => {
     setName(""); setDescription(""); setImage("");
@@ -166,7 +167,7 @@ export default function AdminCategoriesPage() {
             {viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {categories.map((cat, i) => (
-                  <div key={cat.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                  <div key={cat.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer" onClick={() => setDetailCat(cat)}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-secondary text-sm truncate">{cat.name}</p>
@@ -178,23 +179,23 @@ export default function AdminCategoriesPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => moveOrder(cat.id, cat.order - 1)}
+                        <button onClick={(e) => { e.stopPropagation(); moveOrder(cat.id, cat.order - 1); }}
                           disabled={i === 0}
                           className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
                           <ArrowUp className="h-3.5 w-3.5" />
                         </button>
                         <span className="text-xs text-muted-foreground">Order {cat.order}</span>
-                        <button onClick={() => moveOrder(cat.id, cat.order + 1)}
+                        <button onClick={(e) => { e.stopPropagation(); moveOrder(cat.id, cat.order + 1); }}
                           disabled={i === categories.length - 1}
                           className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
                           <ArrowDown className="h-3.5 w-3.5" />
                         </button>
                       </div>
                       <div className="flex items-center gap-1">
-                        <button onClick={() => openEdit(cat)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                        <button onClick={(e) => { e.stopPropagation(); openEdit(cat); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => handleDelete(cat.id, cat.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(cat.id, cat.name); }} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -215,20 +216,20 @@ export default function AdminCategoriesPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {categories.map((cat, i) => (
-                      <tr key={cat.id} className="hover:bg-muted/30">
+                      <tr key={cat.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setDetailCat(cat)}>
                         <td className="px-4 py-2.5">
                           <p className="font-medium text-secondary">{cat.name}</p>
                           {cat.description && <p className="text-xs text-muted-foreground">{cat.description}</p>}
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => moveOrder(cat.id, cat.order - 1)}
+                            <button onClick={(e) => { e.stopPropagation(); moveOrder(cat.id, cat.order - 1); }}
                               disabled={i === 0}
                               className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
                               <ArrowUp className="h-3 w-3" />
                             </button>
                             <span className="text-xs">{cat.order}</span>
-                            <button onClick={() => moveOrder(cat.id, cat.order + 1)}
+                            <button onClick={(e) => { e.stopPropagation(); moveOrder(cat.id, cat.order + 1); }}
                               disabled={i === categories.length - 1}
                               className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
                               <ArrowDown className="h-3 w-3" />
@@ -241,10 +242,10 @@ export default function AdminCategoriesPage() {
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-right">
-                          <button onClick={() => openEdit(cat)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                          <button onClick={(e) => { e.stopPropagation(); openEdit(cat); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
-                          <button onClick={() => handleDelete(cat.id, cat.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(cat.id, cat.name); }} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </td>
@@ -256,7 +257,45 @@ export default function AdminCategoriesPage() {
             )}
           </>
         )}
+      {detailCat && (
+          <DetailModal title={`Category - ${detailCat.name}`} onClose={() => setDetailCat(null)}>
+            <div className="space-y-2 text-sm">
+              <Row label="Name" value={detailCat.name} />
+              <Row label="Description" value={detailCat.description || "—"} />
+              <Row label="Order" value={String(detailCat.order)} />
+              <Row label="Status" value={detailCat.isActive ? "Active" : "Inactive"} />
+              <Row label="Image" value={detailCat.image ? <a href={detailCat.image} target="_blank" rel="noopener noreferrer" className="text-primary underline">View</a> : "—"} />
+            </div>
+          </DetailModal>
+        )}
       </div>
     </AdminLayout>
+  );
+}
+
+function Row({ label, value, bold }: { label: string; value: React.ReactNode; bold?: boolean }) {
+  return (
+    <div className="flex justify-between items-start py-1 border-b border-border last:border-0">
+      <span className="text-muted-foreground text-xs shrink-0 mr-4">{label}</span>
+      <span className={`text-right ${bold ? "font-bold text-secondary" : "text-secondary font-medium"}`}>{value}</span>
+    </div>
+  );
+}
+
+function DetailModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
+          <h2 className="text-base font-bold text-secondary">{title}</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }

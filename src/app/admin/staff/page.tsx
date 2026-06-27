@@ -43,6 +43,7 @@ export default function AdminStaffPage() {
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showDisabled, setShowDisabled] = useState(false);
+  const [detailStaff, setDetailStaff] = useState<AppUser | null>(null);
 
   const filtered = users.filter((u) => {
     const matchSearch = !search || u.displayName?.toLowerCase().includes(search.toLowerCase()) || u.email?.includes(search);
@@ -233,7 +234,7 @@ export default function AdminStaffPage() {
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {filtered.map((u) => (
-              <div key={u.uid} className={`bg-white border rounded-xl p-4 shadow-sm space-y-2 ${u.isActive === false ? "border-red-200 bg-red-50/30" : "border-border"}`}>
+              <div key={u.uid} onClick={() => setDetailStaff(u)} className={`bg-white border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer ${u.isActive === false ? "border-red-200 bg-red-50/30" : "border-border"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-secondary text-sm truncate">{u.displayName}</p>
@@ -253,16 +254,16 @@ export default function AdminStaffPage() {
                   </span>
                 )}
                 <div className="flex items-center gap-1 pt-1">
-                  <button onClick={() => openEdit(u)}
+                  <button onClick={(e) => { e.stopPropagation(); openEdit(u); }}
                     className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                     <Edit2 className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={() => toggleActive(u)}
+                  <button onClick={(e) => { e.stopPropagation(); toggleActive(u); }}
                     className={`p-1.5 rounded ${u.isActive === false ? "text-green-600 hover:bg-green-50" : "text-red-600 hover:bg-red-50"}`}
                     title={u.isActive === false ? "Enable user" : "Disable user"}>
                     {u.isActive === false ? <Power className="h-3.5 w-3.5" /> : <PowerOff className="h-3.5 w-3.5" />}
                   </button>
-                  <button onClick={() => resetPassword(u.email)}
+                  <button onClick={(e) => { e.stopPropagation(); resetPassword(u.email); }}
                     className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded" title="Send password reset email">
                     <Key className="h-3.5 w-3.5" />
                   </button>
@@ -286,7 +287,7 @@ export default function AdminStaffPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {filtered.map((u) => (
-                  <tr key={u.uid} className={`hover:bg-muted/30 ${u.isActive === false ? "bg-red-50/30" : ""}`}>
+                  <tr key={u.uid} onClick={() => setDetailStaff(u)} className={`hover:bg-muted/30 cursor-pointer ${u.isActive === false ? "bg-red-50/30" : ""}`}>
                     <td className="px-4 py-2.5 font-medium text-secondary">{u.displayName}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">{u.email}</td>
                     <td className="px-4 py-2.5">
@@ -306,16 +307,16 @@ export default function AdminStaffPage() {
                     </td>
                     <td className="px-4 py-2.5 text-muted-foreground">{formatDate(u.createdAt)}</td>
                     <td className="px-4 py-2.5 text-right">
-                      <button onClick={() => openEdit(u)}
+                      <button onClick={(e) => { e.stopPropagation(); openEdit(u); }}
                         className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => toggleActive(u)}
+                      <button onClick={(e) => { e.stopPropagation(); toggleActive(u); }}
                         className={`p-1.5 rounded ${u.isActive === false ? "text-green-600 hover:bg-green-50" : "text-red-600 hover:bg-red-50"}`}
                         title={u.isActive === false ? "Enable user" : "Disable user"}>
                         {u.isActive === false ? <Power className="h-3.5 w-3.5" /> : <PowerOff className="h-3.5 w-3.5" />}
                       </button>
-                      <button onClick={() => resetPassword(u.email)}
+                      <button onClick={(e) => { e.stopPropagation(); resetPassword(u.email); }}
                         className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded" title="Send password reset email">
                         <Key className="h-3.5 w-3.5" />
                       </button>
@@ -326,7 +327,48 @@ export default function AdminStaffPage() {
             </table>
           </div>
         )}
+
+        {detailStaff && (
+          <DetailModal title="Staff Details" onClose={() => setDetailStaff(null)}>
+            <div className="space-y-3 text-sm">
+              <Row label="UID" value={detailStaff.uid} />
+              <Row label="Name" value={detailStaff.displayName} />
+              <Row label="Email" value={detailStaff.email} />
+              <Row label="Role" value={detailStaff.role} />
+              <Row label="Phone" value={detailStaff.phone || "—"} />
+              <Row label="Status" value={detailStaff.isActive !== false ? "Active" : "Disabled"} />
+              <Row label="Joined" value={formatDate(detailStaff.createdAt)} />
+            </div>
+          </DetailModal>
+        )}
       </div>
     </AdminLayout>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between items-start">
+      <span className="text-muted-foreground text-xs shrink-0 mr-4">{label}</span>
+      <span className="text-right text-secondary">{value}</span>
+    </div>
+  );
+}
+
+function DetailModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
+          <h2 className="text-base font-bold text-secondary">{title}</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }

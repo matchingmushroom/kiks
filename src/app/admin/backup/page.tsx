@@ -5,7 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import {
   Download, FileSpreadsheet, FileArchive, Mail, FolderOpen,
-  ChevronDown, ChevronUp, Calendar,
+  ChevronDown, ChevronUp, Calendar, X,
 } from "lucide-react";
 import {
   exportCollection, exportCollectionsAsZip, downloadBlob,
@@ -43,6 +43,7 @@ export default function AdminBackupPage() {
   const [report, setReport] = useState<ReportData | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [showDriveGuide, setShowDriveGuide] = useState(false);
+  const [detailRow, setDetailRow] = useState<string[] | null>(null);
 
   const toggleColl = (id: string) => {
     setSelected((prev) =>
@@ -250,7 +251,7 @@ export default function AdminBackupPage() {
                       if (row.length === 0) return <tr key={i} className="h-2" />;
                       const isSection = row[0].startsWith("---");
                       return (
-                        <tr key={i} className={isSection ? "bg-muted font-semibold" : "hover:bg-muted/50"}>
+                        <tr key={i} className={`${isSection ? "bg-muted font-semibold" : "hover:bg-muted/50"} cursor-pointer`} onClick={() => setDetailRow(row)}>
                           {row.map((cell, j) => (
                             <td key={j} className={`px-3 py-1.5 ${isSection ? "text-secondary" : ""}`}>{cell}</td>
                           ))}
@@ -315,7 +316,44 @@ export default function AdminBackupPage() {
             </div>
           )}
         </section>
+
+        {detailRow && (
+          <DetailModal title="Report Row Details" onClose={() => setDetailRow(null)}>
+            <div className="space-y-2 text-sm">
+              {detailRow.map((cell, i) => (
+                <Row key={i} label={`Field ${i + 1}`} value={cell || "—"} />
+              ))}
+            </div>
+          </DetailModal>
+        )}
       </div>
     </AdminLayout>
+  );
+}
+
+function Row({ label, value, bold }: { label: string; value: React.ReactNode; bold?: boolean }) {
+  return (
+    <div className="flex justify-between items-start py-1 border-b border-border last:border-0">
+      <span className="text-muted-foreground text-xs shrink-0 mr-4">{label}</span>
+      <span className={`text-right ${bold ? "font-bold text-secondary" : "text-secondary font-medium"}`}>{value}</span>
+    </div>
+  );
+}
+
+function DetailModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
+          <h2 className="text-base font-bold text-secondary">{title}</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }

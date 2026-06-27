@@ -3,11 +3,12 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit, useDataCache } from "@/hooks/useFirestore";
-import { Product, Coupon } from "@/types";
+import { Product, Coupon, Sale } from "@/types";
 import { formatCurrency, formatNumber, generateCouponCode } from "@/lib/utils";
 import { toBS } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
+import { createJournalEntry, buildSaleJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -300,6 +301,30 @@ export default function POSPage() {
           });
         }
       } catch (e) { console.error("Account transaction failed", e); }
+
+      try {
+        const saleData: Sale = {
+          id: saleId, orderId: "", saleType,
+          customer: { name: cName, phone: cPhone, address: "", email: "" },
+          items: items.map((item) => {
+            const product = activeProducts.find((p) => p.id === item.productId);
+            return {
+              productId: item.productId, productName: item.productName, sku: product?.sku || "",
+              quantity: item.quantity, unitPrice: item.unitPrice, weight: product?.weight || 0,
+              purity: product?.purity || "", makingCharge: product?.makingCharge || 0,
+              subtotal: item.subtotal, costPriceAtSale: product?.costPrice || 0,
+            };
+          }),
+          totalAmount, discountAmount: discount, finalAmount,
+          payment: { method: paymentMode === "partial" ? (receivedAmount > 0 ? "partial" : "credit") : paymentMode, receivedAmount: effectiveReceived, balanceDue },
+          warranty: { period: "", terms: "", startDate: Date.now(), endDate: Date.now() },
+          couponIssued: null, notes: "", saleDate: Date.now(),
+          recordedBy: user?.uid || "", recordedByName: profile?.displayName || "",
+          createdAt: Date.now(), updatedAt: Date.now(),
+        };
+        const je = buildSaleJournal(saleData, profile?.displayName || "");
+        await createJournalEntry(je);
+      } catch (e) { console.error("Journal entry failed", e); }
 
       try {
         if (balanceDue > 0) {

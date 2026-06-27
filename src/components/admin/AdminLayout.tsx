@@ -64,6 +64,7 @@ const navItems: NavItem[] = [
   { label: "Expenses", href: "/admin/expenses", icon: <CreditCard className="h-4 w-4" />, permission: "manage_expenses" },
   { label: "Reports", href: "/admin/reports", icon: <FileText className="h-4 w-4" />, permission: "view_reports" },
   { label: "Finance", href: "/admin/finance", icon: <Wallet className="h-4 w-4" />, permission: "view_reports" },
+  { label: "Accounting", href: "/admin/accounting", icon: <FileText className="h-4 w-4" />, permission: "view_reports" },
   { divider: true, section: "PEOPLE" },
   { label: "Customers", href: "/admin/customers", icon: <Users className="h-4 w-4" />, permission: "manage_customers" },
   { label: "Staff", href: "/admin/staff", icon: <Shield className="h-4 w-4" />, permission: "manage_staff" },

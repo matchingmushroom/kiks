@@ -1,22 +1,60 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
-import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import {
-  Account, AccountTransaction,
+  Account, AccountTransaction, Transfer, JournalEntry,
 } from "@/types";
 import { formatCurrency, formatDate, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { ACCOUNTS } from "@/lib/accounts";
+import { createJournalEntry, buildTransferJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
-import { getDoc, doc, setDoc, Timestamp, addDoc, collection } from "firebase/firestore";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
+import { getDoc, getDocs, doc, setDoc, Timestamp, addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
   Download, Plus, X, Save, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
+
+function ReportHeader({ title, period }: { title: string; period: string }) {
+  const { settings } = useShopSettings();
+  return (
+    <div className="text-center mb-8 pb-6 border-b-2 border-gray-400">
+      {settings?.logoUrl && (
+        <div className="flex justify-center mb-3">
+          <img src={settings.logoUrl} alt="Logo" className="h-16 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        </div>
+      )}
+      <h1 className="text-xl font-bold text-gray-900 tracking-tight">{settings?.shopName || "Shop Name"}</h1>
+      {settings?.address && <p className="text-sm text-gray-500 mt-0.5">{settings.address}</p>}
+      {settings?.phone && <p className="text-xs text-gray-400">Phone: {settings.phone}</p>}
+      <h2 className="text-lg font-semibold text-gray-800 mt-4">{title}</h2>
+      <p className="text-sm text-gray-500 italic">{period}</p>
+    </div>
+  );
+}
+
+function Line({ label, value, bold, double, indent, negative }: { label: string; value: string | number; bold?: boolean; double?: boolean; indent?: boolean; negative?: boolean }) {
+  const fmt = typeof value === "number" ? formatCurrency(value) : value;
+  return (
+    <div className={`flex justify-between items-center py-0.5 ${bold ? "font-bold border-t border-gray-400" : ""} ${double ? "font-bold border-t-4 border-gray-900" : ""} ${indent ? "ml-6" : ""}`}>
+      <span className={`text-sm ${bold ? "text-gray-900 font-semibold" : negative ? "text-red-600" : "text-gray-700"}`}>{label}</span>
+      <span className={`text-sm font-mono tabular-nums ${bold ? "text-gray-900 font-bold" : negative ? "text-red-600" : "text-gray-800"}`}>{fmt}</span>
+    </div>
+  );
+}
+
+function TotalLine({ label, value, negative }: { label: string; value: number; negative?: boolean }) {
+  return (
+    <div className="flex justify-between items-center py-1 border-t-2 border-gray-800 mt-1">
+      <span className="text-sm font-bold text-gray-900">{label}</span>
+      <span className={`text-sm font-bold font-mono tabular-nums ${negative && value < 0 ? "text-red-600" : "text-gray-900"}`}>{formatCurrency(value)}</span>
+    </div>
+  );
+}
 
 interface PnlResult {
   grossRevenue: number;
@@ -53,7 +91,7 @@ const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 const startOfYear = new Date(today.getFullYear(), 0, 1);
 
 function PnLSection() {
-  const { settings } = useShopSettings();
+  const [gasUrl, setGasUrl] = useState("");
   const [pnlData, setPnlData] = useState<PnlResult | null>(null);
   const [pnlLoading, setPnlLoading] = useState(false);
   const [pnlRange, setPnlRange] = useState<"mtd" | "ytd" | "fytd" | "custom">("mtd");
@@ -61,7 +99,13 @@ function PnLSection() {
   const [customEnd, setCustomEnd] = useState(today.toISOString().slice(0, 10));
 
   useEffect(() => {
-    if (!settings.gasWebhookUrl) return;
+    getDoc(doc(db, "shop_settings", "emailBackupConfig")).then((snap) => {
+      if (snap.exists()) setGasUrl(snap.data().gasWebhookUrl || "");
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!gasUrl) return;
     let start: string, end: string;
     if (pnlRange === "mtd") { start = startOfMonth.toISOString().slice(0, 10); end = today.toISOString().slice(0, 10); }
     else if (pnlRange === "ytd") {
@@ -72,37 +116,22 @@ function PnLSection() {
     else { start = customStart; end = customEnd; }
 
     setPnlLoading(true);
-    fetch(settings.gasWebhookUrl, {
+    fetch(gasUrl, {
       method: "POST",
       body: JSON.stringify({ action: "computePnl", start, end }),
     })
       .then((r) => r.json())
       .then((result) => setPnlData(result as PnlResult))
-      .catch(() => {})
+      .catch((err) => console.error("PnL fetch failed", err))
       .finally(() => setPnlLoading(false));
-  }, [pnlRange, customStart, customEnd, settings.gasWebhookUrl]);
+  }, [pnlRange, customStart, customEnd, gasUrl]);
 
   const pnl = pnlData;
-
-  const downloadCSV = () => {
-    if (!pnl) return;
-    const rows = [
-      ["Metric", "Value"],
-      ["Period", pnlRange === "mtd" ? "Month to Date" : pnlRange === "ytd" ? "Year to Date" : pnlRange === "fytd" ? "Fiscal Year to Date" : `${customStart} to ${customEnd}`],
-      ["Gross Revenue", pnl.grossRevenue.toString()],
-      ["COGS", pnl.cogs.toString()],
-      ["Gross Profit", pnl.grossProfit.toString()],
-      ["Total Expenses", pnl.totalExpenses.toString()],
-      ...Object.entries(pnl.expenseByHead).map(([head, amt]) => [`  ${head}`, amt.toString()]),
-      ["Net Profit", pnl.netProfit.toString()],
-    ];
-    const csv = rows.map((r) => r.join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url;
-    a.download = `pnl-${pnlRange}-${today.toISOString().slice(0, 10)}.csv`; a.click();
-    URL.revokeObjectURL(url);
-  };
+  const periodLabel = pnlRange === "mtd"
+    ? `Month ended ${today.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`
+    : pnlRange === "ytd" ? `Year ended ${today.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`
+    : pnlRange === "fytd" ? `Fiscal Year ended ${today.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`
+    : `${customStart} to ${customEnd}`;
 
   return (
     <div>
@@ -120,78 +149,107 @@ function PnLSection() {
             <input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="px-3 py-1.5 border border-border rounded-lg text-sm" />
           </>
         )}
-        <Button onClick={downloadCSV} variant="outline" size="sm"><Download className="h-3.5 w-3.5" /> CSV</Button>
       </div>
 
-      <div className={`grid grid-cols-2 md:grid-cols-5 gap-3 mb-6 ${pnlLoading && pnl ? "opacity-50 transition-opacity duration-300" : ""}`}>
-        {[
-          { label: "Gross Revenue", value: pnl?.grossRevenue, color: "text-green-600" },
-          { label: "COGS", value: pnl?.cogs, color: "text-red-600" },
-          { label: "Gross Profit", value: pnl?.grossProfit, color: (pnl?.grossProfit ?? 0) >= 0 ? "text-green-600" : "text-red-600" },
-          { label: "Total Expenses", value: pnl?.totalExpenses, color: "text-red-600" },
-          { label: "Net Profit", value: pnl?.netProfit, color: (pnl?.netProfit ?? 0) >= 0 ? "text-green-600" : "text-red-600" },
-        ].map((s) => (
-          <div key={s.label} className="bg-white border border-border rounded-xl p-4 shadow-sm">
-            <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
-            <p className={`text-lg font-bold ${s.color}`}>{s.value !== undefined ? formatCurrency(s.value) : "—"}</p>
-          </div>
-        ))}
-      </div>
+      {!pnl && pnlLoading && <p className="text-sm text-muted-foreground py-8 text-center">Loading P&amp;L...</p>}
+      {!pnl && !pnlLoading && <p className="text-sm text-muted-foreground py-8 text-center">No data. Configure GAS webhook URL in Settings.</p>}
+      {pnl && (
+        <div className="max-w-2xl mx-auto bg-white border border-gray-300 rounded-sm shadow-lg p-10 print:p-6 print:shadow-none">
+          <ReportHeader title="Profit & Loss Statement" period={periodLabel} />
 
-      <div className="bg-white border border-border rounded-xl p-6 shadow-sm">
-        <h3 className="text-sm font-semibold text-secondary mb-4">Expense Breakdown by Head</h3>
-        {!pnl ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
-        ) : Object.keys(pnl.expenseByHead).length === 0 ? (
-          <p className="text-sm text-muted-foreground">No expenses in this period.</p>
-        ) : (
-          <div className="divide-y divide-border">
-            {Object.entries(pnl.expenseByHead).sort(([, a], [, b]) => b - a).map(([head, amt]) => (
-              <div key={head} className="flex items-center justify-between py-2 text-sm">
-                <span>{head}</span><span className="font-medium">{formatCurrency(amt)}</span>
+          <div className="space-y-1">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Income</h3>
+            <Line label="Gross Sales Revenue" value={pnl.grossRevenue} />
+
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4 mb-2">Cost of Goods Sold</h3>
+            <Line label="Cost of Goods Sold" value={-pnl.cogs} negative />
+
+            <TotalLine label="Gross Profit" value={pnl.grossProfit} />
+
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4 mb-2">Operating Expenses</h3>
+            {Object.keys(pnl.expenseByHead).length === 0 ? (
+              <p className="text-xs text-gray-400 italic ml-6">No expenses recorded</p>
+            ) : (
+              Object.entries(pnl.expenseByHead)
+                .sort(([, a], [, b]) => b - a)
+                .map(([head, amt]) => (
+                  <Line key={head} label={head} value={-amt} indent negative />
+                ))
+            )}
+            <TotalLine label={`Total Expenses (${Object.keys(pnl.expenseByHead).length} heads)`} value={-pnl.totalExpenses} />
+
+            <div className="mt-3 pt-2 border-t-4 border-gray-900">
+              <div className="flex justify-between items-center py-1">
+                <span className="text-base font-bold text-gray-900">Net {pnl.netProfit >= 0 ? "Profit" : "Loss"}</span>
+                <span className={`text-base font-bold font-mono tabular-nums ${pnl.netProfit >= 0 ? "text-green-800" : "text-red-700"}`}>
+                  {formatCurrency(pnl.netProfit)}
+                </span>
               </div>
-            ))}
-            <div className="flex items-center justify-between py-2 text-sm font-semibold text-secondary">
-              <span>Total</span><span>{formatCurrency(pnl.totalExpenses)}</span>
             </div>
           </div>
-        )}
-        <p className="text-xs text-muted-foreground mt-4">{pnl ? `${pnl.saleCount} sale(s) in this period` : ""}</p>
-      </div>
+
+          <div className="mt-6 pt-4 border-t border-gray-300 text-center">
+            <p className="text-[10px] text-gray-400">This statement was generated on {new Date().toLocaleString()} based on recorded transactions.</p>
+            <p className="text-[10px] text-gray-400">{pnl.saleCount} sale(s) included in this period.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function BalanceSheetSection() {
   const { settings } = useShopSettings();
+  const [gasUrl, setGasUrl] = useState("");
   const [bsData, setBsData] = useState<BalanceSheetResult | null>(null);
   const [bsLoading, setBsLoading] = useState(false);
+  const [bsError, setBsError] = useState("");
   const [bsDate, setBsDate] = useState(today.toISOString().slice(0, 10));
-  const [openingCapital, setOpeningCapital] = useState(0);
-  const [capitalSaving, setCapitalSaving] = useState(false);
+  const [partners, setPartners] = useState<{ id: string; name: string; amount: number }[]>([]);
+
+  useEffect(() => {
+    getDoc(doc(db, "shop_settings", "emailBackupConfig")).then((snap) => {
+      if (snap.exists()) setGasUrl(snap.data().gasWebhookUrl || "");
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const load = async () => {
-      const snap = await getDoc(doc(db, "shop_settings", "config"));
-      if (snap.exists() && snap.data().openingCapital !== undefined) setOpeningCapital(snap.data().openingCapital);
+      const snap = await getDocs(collection(db, "partnerCapitals"));
+      setPartners(snap.docs.map((d) => ({ id: d.id, ...d.data() } as any)).sort((a, b) => b.addedAt - a.addedAt));
     };
     load();
   }, []);
 
   useEffect(() => {
-    if (!settings.gasWebhookUrl) return;
+    if (!gasUrl) { setBsLoading(false); return; }
     setBsLoading(true);
-    fetch(settings.gasWebhookUrl, {
+    setBsError("");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    fetch(gasUrl, {
       method: "POST",
       body: JSON.stringify({ action: "computeBalanceSheet", asOf: bsDate }),
+      signal: controller.signal,
     })
-      .then((r) => r.json())
-      .then((result) => setBsData(result as BalanceSheetResult))
-      .catch(() => {})
-      .finally(() => setBsLoading(false));
-  }, [bsDate, settings.gasWebhookUrl]);
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((result) => {
+        if (result.status === "error") throw new Error(result.message || "GAS error");
+        setBsData(result as BalanceSheetResult);
+      })
+      .catch((err) => { setBsError(err.message || "Failed to load"); setBsData(null); })
+      .finally(() => { clearTimeout(timeout); setBsLoading(false); });
+    return () => { clearTimeout(timeout); controller.abort(); };
+  }, [bsDate, gasUrl]);
 
   const bs = bsData;
+  const totalCapital = partners.reduce((s, p) => s + p.amount, 0);
+  const asOfLabel = `As at ${new Date(bsDate).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`;
+
+  if (!gasUrl) return <p className="text-sm text-muted-foreground py-8 text-center">Please configure GAS Webhook URL in Settings → Backup tab.</p>;
+  if (bsError) return <p className="text-sm text-red-500 py-8 text-center">Error: {bsError}. Check GAS webhook configuration.</p>;
+  if (bsLoading && !bs) return <p className="text-sm text-muted-foreground py-8 text-center">Loading balance sheet...</p>;
+  if (!bs) return <p className="text-sm text-muted-foreground py-8 text-center">No data returned. Check GAS configuration.</p>;
 
   return (
     <div>
@@ -200,65 +258,65 @@ function BalanceSheetSection() {
         <input type="date" value={bsDate} onChange={(e) => setBsDate(e.target.value)} className="px-3 py-1.5 border border-border rounded-lg text-sm" />
       </div>
 
-      <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${bsLoading && bs ? "opacity-50 transition-opacity duration-300" : ""}`}>
-        <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-3">
-          <h3 className="text-sm font-semibold text-secondary">Assets</h3>
-          {!bs ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
-          ) : (
-            <div className="divide-y divide-border">
-              <div className="flex justify-between py-2 text-sm"><span>Cash in Hand</span><span className="font-medium">{formatCurrency(bs.cashBalance)}</span></div>
-              <div className="flex justify-between py-2 text-sm"><span>Bank Account</span><span className="font-medium">{formatCurrency(bs.bankBalance)}</span></div>
-              <div className="flex justify-between py-2 text-sm"><span>Closing Stock ({bs.productCount} products)</span><span className="font-medium">{formatCurrency(bs.closingStock)}</span></div>
-              <div className="flex justify-between py-2 text-sm"><span>Sundry Debtors</span><span className="font-medium">{formatCurrency(bs.sundryDebtors)}</span></div>
-              <div className="flex justify-between py-2 text-sm font-bold text-secondary border-t-2"><span>Total Assets</span><span>{formatCurrency(bs.totalAssets)}</span></div>
+      <div className={`max-w-3xl mx-auto bg-white border border-gray-300 rounded-sm shadow-lg p-10 print:p-6 print:shadow-none ${bsLoading && bs ? "opacity-50 transition-opacity duration-300" : ""}`}>
+        <ReportHeader title="Balance Sheet" period={asOfLabel} />
+
+        <div className="grid grid-cols-2 gap-8">
+          {/* Left column: Assets */}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 pb-1 border-b border-gray-300">Assets</h3>
+            <div className="space-y-1">
+              <Line label="Cash in Hand" value={bs.cashBalance} />
+              <Line label="Bank Account" value={bs.bankBalance} />
+              <Line label="Closing Stock" value={bs.closingStock} />
+              <div className="flex justify-between items-center py-0.5"><span className="text-sm text-gray-700">Closing Stock (Qty)</span><span className="text-sm font-mono tabular-nums text-gray-600">{bs.productCount} units</span></div>
+              <Line label="Sundry Debtors" value={bs.sundryDebtors} />
+              <TotalLine label="Total Assets" value={bs.totalAssets} />
             </div>
-          )}
+          </div>
+
+          {/* Right column: Liabilities & Equity */}
+          <div>
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 pb-1 border-b border-gray-300">Liabilities</h3>
+            <div className="space-y-1">
+              <Line label="Sundry Creditors" value={bs.sundryCreditors} />
+              <TotalLine label="Total Liabilities" value={bs.totalLiabilities} />
+            </div>
+
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-5 mb-3 pb-1 border-b border-gray-300">Equity</h3>
+            <div className="space-y-1">
+              <div className="ml-6 space-y-0.5">
+                {partners.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">No partners configured</p>
+                ) : (
+                  partners.map((p) => (
+                    <div key={p.id} className="flex justify-between items-center py-0.5">
+                      <span className="text-sm text-gray-600">{p.name}</span>
+                      <span className="text-sm font-mono tabular-nums text-gray-800">{formatCurrency(p.amount)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+              <Line label="Partners' Capital Total" value={totalCapital} indent />
+              <Line label="Retained Earnings" value={bs.retainedEarnings} />
+              <TotalLine label="Total Equity" value={bs.totalEquity} />
+            </div>
+
+            <div className="mt-5 pt-3 border-t-4 border-gray-900">
+              <div className="flex justify-between items-center py-1">
+                <span className="text-sm font-bold text-gray-900">Total Liabilities &amp; Equity</span>
+                <span className="text-sm font-bold font-mono tabular-nums text-gray-900">{formatCurrency(bs.totalLiabilities + bs.totalEquity)}</span>
+              </div>
+              <div className={`flex justify-between items-center pt-1 mt-1 border-t border-dashed ${Math.abs(bs.totalAssets - (bs.totalLiabilities + bs.totalEquity)) < 1 ? "text-green-700" : "text-amber-600"}`}>
+                <span className="text-xs font-medium">Balance Check</span>
+                <span className="text-xs font-mono">{Math.abs(bs.totalAssets - (bs.totalLiabilities + bs.totalEquity)) < 1 ? "✓ In Balance" : "⚠ Out of Balance"}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-3">
-            <h3 className="text-sm font-semibold text-secondary">Liabilities</h3>
-            {!bs ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
-            ) : (
-              <div className="divide-y divide-border">
-                <div className="flex justify-between py-2 text-sm"><span>Sundry Creditors</span><span className="font-medium">{formatCurrency(bs.sundryCreditors)}</span></div>
-                <div className="flex justify-between py-2 text-sm font-bold text-secondary border-t-2"><span>Total Liabilities</span><span>{formatCurrency(bs.totalLiabilities)}</span></div>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-3">
-            <h3 className="text-sm font-semibold text-secondary">Equity</h3>
-            {!bs ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
-            ) : (
-              <div className="divide-y divide-border">
-                <div className="flex items-center justify-between py-2 text-sm">
-                  <span>Opening Capital</span>
-                  <div className="flex items-center gap-2">
-                    <input type="number" value={openingCapital || ""} onChange={(e) => setOpeningCapital(Number(e.target.value))} className="w-28 px-2 py-1 border border-border rounded text-xs text-right" />
-                    <Button onClick={async () => { setCapitalSaving(true); await setDoc(doc(db, "shop_settings", "config"), { openingCapital }, { merge: true }); setCapitalSaving(false); }} disabled={capitalSaving} size="sm" variant="ghost" className="text-xs"><Save className="h-3 w-3" /></Button>
-                  </div>
-                </div>
-                <div className="flex justify-between py-2 text-sm"><span>Retained Earnings</span><span className={`font-medium ${bs.retainedEarnings >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(bs.retainedEarnings)}</span></div>
-                <div className="flex justify-between py-2 text-sm font-bold text-secondary border-t-2"><span>Total Equity</span><span>{formatCurrency(bs.totalEquity)}</span></div>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 text-sm space-y-1">
-            {bs && (
-              <>
-                <div className="flex justify-between font-semibold"><span>Net Assets (Assets − Liabilities)</span><span>{formatCurrency(bs.totalAssets - bs.totalLiabilities)}</span></div>
-                <div className="flex justify-between font-semibold"><span>Total Equity</span><span>{formatCurrency(bs.totalEquity)}</span></div>
-                <div className={`flex justify-between font-bold pt-1 border-t ${Math.abs(bs.totalAssets - bs.totalLiabilities - bs.totalEquity) < 1 ? "text-green-600" : "text-amber-600"}`}>
-                  <span>Balance Check</span><span>{Math.abs(bs.totalAssets - bs.totalLiabilities - bs.totalEquity) < 1 ? "✓ Balanced" : "⚠ Mismatch"}</span>
-                </div>
-              </>
-            )}
-          </div>
+        <div className="mt-6 pt-4 border-t border-gray-300 text-center">
+          <p className="text-[10px] text-gray-400">This statement was generated on {new Date().toLocaleString()}. Values in {settings?.currency || "NPR"}.</p>
         </div>
       </div>
     </div>
@@ -266,7 +324,7 @@ function BalanceSheetSection() {
 }
 
 function CashBankSection() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { data: accounts } = useFirestore<Account>("accounts", { realtime: false, cache: true });
   const { data: transactions } = useFirestore<AccountTransaction>("accountTransactions", {
     constraints: [orderBy("date", "desc"), limit(200)],
@@ -401,6 +459,17 @@ function CashBankSection() {
               const date = Timestamp.fromDate(new Date(transferForm.date));
               await addDoc(collection(db, "accountTransactions"), { accountId: transferForm.fromAccountId, type: "debit", amount: Number(transferForm.amount), description: transferForm.description || `Transfer to ${ACCOUNTS.find((a) => a.id === transferForm.toAccountId)?.name || transferForm.toAccountId}`, date, referenceType: "transfer", referenceId: transferId, recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()) });
               await addDoc(collection(db, "accountTransactions"), { accountId: transferForm.toAccountId, type: "credit", amount: Number(transferForm.amount), description: transferForm.description || `Transfer from ${ACCOUNTS.find((a) => a.id === transferForm.fromAccountId)?.name || transferForm.fromAccountId}`, date, referenceType: "transfer", referenceId: transferId, recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()) });
+              try {
+                const transferEntry: Transfer = {
+                  id: transferId, type: "bank_deposit", amount: Number(transferForm.amount),
+                  description: transferForm.description || `Transfer`, date: new Date(transferForm.date).getTime(),
+                  fromAccountId: transferForm.fromAccountId, toAccountId: transferForm.toAccountId,
+                  recordedBy: user?.uid || "", recordedByName: profile?.displayName || "",
+                  createdAt: Date.now(), updatedAt: Date.now(),
+                };
+                const tje = buildTransferJournal(transferEntry, profile?.displayName || "System");
+                await createJournalEntry(tje);
+              } catch (e) { console.error("Transfer journal entry failed", e); }
               setShowTransfer(false);
               setTransferForm({ fromAccountId: "", toAccountId: "", amount: 0, date: today.toISOString().slice(0, 10), description: "" });
               setTransferSaving(false);
@@ -438,8 +507,114 @@ function CashBankSection() {
   );
 }
 
+function CashFlowSection() {
+  const { data: entries } = useFirestore<JournalEntry>("journalEntries", {
+    constraints: [orderBy("entryDate", "desc"), limit(500)],
+    realtime: false, cache: true,
+  });
+  const today = new Date();
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+  const [cfRange, setCfRange] = useState<"mtd" | "custom">("mtd");
+  const [cfStart, setCfStart] = useState(startOfMonth.toISOString().slice(0, 10));
+  const [cfEnd, setCfEnd] = useState(today.toISOString().slice(0, 10));
+
+  const cashFlow = useMemo(() => {
+    if (!entries) return { operating: 0, investing: 0, financing: 0, net: 0, details: [] as { category: string; label: string; amount: number }[] };
+    const start = cfRange === "mtd" ? startOfMonth.getTime() : new Date(cfStart).getTime();
+    const end = new Date(cfEnd).getTime();
+    const filtered = entries.filter((e) => {
+      const d = typeof e.entryDate === "number" ? e.entryDate : new Date(e.entryDate).getTime();
+      return d >= start && d <= end;
+    });
+    let operating = 0, investing = 0, financing = 0;
+    const details: { category: string; label: string; amount: number }[] = [];
+    for (const e of filtered) {
+      for (const l of e.lines) {
+        if (l.accountCode.startsWith("4.") || l.accountCode.startsWith("5.1")) {
+          operating += l.credit - l.debit;
+        } else if (l.accountCode.startsWith("1.1.7")) {
+          investing += l.debit - l.credit;
+        } else if (l.accountCode.startsWith("2.1.3") || l.accountCode.startsWith("3.")) {
+          financing += l.credit - l.debit;
+        }
+      }
+    }
+    const netCash = entries
+      .flatMap((e) => e.lines)
+      .filter((l) => l.accountCode === "1.1.1" || l.accountCode === "1.1.2")
+      .reduce((sum, l) => sum + (l.debit - l.credit), 0);
+    return { operating, investing, financing, net: operating + investing + financing, details: [
+      { category: "Operating", label: "Net cash from operations", amount: operating },
+      { category: "Investing", label: "Net cash from investing", amount: investing },
+      { category: "Financing", label: "Net cash from financing", amount: financing },
+      { category: "Net", label: "Net cash change (from cash/bank)", amount: netCash },
+    ] };
+  }, [entries, cfRange, cfStart, cfEnd]);
+
+  const cfPeriod = cfRange === "mtd"
+    ? `Month ended ${today.toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`
+    : `${cfStart} to ${cfEnd}`;
+
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-6">
+        <select value={cfRange} onChange={(e) => setCfRange(e.target.value as "mtd" | "custom")}
+          className="px-3 py-2 border border-border rounded-lg text-sm">
+          <option value="mtd">Month to Date</option>
+          <option value="custom">Custom Range</option>
+        </select>
+        {cfRange === "custom" && (
+          <>
+            <input type="date" value={cfStart} onChange={(e) => setCfStart(e.target.value)}
+              className="px-3 py-2 border border-border rounded-lg text-sm" />
+            <input type="date" value={cfEnd} onChange={(e) => setCfEnd(e.target.value)}
+              className="px-3 py-2 border border-border rounded-lg text-sm" />
+          </>
+        )}
+      </div>
+
+      {!entries && <p className="text-sm text-muted-foreground py-8 text-center">Loading cash flow data...</p>}
+      {entries && entries.length === 0 && <p className="text-sm text-muted-foreground py-8 text-center">No journal entries found. Cash flow requires journal entries.</p>}
+      {entries && entries.length > 0 && (
+        <div className="max-w-2xl mx-auto bg-white border border-gray-300 rounded-sm shadow-lg p-10 print:p-6 print:shadow-none">
+          <ReportHeader title="Cash Flow Statement" period={cfPeriod} />
+
+          <div className="space-y-1">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Operating Activities</h3>
+            <Line label="Net cash from operations" value={cashFlow.operating} />
+          </div>
+
+          <div className="mt-4 space-y-1">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Investing Activities</h3>
+            <Line label="Net cash from investing" value={cashFlow.investing} />
+          </div>
+
+          <div className="mt-4 space-y-1">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Financing Activities</h3>
+            <Line label="Net cash from financing" value={cashFlow.financing} />
+          </div>
+
+          <div className="mt-5 pt-2 border-t-4 border-gray-900">
+            <div className="flex justify-between items-center py-1">
+              <span className="text-base font-bold text-gray-900">Net Cash Change</span>
+              <span className={`text-base font-bold font-mono tabular-nums ${cashFlow.net >= 0 ? "text-green-800" : "text-red-700"}`}>
+                {formatCurrency(cashFlow.net)}
+              </span>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-4 border-t border-gray-300 text-center">
+            <p className="text-[10px] text-gray-400">This statement was generated on {new Date().toLocaleString()} based on recorded journal entries.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminFinancePage() {
-  const [tab, setTab] = useState<"pnl" | "balance" | "accounts">("pnl");
+  const [tab, setTab] = useState<"pnl" | "balance" | "accounts" | "cashflow">("pnl");
 
   return (
     <AdminLayout>
@@ -447,16 +622,17 @@ export default function AdminFinancePage() {
         <h1 className="text-2xl font-bold text-secondary mb-6">Finance</h1>
 
         <div className="flex gap-1 mb-6 border-b border-border">
-          {(["pnl", "balance", "accounts"] as const).map((t) => (
+          {(["pnl", "balance", "cashflow", "accounts"] as const).map((t) => (
             <button key={t} onClick={() => setTab(t)}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${tab === t ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-secondary"}`}>
-              {t === "pnl" ? "P&L Statement" : t === "balance" ? "Balance Sheet" : "Cash / Bank"}
+              {t === "pnl" ? "P&L Statement" : t === "balance" ? "Balance Sheet" : t === "cashflow" ? "Cash Flow" : "Cash / Bank"}
             </button>
           ))}
         </div>
 
         {tab === "pnl" && <PnLSection />}
         {tab === "balance" && <BalanceSheetSection />}
+        {tab === "cashflow" && <CashFlowSection />}
         {tab === "accounts" && <CashBankSection />}
       </div>
     </AdminLayout>

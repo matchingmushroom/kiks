@@ -36,6 +36,8 @@ export default function AdminInventoryPage() {
   const [adjustType, setAdjustType] = useState<"add" | "remove" | "set">("add");
   const [adjustQty, setAdjustQty] = useState(1);
   const [adjustReason, setAdjustReason] = useState("");
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [detailLog, setDetailLog] = useState<InventoryLog | null>(null);
   const [tab, setTab] = useState<"stock" | "log">("stock");
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -290,13 +292,13 @@ export default function AdminInventoryPage() {
             {viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {filtered.map((p) => (
-                  <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                  <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer" onClick={() => setDetailProduct(p)}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-secondary text-sm truncate">{p.name}</p>
                         <p className="text-xs text-muted-foreground">{categoryMap.get(p.categoryId) || "—"} · {p.sku || "—"}</p>
                       </div>
-                      <button onClick={() => startAdjust(p)}
+                      <button onClick={(ev) => { ev.stopPropagation(); startAdjust(p); }}
                         className="text-xs px-2.5 py-1.5 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-secondary transition-colors shrink-0">
                         Adjust
                       </button>
@@ -337,7 +339,7 @@ export default function AdminInventoryPage() {
                   </thead>
                   <tbody className="divide-y divide-border">
                     {filtered.map((p) => (
-                      <tr key={p.id} className="hover:bg-muted/30">
+                      <tr key={p.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setDetailProduct(p)}>
                         <td className="px-4 py-2.5 text-sm font-medium text-secondary">{p.name}</td>
                         <td className="px-4 py-2.5 text-sm text-muted-foreground">{categoryMap.get(p.categoryId) || "—"}</td>
                         <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.sku || "—"}</td>
@@ -352,7 +354,7 @@ export default function AdminInventoryPage() {
                           )}
                         </td>
                         <td className="px-4 py-2.5 text-sm text-right">
-                          <button onClick={() => startAdjust(p)}
+                          <button onClick={(ev) => { ev.stopPropagation(); startAdjust(p); }}
                             className="text-xs px-2.5 py-1.5 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-secondary transition-colors">
                             Adjust
                           </button>
@@ -372,7 +374,7 @@ export default function AdminInventoryPage() {
               logs.map((log) => {
                 const prod = products.find((p) => p.id === log.productId);
                 return (
-                  <div key={log.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-1.5">
+                  <div key={log.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-1.5 cursor-pointer" onClick={() => setDetailLog(log)}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-secondary text-sm truncate">{prod?.name || "Unknown"}</p>
@@ -401,6 +403,59 @@ export default function AdminInventoryPage() {
           </div>
         )}
       </div>
+
+      {detailProduct && (
+        <DetailModal title={`Product - ${detailProduct.name}`} onClose={() => setDetailProduct(null)}>
+          <div className="space-y-3 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <div><span className="text-muted-foreground">Name</span><p className="font-medium">{detailProduct.name}</p></div>
+              <div><span className="text-muted-foreground">Category</span><p className="font-medium">{categoryMap.get(detailProduct.categoryId) || "—"}</p></div>
+              <div><span className="text-muted-foreground">SKU</span><p className="font-medium">{detailProduct.sku || "—"}</p></div>
+              <div><span className="text-muted-foreground">Stock</span><p className="font-medium">{detailProduct.quantityInStock}</p></div>
+              <div><span className="text-muted-foreground">Cost Price</span><p className="font-medium">{detailProduct.costPrice ? formatCurrency(detailProduct.costPrice) : "—"}</p></div>
+              <div><span className="text-muted-foreground">Price</span><p className="font-medium">{formatCurrency(detailProduct.price)}</p></div>
+              <div><span className="text-muted-foreground">Status</span><p className="font-medium">{detailProduct.quantityInStock <= 0 ? "Out of Stock" : detailProduct.quantityInStock <= 3 ? "Low Stock" : "In Stock"}</p></div>
+              <div><span className="text-muted-foreground">Brand</span><p className="font-medium">{detailProduct.brand || "—"}</p></div>
+              <div><span className="text-muted-foreground">Supplier</span><p className="font-medium">{categoryMap.get(detailProduct.categoryId) || "—"}</p></div>
+            </div>
+          </div>
+        </DetailModal>
+      )}
+      {detailLog && (() => {
+        const prod = products.find((p) => p.id === detailLog.productId);
+        return (
+          <DetailModal title="Inventory Log Details" onClose={() => setDetailLog(null)}>
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div><span className="text-muted-foreground">Product</span><p className="font-medium">{prod?.name || "Unknown"}</p></div>
+                <div><span className="text-muted-foreground">Change Type</span><p className="font-medium capitalize">{detailLog.changeType.replace("_", " ")}</p></div>
+                <div><span className="text-muted-foreground">Quantity Change</span><p className={`font-medium ${(detailLog.quantityChange || 0) > 0 ? "text-green-600" : "text-red-600"}`}>{(detailLog.quantityChange || 0) > 0 ? `+${detailLog.quantityChange}` : detailLog.quantityChange}</p></div>
+                <div><span className="text-muted-foreground">Date</span><p className="font-medium">{formatDateTime(detailLog.createdAt)}</p></div>
+              </div>
+              <div><span className="text-muted-foreground">Reason</span><p className="mt-0.5">{detailLog.reason || "—"}</p></div>
+              <div><span className="text-muted-foreground">Performed By (ID)</span><p className="mt-0.5 font-mono text-xs">{detailLog.performedBy || "—"}</p></div>
+            </div>
+          </DetailModal>
+        );
+      })()}
     </AdminLayout>
+  );
+}
+
+function DetailModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
+          <h2 className="text-base font-bold text-secondary">{title}</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }

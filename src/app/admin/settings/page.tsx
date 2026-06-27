@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { doc, getDoc, setDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, addDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Save, Image, Download, Mail, Database, Trash2, Calendar } from "lucide-react";
+import { Save, Image, Download, Mail, Database, Calendar } from "lucide-react";
 import { getPreviousFYRange } from "@/lib/nepaliDate";
 
 interface Settings {
@@ -90,8 +90,6 @@ export default function SettingsPage() {
   const [emailSaved, setEmailSaved] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [archiveStatus, setArchiveStatus] = useState<string | null>(null);
-  const [deletingAll, setDeletingAll] = useState(false);
-
   const runArchive = async () => {
     if (!emailConfig.gasWebhookUrl) { alert("Configure GAS Webhook URL first."); return; }
     if (!emailConfig.driveFolderId) { alert("Configure Drive Folder ID first."); return; }
@@ -121,29 +119,6 @@ export default function SettingsPage() {
       setArchiveStatus("Error: " + (e.message || e));
     }
     setArchiving(false);
-  };
-
-  const handleDeleteAll = async () => {
-    if (!confirm("Delete ALL products, sales, purchases, orders, and expenses? This cannot be undone.")) return;
-    if (!confirm("Are you sure? This will permanently delete all data in the database.")) return;
-    setDeletingAll(true);
-    try {
-      const collections = ["products", "sales", "purchases", "orders", "expenses", "invoices", "debtors", "creditors", "coupons"];
-      let total = 0;
-      for (const name of collections) {
-        const snap = await getDocs(collection(db, name));
-        const ids = snap.docs.map((d) => d.id);
-        for (let i = 0; i < ids.length; i += 50) {
-          await Promise.all(ids.slice(i, i + 50).map((id) => deleteDoc(doc(db, name, id))));
-        }
-        total += ids.length;
-      }
-      alert(`Deleted ${total} documents from ${collections.length} collections.`);
-    } catch (e) {
-      alert("Delete all failed. Check console for details.");
-      console.error(e);
-    }
-    setDeletingAll(false);
   };
 
   useEffect(() => {
@@ -205,6 +180,19 @@ export default function SettingsPage() {
     document.body.removeChild(link);
   };
 
+  const [activePill, setActivePill] = useState<"general" | "partners" | "backup">("general");
+
+  const renderPill = (tab: "general" | "partners" | "backup", label: string, icon: ReactNode) => (
+    <button key={tab} onClick={() => setActivePill(tab)}
+      className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+        activePill === tab
+          ? "bg-primary text-primary-foreground shadow-sm"
+          : "bg-muted text-secondary hover:bg-muted/80"
+      }`}>
+      {icon}{label}
+    </button>
+  );
+
   if (loading) {
     return (
       <AdminLayout>
@@ -215,290 +203,391 @@ export default function SettingsPage() {
 
   return (
     <AdminLayout>
-      <div className="p-6 max-w-2xl space-y-8">
-        <h1 className="text-2xl font-bold text-secondary">Shop Settings</h1>
+      <div className="p-4 lg:p-6 max-w-3xl space-y-6">
+        <h1 className="text-xl font-bold text-secondary">Settings</h1>
 
-        {/* ── Shop Settings ── */}
-        <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-6">
-          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 pb-6 border-b border-border">
-            <div className="w-20 h-20 bg-muted rounded-xl overflow-hidden flex-shrink-0 border border-border">
-              {form.logoUrl ? (
-                <img src={form.logoUrl} alt="Logo" className="w-full h-full object-contain" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                  <Image className="h-6 w-6" />
+        {/* Pill Tabs */}
+        <div className="flex flex-wrap gap-2">
+          {renderPill("general", "General", <Image className="h-4 w-4" />)}
+          {renderPill("partners", "Partners", <Save className="h-4 w-4" />)}
+          {renderPill("backup", "Backup", <Mail className="h-4 w-4" />)}
+
+        </div>
+
+        {/* ── General Tab ── */}
+        {activePill === "general" && (
+          <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 pb-6 border-b border-border">
+              <div className="w-20 h-20 bg-muted rounded-xl overflow-hidden flex-shrink-0 border border-border">
+                {form.logoUrl ? (
+                  <img src={form.logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                    <Image className="h-6 w-6" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Logo URL</label>
+                <input type="text" value={form.logoUrl}
+                  onChange={(e) => setForm({ ...form, logoUrl: e.target.value })}
+                  placeholder="/logo.svg"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <p className="text-xs text-muted-foreground mt-1">Upload PNG to <code>/public/</code> or use external URL</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Shop Name</label>
+                <input type="text" value={form.shopName}
+                  onChange={(e) => setForm({ ...form, shopName: e.target.value })}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Tagline</label>
+                <input type="text" value={form.tagline}
+                  onChange={(e) => setForm({ ...form, tagline: e.target.value })}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Phone</label>
+                <input type="text" value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  minLength={6}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">WhatsApp Number</label>
+                <input type="text" value={form.whatsappNumber}
+                  onChange={(e) => setForm({ ...form, whatsappNumber: e.target.value })}
+                  minLength={10}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="977XXXXXXXXX" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Currency</label>
+                <input type="text" value={form.currency}
+                  onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Address</label>
+                <input type="text" value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Website URL</label>
+                <input type="url" value={form.website}
+                  onChange={(e) => setForm({ ...form, website: e.target.value })}
+                  placeholder="https://example.com"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <p className="text-xs text-muted-foreground mt-1">Used in coupon terms and public links</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-4 border-t border-border">
+              <Calendar className="h-5 w-5 text-primary" />
+              <div className="flex-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={!!form.useBsCalendar}
+                    onChange={(e) => setForm({ ...form, useBsCalendar: e.target.checked })}
+                    className="accent-primary w-4 h-4" />
+                  <span className="text-sm font-medium text-secondary">Bikram Sambat Calendar (BS)</span>
+                </label>
+                <p className="text-xs text-muted-foreground mt-1 ml-6">
+                  Display dates in BS format. YTD filters use fiscal year (Shrawan 1 – Ashad 32).
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-secondary">Delivery Fee</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Inside Valley (Rs.)</label>
+                  <input type="number" value={form.deliveryFeeInsideValley ?? ""}
+                    onChange={(e) => setForm({ ...form, deliveryFeeInsideValley: e.target.value ? Number(e.target.value) : undefined })}
+                    min={0} step={10}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Outside Valley (Rs.)</label>
+                  <input type="number" value={form.deliveryFeeOutsideValley ?? ""}
+                    onChange={(e) => setForm({ ...form, deliveryFeeOutsideValley: e.target.value ? Number(e.target.value) : undefined })}
+                    min={0} step={10}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Free Delivery Above (Rs.)</label>
+                  <input type="number" value={form.freeDeliveryThreshold ?? ""}
+                    onChange={(e) => setForm({ ...form, freeDeliveryThreshold: e.target.value ? Number(e.target.value) : undefined })}
+                    min={0} step={100}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-4 border-t border-border">
+              <Button onClick={handleSave} disabled={saving} variant="accent">
+                <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Settings"}
+              </Button>
+              {saved && <span className="text-sm text-green-600">Settings saved!</span>}
+            </div>
+          </div>
+        )}
+
+        {/* ── Partners Tab ── */}
+        {activePill === "partners" && (
+          <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-4">
+            <h2 className="text-lg font-semibold text-secondary">Partners' Capital</h2>
+            <p className="text-sm text-muted-foreground">
+              Manage partners and their capital contributions. Total is used as Opening Capital in Balance Sheet.
+              Add new partners or adjust existing capital as needed.
+            </p>
+            <PartnershipSection />
+          </div>
+        )}
+
+        {/* ── Backup Tab ── */}
+        {activePill === "backup" && (
+          <div className="space-y-6">
+            <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-6">
+              <div className="flex items-center gap-2 pb-4 border-b border-border">
+                <Mail className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-secondary">Email & Backup Config</h2>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Send Report To</label>
+                <input type="email" value={emailConfig.emailTo}
+                  onChange={(e) => setEmailConfig({ ...emailConfig, emailTo: e.target.value })}
+                  placeholder="admin@example.com"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-2">Schedule</label>
+                <div className="flex flex-wrap gap-3">
+                  {SCHEDULES.map((s) => (
+                    <label key={s.value} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <input type="radio" name="schedule" value={s.value}
+                        checked={emailConfig.schedule === s.value}
+                        onChange={(e) => setEmailConfig({ ...emailConfig, schedule: e.target.value as EmailBackupConfig["schedule"] })}
+                        className="accent-primary" />
+                      {s.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-2">Modules to Include</label>
+                <div className="flex flex-wrap gap-3">
+                  {ALL_MODULES.map((m) => (
+                    <label key={m.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <input type="checkbox" checked={emailConfig.enabledModules.includes(m.key)}
+                        onChange={() => setEmailConfig({ ...emailConfig, enabledModules: toggleModule(emailConfig.enabledModules, m.key) })}
+                        className="accent-primary" />
+                      {m.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="driveBackup" checked={emailConfig.driveBackup}
+                  onChange={(e) => setEmailConfig({ ...emailConfig, driveBackup: e.target.checked })}
+                  className="accent-primary" />
+                <label htmlFor="driveBackup" className="text-sm font-medium text-secondary cursor-pointer">
+                  Google Drive Backup
+                </label>
+              </div>
+
+              {emailConfig.driveBackup && (
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Drive Folder ID</label>
+                  <input type="text" value={emailConfig.driveFolderId}
+                    onChange={(e) => setEmailConfig({ ...emailConfig, driveFolderId: e.target.value })}
+                    placeholder="1ABC... (from Drive folder URL)"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
               )}
-            </div>
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Logo URL</label>
-              <input
-                type="text" value={form.logoUrl}
-                onChange={(e) => setForm({ ...form, logoUrl: e.target.value })}
-                placeholder="/logo.svg"
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <p className="text-xs text-muted-foreground mt-1">Upload PNG to <code>/public/</code> or use external URL</p>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Shop Name</label>
-              <input type="text" value={form.shopName}
-                onChange={(e) => setForm({ ...form, shopName: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Tagline</label>
-              <input type="text" value={form.tagline}
-                onChange={(e) => setForm({ ...form, tagline: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Phone</label>
-              <input type="text" value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                minLength={6}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">WhatsApp Number</label>
-              <input type="text" value={form.whatsappNumber}
-                onChange={(e) => setForm({ ...form, whatsappNumber: e.target.value })}
-                minLength={10}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="977XXXXXXXXX" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Currency</label>
-              <input type="text" value={form.currency}
-                onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Address</label>
-              <input type="text" value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Website URL</label>
-              <input type="url" value={form.website}
-                onChange={(e) => setForm({ ...form, website: e.target.value })}
-                placeholder="https://example.com"
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              <p className="text-xs text-muted-foreground mt-1">Used in coupon terms and public links</p>
-            </div>
-          </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Image Upload Folder ID</label>
+                <input type="text" value={emailConfig.imageDriveFolderId}
+                  onChange={(e) => setEmailConfig({ ...emailConfig, imageDriveFolderId: e.target.value })}
+                  placeholder="1ABC... (separate folder for product images)"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
 
-          <div className="flex items-center gap-3 pt-4 border-t border-border">
-            <Calendar className="h-5 w-5 text-primary" />
-            <div className="flex-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={!!form.useBsCalendar}
-                  onChange={(e) => setForm({ ...form, useBsCalendar: e.target.checked })}
-                  className="accent-primary w-4 h-4" />
-                <span className="text-sm font-medium text-secondary">Bikram Sambat Calendar (BS)</span>
-              </label>
-              <p className="text-xs text-muted-foreground mt-1 ml-6">
-                Display dates in BS format (e.g. 2082 Shrawan 08). YTD filters use fiscal year (Shrawan 1 – Ashad 32). Dashboard shows FYTD stats alongside YTD.
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Bill Upload Folder ID</label>
+                <input type="text" value={emailConfig.billDriveFolderId}
+                  onChange={(e) => setEmailConfig({ ...emailConfig, billDriveFolderId: e.target.value })}
+                  placeholder="1ABC... (separate folder for bill copies)"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">GAS Webhook URL</label>
+                <input type="url" value={emailConfig.gasWebhookUrl}
+                  onChange={(e) => setEmailConfig({ ...emailConfig, gasWebhookUrl: e.target.value })}
+                  placeholder="https://script.google.com/macros/s/.../exec"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Deploy the GAS script to Google Apps Script and paste the web app URL here.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 pt-4 border-t border-border">
+                <Button onClick={handleEmailSave} disabled={emailSaving} variant="accent">
+                  <Save className="h-4 w-4" /> {emailSaving ? "Saving..." : "Save Config"}
+                </Button>
+                <Button onClick={downloadGASScript} variant="outline">
+                  <Download className="h-4 w-4" /> Download GAS Script
+                </Button>
+                {emailSaved && <span className="text-sm text-green-600">Config saved!</span>}
+              </div>
+
+              <details className="text-sm text-muted-foreground border border-border rounded-lg p-3">
+                <summary className="cursor-pointer font-medium text-secondary flex items-center gap-1.5">
+                  <Database className="h-4 w-4" /> How to deploy the Google Apps Script
+                </summary>
+                <ol className="mt-3 space-y-1.5 list-decimal list-inside">
+                  <li>Click <strong>Download GAS Script</strong> above to get <code>gas-backup.gs</code></li>
+                  <li>Go to <a href="https://script.google.com" target="_blank" rel="noopener" className="text-primary underline">script.google.com</a> and create a new project</li>
+                  <li>Paste the entire script contents</li>
+                  <li>Set <code>FIREBASE_CONFIG.projectId</code> and <code>FIREBASE_CONFIG.apiKey</code> at the top</li>
+                  <li>Save → Deploy → Web App → Execute as "Me", Access "Anyone"</li>
+                  <li>Copy the web app URL and paste it in the <strong>GAS Webhook URL</strong> field above</li>
+                  <li>For scheduled backups: go to Triggers → Add Trigger → <code>doBackup</code> → Time-driven</li>
+                </ol>
+              </details>
+            </div>
+
+            <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 pb-4 border-b border-border">
+                <Database className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-secondary">Archive Old Data</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Move previous fiscal year data from Firestore to Google Sheets to reduce read costs.
+                Affected collections: Sales, Purchases, Expenses, Invoices.
               </p>
+              <Button onClick={runArchive} disabled={archiving || !emailConfig.gasWebhookUrl || !emailConfig.driveFolderId} variant="accent">
+                <Save className="h-4 w-4" /> {archiving ? "Archiving..." : "Archive Now"}
+              </Button>
+              {archiveStatus && <p className="text-sm text-green-600">{archiveStatus}</p>}
+              <p className="text-xs text-muted-foreground">Also runs automatically as part of the daily backup schedule.</p>
             </div>
           </div>
+        )}
 
-          <div className="space-y-3 pt-4 border-t border-border">
-            <h3 className="text-sm font-semibold text-secondary">Delivery Fee</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Inside Valley (Rs.)</label>
-                <input type="number" value={form.deliveryFeeInsideValley ?? ""}
-                  onChange={(e) => setForm({ ...form, deliveryFeeInsideValley: e.target.value ? Number(e.target.value) : undefined })}
-                  min={0} step={10}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Outside Valley (Rs.)</label>
-                <input type="number" value={form.deliveryFeeOutsideValley ?? ""}
-                  onChange={(e) => setForm({ ...form, deliveryFeeOutsideValley: e.target.value ? Number(e.target.value) : undefined })}
-                  min={0} step={10}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Free Delivery Above (Rs.)</label>
-                <input type="number" value={form.freeDeliveryThreshold ?? ""}
-                  onChange={(e) => setForm({ ...form, freeDeliveryThreshold: e.target.value ? Number(e.target.value) : undefined })}
-                  min={0} step={100}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">Delivery fee is applied at checkout based on the customer's location selection.</p>
-          </div>
 
-          <div className="flex items-center gap-3 pt-4 border-t border-border">
-            <Button onClick={handleSave} disabled={saving} variant="accent">
-              <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Settings"}
-            </Button>
-            {saved && (
-              <span className="text-sm text-green-600">Settings saved!</span>
-            )}
-          </div>
-        </div>
-
-        {/* ── Email & Backup ── */}
-        <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-6">
-          <div className="flex items-center gap-2 pb-4 border-b border-border">
-            <Mail className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-secondary">Email & Backup</h2>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Send Report To</label>
-            <input type="email" value={emailConfig.emailTo}
-              onChange={(e) => setEmailConfig({ ...emailConfig, emailTo: e.target.value })}
-              placeholder="admin@example.com"
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-2">Schedule</label>
-            <div className="flex flex-wrap gap-3">
-              {SCHEDULES.map((s) => (
-                <label key={s.value} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                  <input type="radio" name="schedule" value={s.value}
-                    checked={emailConfig.schedule === s.value}
-                    onChange={(e) => setEmailConfig({ ...emailConfig, schedule: e.target.value as EmailBackupConfig["schedule"] })}
-                    className="accent-primary" />
-                  {s.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-2">Modules to Include</label>
-            <div className="flex flex-wrap gap-3">
-              {ALL_MODULES.map((m) => (
-                <label key={m.key} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                  <input type="checkbox" checked={emailConfig.enabledModules.includes(m.key)}
-                    onChange={() => setEmailConfig({ ...emailConfig, enabledModules: toggleModule(emailConfig.enabledModules, m.key) })}
-                    className="accent-primary" />
-                  {m.label}
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id="driveBackup" checked={emailConfig.driveBackup}
-              onChange={(e) => setEmailConfig({ ...emailConfig, driveBackup: e.target.checked })}
-              className="accent-primary" />
-            <label htmlFor="driveBackup" className="text-sm font-medium text-secondary cursor-pointer">
-              Google Drive Backup
-            </label>
-          </div>
-
-          {emailConfig.driveBackup && (
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Drive Folder ID</label>
-              <input type="text" value={emailConfig.driveFolderId}
-                onChange={(e) => setEmailConfig({ ...emailConfig, driveFolderId: e.target.value })}
-                placeholder="1ABC... (from Drive folder URL)"
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Image Upload Folder ID</label>
-            <input type="text" value={emailConfig.imageDriveFolderId}
-              onChange={(e) => setEmailConfig({ ...emailConfig, imageDriveFolderId: e.target.value })}
-              placeholder="1ABC... (separate folder for product images)"
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Bill Upload Folder ID</label>
-            <input type="text" value={emailConfig.billDriveFolderId}
-              onChange={(e) => setEmailConfig({ ...emailConfig, billDriveFolderId: e.target.value })}
-              placeholder="1ABC... (separate folder for bill copies)"
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">GAS Webhook URL</label>
-            <input type="url" value={emailConfig.gasWebhookUrl}
-              onChange={(e) => setEmailConfig({ ...emailConfig, gasWebhookUrl: e.target.value })}
-              placeholder="https://script.google.com/macros/s/.../exec"
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            <p className="text-xs text-muted-foreground mt-1">
-              Deploy the GAS script to Google Apps Script and paste the web app URL here.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 pt-4 border-t border-border">
-            <Button onClick={handleEmailSave} disabled={emailSaving} variant="accent">
-              <Save className="h-4 w-4" /> {emailSaving ? "Saving..." : "Save Config"}
-            </Button>
-            <Button onClick={downloadGASScript} variant="outline">
-              <Download className="h-4 w-4" /> Download GAS Script Template
-            </Button>
-            {emailSaved && (
-              <span className="text-sm text-green-600">Config saved!</span>
-            )}
-          </div>
-
-          <details className="text-sm text-muted-foreground border border-border rounded-lg p-3">
-            <summary className="cursor-pointer font-medium text-secondary flex items-center gap-1.5">
-              <Database className="h-4 w-4" /> How to deploy the Google Apps Script
-            </summary>
-            <ol className="mt-3 space-y-1.5 list-decimal list-inside">
-              <li>Click <strong>Download GAS Script Template</strong> above to get <code>gas-backup.gs</code></li>
-              <li>Go to <a href="https://script.google.com" target="_blank" rel="noopener" className="text-primary underline">script.google.com</a> and create a new project</li>
-              <li>Paste the entire script contents</li>
-              <li>Set <code>FIREBASE_CONFIG.projectId</code> and <code>FIREBASE_CONFIG.apiKey</code> at the top</li>
-              <li>Save → Deploy → Web App → Execute as "Me", Access "Anyone"</li>
-              <li>Copy the web app URL and paste it in the <strong>GAS Webhook URL</strong> field above</li>
-              <li>For scheduled backups: go to Triggers → Add Trigger → <code>doBackup</code> → Time-driven (e.g., 8 AM daily)</li>
-            </ol>
-          </details>
-        </div>
-
-        {/* ── Archive Old Data ── */}
-        <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 pb-4 border-b border-border">
-            <Database className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-secondary">Archive Old Data</h2>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Move data from the previous completed fiscal year (Shrawan 1 – Ashad 32) from Firestore to Google Sheets to reduce read costs.
-            Archived data remains accessible in the app (marked with "Archived" badge).
-            Affected collections: Sales, Purchases, Expenses, Invoices.
-          </p>
-          <Button onClick={runArchive} disabled={archiving || !emailConfig.gasWebhookUrl || !emailConfig.driveFolderId} variant="accent">
-            <Save className="h-4 w-4" /> {archiving ? "Archiving..." : "Archive Now"}
-          </Button>
-          {archiveStatus && (
-            <p className="text-sm text-green-600">{archiveStatus}</p>
-          )}
-          <p className="text-xs text-muted-foreground">
-            Also runs automatically as part of the daily backup schedule.
-          </p>
-        </div>
-
-        <div className="bg-white border border-red-200 rounded-xl p-6 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 pb-4 border-b border-red-200">
-            <Trash2 className="h-5 w-5 text-red-500" />
-            <h2 className="text-lg font-semibold text-red-600">Delete All Data</h2>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Permanently delete all documents from Products, Sales, Purchases, Orders, Expenses,
-            Invoices, Debtors, Creditors, and Coupons. <strong className="text-red-600">This cannot be undone.</strong>
-          </p>
-          <Button onClick={handleDeleteAll} disabled={deletingAll} variant="outline" className="border-red-300 text-red-600 hover:bg-red-50">
-            <Trash2 className="h-4 w-4" /> {deletingAll ? "Deleting..." : "Delete All Data"}
-          </Button>
-        </div>
       </div>
     </AdminLayout>
+  );
+}
+
+interface PartnerEntry {
+  id: string;
+  name: string;
+  amount: number;
+  addedAt: number;
+}
+
+function PartnershipSection() {
+  const [partners, setPartners] = useState<PartnerEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const snap = await getDocs(collection(db, "partnerCapitals"));
+    const list: PartnerEntry[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as PartnerEntry));
+    setPartners(list.sort((a, b) => b.addedAt - a.addedAt));
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const totalCapital = partners.reduce((s, p) => s + p.amount, 0);
+
+  const handleAdd = async () => {
+    if (!name.trim() || amount <= 0) return;
+    setSaving(true);
+    if (editId) {
+      await setDoc(doc(db, "partnerCapitals", editId), { name: name.trim(), amount, addedAt: Date.now() });
+      setEditId(null);
+    } else {
+      await addDoc(collection(db, "partnerCapitals"), { name: name.trim(), amount, addedAt: Date.now() });
+    }
+    setName(""); setAmount(0);
+    await load();
+    setSaving(false);
+  };
+
+  const handleEdit = (p: PartnerEntry) => {
+    setName(p.name); setAmount(p.amount); setEditId(p.id);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Remove this partner?")) return;
+    await deleteDoc(doc(db, "partnerCapitals", id));
+    await load();
+  };
+
+  return (
+    <div className="space-y-3">
+      {loading ? (
+        <p className="text-sm text-muted-foreground">Loading...</p>
+      ) : partners.length === 0 ? (
+        <p className="text-sm text-muted-foreground italic">No partners added yet. Add the first partner below.</p>
+      ) : (
+        <div className="border border-border rounded-lg divide-y divide-border">
+          {partners.map((p) => (
+            <div key={p.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+              <div>
+                <span className="font-medium text-secondary">{p.name}</span>
+                <span className="text-muted-foreground ml-2">Rs. {p.amount.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => handleEdit(p)} className="p-1 hover:bg-muted rounded text-xs text-muted-foreground">Edit</button>
+                <button onClick={() => handleDelete(p.id)} className="p-1 hover:bg-red-50 rounded text-xs text-red-500">Remove</button>
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center justify-between px-4 py-2.5 text-sm font-semibold bg-muted/30">
+            <span>Total Capital</span>
+            <span>Rs. {totalCapital.toLocaleString()}</span>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-end gap-3 pt-2 border-t border-border">
+        <div className="flex-1">
+          <label className="block text-xs text-muted-foreground mb-1">Partner Name</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)}
+            placeholder="Enter partner name" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+        </div>
+        <div className="w-36">
+          <label className="block text-xs text-muted-foreground mb-1">Capital (Rs.)</label>
+          <input type="number" value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))}
+            min={0} step={1000} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+        </div>
+        <Button onClick={handleAdd} disabled={saving || !name.trim() || amount <= 0} variant="accent" size="sm">
+          {editId ? "Update" : "Add"}
+        </Button>
+        {editId && (
+          <Button onClick={() => { setName(""); setAmount(0); setEditId(null); }} variant="ghost" size="sm">Cancel</Button>
+        )}
+      </div>
+    </div>
   );
 }

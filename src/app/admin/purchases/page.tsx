@@ -4,11 +4,12 @@ import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit, useDataCache } from "@/hooks/useFirestore";
-import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor } from "@/types";
-import { formatCurrency, formatDate, toDate, compressImageUnder200KB, getUseBsCalendar } from "@/lib/utils";
+import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor, Transfer } from "@/types";
+import { formatCurrency, formatDate, formatNumber, toDate, compressImageUnder200KB, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
+import { createJournalEntry, buildPurchaseJournal, buildAdvanceSettlementJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import {
@@ -52,7 +53,7 @@ const emptyForm = {
   supplierName: "", supplierPhone: "",
   items: [] as PurchaseItemType[],
   totalAmount: 0,
-  paymentStatus: "unpaid" as "paid" | "unpaid" | "partially_paid",
+  paymentStatus: "unpaid" as "paid" | "unpaid" | "partially_paid" | "advance",
   paymentMethod: "", paidAmount: 0, discountAmount: 0, billNo: "", billDate: "", billImageUrl: "", notes: "",
 };
 
@@ -71,6 +72,10 @@ function PurchasesContent() {
   });
   const { data: allSuppliers } = useFirestore<Supplier>("suppliers", {
     constraints: [orderBy("name", "asc"), limit(100)],
+    realtime: false, cache: true,
+  });
+  const { data: transfers } = useFirestore<Transfer>("transfers", {
+    constraints: [orderBy("date", "desc"), limit(200)],
     realtime: false, cache: true,
   });
   const { user, profile } = useAuth();
@@ -96,6 +101,12 @@ function PurchasesContent() {
   const [detailPurchaseData, setDetailPurchaseData] = useState<Purchase | null>(null);
   const [purchaseArchived, setPurchaseArchived] = useState(false);
   const { settings: purchaseSettings } = useShopSettings();
+
+  const [showAdvanceSettle, setShowAdvanceSettle] = useState(false);
+  const [settlePurchase, setSettlePurchase] = useState<Purchase | null>(null);
+  const [selectedAdvances, setSelectedAdvances] = useState<string[]>([]);
+  const [advanceTotal, setAdvanceTotal] = useState(0);
+  const [topUpAmount, setTopUpAmount] = useState(0);
   const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -557,6 +568,19 @@ function PurchasesContent() {
             createdAt: Timestamp.fromDate(new Date()),
           });
         }
+        try {
+          const purchaseEntry: Purchase = {
+            id: purchaseId, supplierName: form.supplierName, supplierPhone: form.supplierPhone,
+            purchaseDate: Date.now(), items: form.items, totalAmount: effectiveTotal,
+            paymentStatus: form.paymentStatus, paymentMethod: form.paymentMethod,
+            paidAmount: form.paidAmount, discountAmount: form.discountAmount,
+            billNo: form.billNo, billDate: form.billDate, notes: form.notes,
+            recordedBy: user?.uid || "", recordedByName: profile?.displayName || "",
+            createdAt: Date.now(), updatedAt: Date.now(),
+          };
+          const pje = buildPurchaseJournal(purchaseEntry, profile?.displayName || "");
+          await createJournalEntry(pje);
+        } catch (e) { console.error("Purchase journal entry failed", e); }
         if (form.paymentStatus !== "paid") {
           const balanceChange = form.paymentStatus === "unpaid" ? effectiveTotal : Math.max(0, effectiveTotal - (form.paidAmount || 0));
           if (balanceChange > 0) {
@@ -579,6 +603,64 @@ function PurchasesContent() {
       setForm({ ...emptyForm });
       setEditingId(null);
       setShowForm(false);
+      setTimeout(() => setPurchaseError(null), 6000);
+    }
+    setSaving(false);
+  };
+
+  const handleAdvanceSettle = async () => {
+    if (!settlePurchase || selectedAdvances.length === 0) return;
+    setSaving(true);
+    try {
+      const totalSettled = selectedAdvances.reduce((sum, id) => {
+        const t = transfers.find((tr) => tr.id === id);
+        return sum + (t?.amount || 0);
+      }, 0);
+      const topUp = Math.max(0, settlePurchase.totalAmount - totalSettled);
+      for (const id of selectedAdvances) {
+        await updateDoc(doc(db, "transfers", id), {
+          settledAmount: totalSettled,
+          status: "settled",
+          updatedAt: Timestamp.fromDate(new Date()),
+        });
+      }
+      const purchaseEntry: Purchase = {
+        id: settlePurchase.id, supplierName: settlePurchase.supplierName,
+        supplierPhone: settlePurchase.supplierPhone, purchaseDate: Date.now(),
+        items: settlePurchase.items, totalAmount: settlePurchase.totalAmount,
+        paymentStatus: "advance", paymentMethod: "advance",
+        paidAmount: settlePurchase.totalAmount, discountAmount: settlePurchase.discountAmount,
+        billNo: settlePurchase.billNo, billDate: settlePurchase.billDate,
+        notes: settlePurchase.notes, recordedBy: user?.uid || "",
+        recordedByName: profile?.displayName || "",
+        createdAt: Date.now(), updatedAt: Date.now(),
+      };
+      await updateDoc(doc(db, "purchases", settlePurchase.id), { paymentStatus: "advance", paymentMethod: "advance", paidAmount: settlePurchase.totalAmount, updatedAt: Timestamp.fromDate(new Date()) });
+      if (selectedAdvances.length > 0) {
+        await addDoc(collection(db, "accountTransactions"), {
+          accountId: "cash_in_hand", type: "debit", amount: topUp,
+          description: `Top-up for advance settlement - ${settlePurchase.supplierName}`,
+          date: Timestamp.fromDate(new Date()), referenceType: "purchase",
+          referenceId: settlePurchase.id, recordedBy: user?.uid || "",
+          createdAt: Timestamp.fromDate(new Date()),
+        });
+      }
+      const transferRef = transfers.find((t) => selectedAdvances.includes(t.id));
+      if (transferRef) {
+        const tje = buildAdvanceSettlementJournal(purchaseEntry, totalSettled, transferRef, profile?.displayName || "", topUp);
+        await createJournalEntry(tje);
+      }
+      setShowAdvanceSettle(false);
+      setSettlePurchase(null);
+      setSelectedAdvances([]);
+      setAdvanceTotal(0);
+      setTopUpAmount(0);
+      refreshCollection("purchases");
+      refreshCollection("transfers");
+      setPurchaseSaved(true);
+      setTimeout(() => setPurchaseSaved(false), 6000);
+    } catch (e: any) {
+      setPurchaseError(e?.message || "Advance settlement failed");
       setTimeout(() => setPurchaseError(null), 6000);
     }
     setSaving(false);
@@ -1517,6 +1599,12 @@ function PurchasesContent() {
                     <Eye className="h-3 w-3" /> View Details
                   </button>
                   <div className="flex items-center gap-2">
+                    {(p.paymentStatus === "unpaid" || p.paymentStatus === "partially_paid") && (
+                      <button onClick={() => { setSettlePurchase(p); setShowAdvanceSettle(true); }}
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80">
+                        <CheckCircle className="h-3 w-3" /> Advance
+                      </button>
+                    )}
                     <button onClick={() => openReturn(p)} disabled={p.returned}
                       className={"inline-flex items-center gap-1 text-xs " + (p.returned ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:text-primary")}>
                       <RotateCcw className="h-3 w-3" /> {p.returned ? "Returned" : "Return"}
@@ -1566,6 +1654,11 @@ function PurchasesContent() {
                     <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(p.purchaseDate)}</td>
                     <td className="px-4 py-2.5 text-sm text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {(p.paymentStatus === "unpaid" || p.paymentStatus === "partially_paid") && (
+                          <Button onClick={() => { setSettlePurchase(p); setShowAdvanceSettle(true); }} size="sm" variant="outline" className="text-xs px-2 py-1 text-primary border-primary/30">
+                            <CheckCircle className="h-3 w-3" />
+                          </Button>
+                        )}
                         <Button onClick={() => openReturn(p)} disabled={p.returned} size="sm" variant="outline" className={"text-xs px-2 py-1 " + (p.returned ? "opacity-40 cursor-not-allowed" : "")} title={p.returned ? "Already returned" : "Return"}>
                           <Undo2 className="h-3 w-3" />
                         </Button>
@@ -1687,6 +1780,12 @@ function PurchasesContent() {
 
                 <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-4">
                   <p>Recorded by: {detailPurchaseData.recordedByName || detailPurchaseData.recordedBy || "—"}</p>
+                  {(detailPurchaseData.paymentStatus === "unpaid" || detailPurchaseData.paymentStatus === "partially_paid") && (
+                    <button onClick={() => { setDetailPurchaseId(null); setSettlePurchase(detailPurchaseData); setShowAdvanceSettle(true); }}
+                      className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 font-medium">
+                      Settle with Advance
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1753,7 +1852,63 @@ function PurchasesContent() {
           </div>
         )}
 
-      {showArchive && (
+        {showAdvanceSettle && settlePurchase && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowAdvanceSettle(false)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-secondary">Settle with Advance</h2>
+                <button onClick={() => setShowAdvanceSettle(false)} className="p-1 hover:bg-muted rounded"><X className="h-5 w-5" /></button>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">Purchase: {settlePurchase.supplierName} — Rs. {formatNumber(settlePurchase.totalAmount)}</p>
+              <div className="space-y-2 mb-4">
+                <p className="text-xs font-medium text-muted-foreground">Select outstanding advances to settle:</p>
+                {transfers.filter((t) => t.type === "advance" && t.status !== "settled").length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">No outstanding advances available.</p>
+                ) : (
+                  transfers.filter((t) => t.type === "advance" && t.status !== "settled").map((t) => {
+                    const checked = selectedAdvances.includes(t.id);
+                    return (
+                      <label key={t.id} className="flex items-center gap-3 border border-border rounded-lg p-3 cursor-pointer hover:bg-muted/50">
+                        <input type="checkbox" checked={checked}
+                          onChange={() => {
+                            const updated = checked ? selectedAdvances.filter((id) => id !== t.id) : [...selectedAdvances, t.id];
+                            setSelectedAdvances(updated);
+                            const total = updated.reduce((sum, id) => {
+                              const tr = transfers.find((tr) => tr.id === id);
+                              return sum + (tr?.amount || 0);
+                            }, 0);
+                            setAdvanceTotal(total);
+                            setTopUpAmount(Math.max(0, settlePurchase.totalAmount - total));
+                          }}
+                          className="accent-primary w-4 h-4" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-secondary">{t.recipientName || "Staff"}</p>
+                          <p className="text-xs text-muted-foreground truncate">{t.description} — {formatCurrency(t.amount)}</p>
+                        </div>
+                        <span className="text-sm font-semibold text-secondary">{formatCurrency(t.amount)}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              {selectedAdvances.length > 0 && (
+                <div className="bg-muted/50 rounded-lg p-3 mb-4 space-y-1 text-sm">
+                  <div className="flex justify-between"><span>Total advance settled:</span><span className="font-semibold">{formatCurrency(advanceTotal)}</span></div>
+                  <div className="flex justify-between"><span>Purchase total:</span><span className="font-semibold">{formatCurrency(settlePurchase.totalAmount)}</span></div>
+                  {topUpAmount > 0 && <div className="flex justify-between text-amber-600"><span>Cash top-up needed:</span><span className="font-semibold">{formatCurrency(topUpAmount)}</span></div>}
+                </div>
+              )}
+              <div className="flex gap-2 justify-end pt-3 border-t border-border">
+                <Button onClick={() => setShowAdvanceSettle(false)} variant="outline">Cancel</Button>
+                <Button onClick={handleAdvanceSettle} disabled={saving || selectedAdvances.length === 0} variant="accent">
+                  {saving ? "Processing..." : "Settle with Advance"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showArchive && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => { setShowArchive(false); setArchiveResults(null); }}>
           <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between p-4 border-b border-border">

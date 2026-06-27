@@ -155,6 +155,13 @@ function doPost(e) {
       var allCreditors = firestoreList("creditors");
       var allAccounts = firestoreList("accounts");
       var allTxns = firestoreQuery("accountTransactions", [["date", "<", asOf]]);
+      var jeRaw = firestoreList("journalEntries");
+      var jeEntries = [];
+      for (var jei = 0; jei < jeRaw.length; jei++) {
+        var jep = fieldsToObj(jeRaw[jei].fields);
+        var jeDate = Number(jep.entryDate || 0);
+        if (jeDate < asOf.getTime()) jeEntries.push(jep);
+      }
 
       // Also get archived data from Sheet
       try {
@@ -216,8 +223,29 @@ function doPost(e) {
         accountBalances[acc.id] = (acc.openingBalance || 0) + credits - debits;
       }
 
-      var cashBalance = accountBalances["cash_in_hand"] || 0;
-      var bankBalance = accountBalances["bank_account"] || 0;
+      // Also calculate from journal entries (double-entry)
+      var jeCash = 0, jeBank = 0;
+      for (var jec = 0; jec < jeEntries.length; jec++) {
+        var jEntry = jeEntries[jec];
+        if (!jEntry.lines) continue;
+        var jLines = jEntry.lines;
+        for (var jl = 0; jl < jLines.length; jl++) {
+          var jLine = jLines[jl];
+          var code = String(jLine.accountCode || "");
+          if (code === "1.1.1") jeCash += Number(jLine.debit || 0) - Number(jLine.credit || 0);
+          if (code === "1.1.2") jeBank += Number(jLine.debit || 0) - Number(jLine.credit || 0);
+        }
+      }
+
+      // Get opening balances from accounts collection
+      var cashOpening = 0, bankOpening = 0;
+      for (var a2 = 0; a2 < allAccounts.length; a2++) {
+        if (allAccounts[a2].id === "cash_in_hand") cashOpening = Number(allAccounts[a2].openingBalance || 0);
+        if (allAccounts[a2].id === "bank_account") bankOpening = Number(allAccounts[a2].openingBalance || 0);
+      }
+      // Use journal entries as primary source (avoids double-counting with accountTransactions)
+      var cashBalance = jeEntries.length > 0 ? (cashOpening + jeCash) : (accountBalances["cash_in_hand"] || 0);
+      var bankBalance = jeEntries.length > 0 ? (bankOpening + jeBank) : (accountBalances["bank_account"] || 0);
 
       var crBalance = 0;
       for (var c = 0; c < allCreditors.length; c++) {
@@ -232,20 +260,39 @@ function doPost(e) {
       var sundryCreditors = crBalance > 0 ? crBalance : unpaidPurchases;
 
       var retainedEarnings = 0;
-      for (var s = 0; s < allSales.length; s++) {
-        retainedEarnings += Number(allSales[s].finalAmount || 0);
-        var items = allSales[s].items || [];
-        for (var i = 0; i < items.length; i++) {
-          var cp = items[i].costPriceAtSale || costMap[items[i].productId] || 0;
-          retainedEarnings -= Number(cp) * Number(items[i].quantity || 1);
+      // Use journal entries as primary source to avoid double-counting
+      if (jeEntries.length > 0) {
+        for (var jec2 = 0; jec2 < jeEntries.length; jec2++) {
+          var je2 = jeEntries[jec2];
+          if (!je2.lines) continue;
+          for (var jl3 = 0; jl3 < je2.lines.length; jl3++) {
+            var line2 = je2.lines[jl3];
+            var code2 = String(line2.accountCode || "");
+            if (code2.startsWith("4.")) retainedEarnings += Number(line2.credit || 0) - Number(line2.debit || 0);
+            if (code2.startsWith("5.")) retainedEarnings -= Number(line2.debit || 0) - Number(line2.credit || 0);
+          }
+        }
+      } else {
+        // Legacy: compute from sales/expenses collections
+        for (var s = 0; s < allSales.length; s++) {
+          retainedEarnings += Number(allSales[s].finalAmount || 0);
+          var items = allSales[s].items || [];
+          for (var i = 0; i < items.length; i++) {
+            var cp = items[i].costPriceAtSale || costMap[items[i].productId] || 0;
+            retainedEarnings -= Number(cp) * Number(items[i].quantity || 1);
+          }
+        }
+        for (var e = 0; e < allExpenses.length; e++) {
+          retainedEarnings -= Number(allExpenses[e].amount || 0);
         }
       }
-      for (var e = 0; e < allExpenses.length; e++) {
-        retainedEarnings -= Number(allExpenses[e].amount || 0);
-      }
 
-      var config = firestoreGet("shop_settings/config");
-      var openingCapital = (config && config.openingCapital) ? Number(config.openingCapital) : 0;
+      var partnerDocs = firestoreList("partnerCapitals");
+      var openingCapital = 0;
+      for (var pci = 0; pci < partnerDocs.length; pci++) {
+        var pp = fieldsToObj(partnerDocs[pci].fields);
+        openingCapital += Number(pp.amount || 0);
+      }
 
       var totalAssets = cashBalance + bankBalance + closingStock + sundryDebtors;
       var totalLiabilities = sundryCreditors;
@@ -265,6 +312,230 @@ function doPost(e) {
           totalLiabilities: totalLiabilities,
           totalEquity: totalEquity,
         }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === "computeTrialBalance" && data.start && data.end) {
+      var tbStart = new Date(data.start);
+      var tbEnd = new Date(data.end);
+      tbEnd.setDate(tbEnd.getDate() + 1);
+      var tbEntriesRaw = firestoreList("journalEntries");
+      var tbEntries = [];
+      for (var tei = 0; tei < tbEntriesRaw.length; tei++) {
+        var ep = fieldsToObj(tbEntriesRaw[tei].fields);
+        ep.id = tbEntriesRaw[tei].id;
+        tbEntries.push(ep);
+      }
+      var tbAccountsRaw = firestoreList("chartOfAccounts");
+      var tbAccounts = [];
+      for (var tai = 0; tai < tbAccountsRaw.length; tai++) {
+        var ap = fieldsToObj(tbAccountsRaw[tai].fields);
+        ap.id = tbAccountsRaw[tai].id;
+        tbAccounts.push(ap);
+      }
+      var tbTotals = {};
+      for (var te = 0; te < tbEntries.length; te++) {
+        var entry = tbEntries[te];
+        if (!entry.lines) continue;
+        var eDate = Number(entry.entryDate || 0);
+        if (eDate < tbStart.getTime() || eDate >= tbEnd.getTime()) continue;
+        var lines = entry.lines;
+        for (var tl = 0; tl < lines.length; tl++) {
+          var line = lines[tl];
+          var code = String(line.accountCode || "");
+          if (!tbTotals[code]) tbTotals[code] = { debit: 0, credit: 0 };
+          tbTotals[code].debit += Number(line.debit || 0);
+          tbTotals[code].credit += Number(line.credit || 0);
+        }
+      }
+      var tbRows = [];
+      for (var ta = 0; ta < tbAccounts.length; ta++) {
+        var acc = tbAccounts[ta];
+        var total = tbTotals[acc.code] || { debit: 0, credit: 0 };
+        tbRows.push({ Account: acc.code + " - " + acc.name, Debit: total.debit, Credit: total.credit });
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", headers: ["Account", "Debit", "Credit"], data: tbRows }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === "computeCashFlow") {
+      var cfRaw = firestoreList("journalEntries");
+      var cfEntries = [];
+      for (var cfi = 0; cfi < cfRaw.length; cfi++) {
+        var cp = fieldsToObj(cfRaw[cfi].fields);
+        cp.id = cfRaw[cfi].id;
+        cfEntries.push(cp);
+      }
+      var cfOperating = 0, cfInvesting = 0, cfFinancing = 0;
+      for (var ce = 0; ce < cfEntries.length; ce++) {
+        var cfEntry = cfEntries[ce];
+        if (!cfEntry.lines) continue;
+        var cfLines = cfEntry.lines;
+        for (var cl = 0; cl < cfLines.length; cl++) {
+          var cfLine = cfLines[cl];
+          var cfCode = String(cfLine.accountCode || "");
+          var cfNet = Number(cfLine.credit || 0) - Number(cfLine.debit || 0);
+          if (cfCode.startsWith("4.") || cfCode.startsWith("5.1")) cfOperating += cfNet;
+          else if (cfCode.startsWith("1.1.7")) cfInvesting -= cfNet;
+          else if (cfCode.startsWith("2.1.3") || cfCode.startsWith("3.")) cfFinancing += cfNet;
+        }
+      }
+      var cfRows = [
+        { Category: "Operating", Amount: cfOperating },
+        { Category: "Investing", Amount: cfInvesting },
+        { Category: "Financing", Amount: cfFinancing },
+        { Category: "Net Cash Change", Amount: cfOperating + cfInvesting + cfFinancing },
+      ];
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", headers: ["Category", "Amount"], data: cfRows }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === "computeAgedReceivables") {
+      var arRaw = firestoreList("debtors");
+      var arNow = Date.now();
+      var arRows = [];
+      for (var ad = 0; ad < arRaw.length; ad++) {
+        var dp = fieldsToObj(arRaw[ad].fields);
+        if (!dp || dp.status === "cleared") continue;
+        var name = String(dp.customerName || "");
+        var phone = String(dp.customerPhone || "");
+        var balance = Number(dp.balanceDue || 0);
+        var dueDate = Number(dp.dueDate || arNow);
+        var daysDue = Math.max(0, Math.floor((arNow - dueDate) / 86400000));
+        var bucket = daysDue <= 30 ? "0-30" : daysDue <= 60 ? "31-60" : daysDue <= 90 ? "61-90" : "90+";
+        arRows.push({ Customer: name, Phone: phone, Balance: balance, "Days Due": daysDue, Bucket: bucket });
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", headers: ["Customer", "Phone", "Balance", "Days Due", "Bucket"], data: arRows }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === "computeAgedPayables") {
+      var apRaw = firestoreList("creditors");
+      var apNow = Date.now();
+      var apRows = [];
+      for (var ac = 0; ac < apRaw.length; ac++) {
+        var cp = fieldsToObj(apRaw[ac].fields);
+        if (!cp || cp.status === "cleared") continue;
+        var name = String(cp.supplierName || "");
+        var phone = String(cp.supplierPhone || "");
+        var balance = Number(cp.balanceDue || 0);
+        var lastDate = Number(cp.lastTransactionDate || apNow);
+        var daysDue = Math.max(0, Math.floor((apNow - lastDate) / 86400000));
+        var bucket = daysDue <= 30 ? "0-30" : daysDue <= 60 ? "31-60" : daysDue <= 90 ? "61-90" : "90+";
+        apRows.push({ Supplier: name, Phone: phone, Balance: balance, "Days Due": daysDue, Bucket: bucket });
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", headers: ["Supplier", "Phone", "Balance", "Days Due", "Bucket"], data: apRows }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === "seedChartOfAccounts") {
+      var coaAccounts = [
+        { id: "cash_in_hand", code: "1.1.1", name: "Cash in Hand", category: "asset", subCategory: "current_asset", isActive: true, openingBalance: 0 },
+        { id: "bank_account", code: "1.1.2", name: "Bank Account", category: "asset", subCategory: "current_asset", isActive: true, openingBalance: 0 },
+        { id: "petty_cash", code: "1.1.3", name: "Petty Cash", category: "asset", subCategory: "current_asset", isActive: true, openingBalance: 0 },
+        { id: "stock_in_trade", code: "1.1.4", name: "Stock in Trade", category: "asset", subCategory: "current_asset", isActive: true, openingBalance: 0 },
+        { id: "staff_advance", code: "1.1.5", name: "Staff Advance", category: "asset", subCategory: "current_asset", isActive: true, openingBalance: 0 },
+        { id: "sundry_debtors", code: "1.1.6", name: "Sundry Debtors", category: "asset", subCategory: "current_asset", isActive: true, openingBalance: 0 },
+        { id: "fixed_assets", code: "1.1.7", name: "Fixed Assets", category: "asset", subCategory: "fixed_asset", isActive: true, openingBalance: 0 },
+        { id: "sundry_creditors", code: "2.1.1", name: "Sundry Creditors", category: "liability", subCategory: "current_liability", isActive: true, openingBalance: 0 },
+        { id: "outstanding_expenses", code: "2.1.2", name: "Outstanding Expenses", category: "liability", subCategory: "current_liability", isActive: true, openingBalance: 0 },
+        { id: "bank_loan", code: "2.1.3", name: "Bank Loan", category: "liability", subCategory: "long_term_liability", isActive: true, openingBalance: 0 },
+        { id: "owners_capital", code: "3.1.1", name: "Owner's Capital", category: "equity", subCategory: "capital", isActive: true, openingBalance: 0 },
+        { id: "retained_earnings", code: "3.1.2", name: "Retained Earnings", category: "equity", subCategory: "reserves", isActive: true, openingBalance: 0 },
+        { id: "drawings", code: "3.1.3", name: "Drawings", category: "equity", subCategory: "drawings", isActive: true, openingBalance: 0 },
+        { id: "sales_revenue", code: "4.1.1", name: "Sales Revenue", category: "income", subCategory: "revenue", isActive: true, openingBalance: 0 },
+        { id: "discount_received", code: "4.1.2", name: "Discount Received", category: "income", subCategory: "other_income", isActive: true, openingBalance: 0 },
+        { id: "other_income", code: "4.1.3", name: "Other Income", category: "income", subCategory: "other_income", isActive: true, openingBalance: 0 },
+        { id: "cogs", code: "5.1.1", name: "Cost of Goods Sold", category: "expense", subCategory: "direct_expense", isActive: true, openingBalance: 0 },
+        { id: "salary", code: "5.2.1", name: "Salary", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "rent", code: "5.2.2", name: "Rent", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "electricity", code: "5.2.3", name: "Electricity", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "water", code: "5.2.4", name: "Water", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "internet", code: "5.2.5", name: "Internet", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "marketing", code: "5.2.6", name: "Marketing", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "travel", code: "5.2.7", name: "Travel", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "maintenance", code: "5.2.8", name: "Maintenance", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "packaging", code: "5.2.9", name: "Packaging", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "bank_charges", code: "5.2.10", name: "Bank Charges", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "taxes", code: "5.2.11", name: "Taxes", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+        { id: "miscellaneous_expense", code: "5.2.12", name: "Miscellaneous Expense", category: "expense", subCategory: "indirect_expense", isActive: true, openingBalance: 0 },
+      ];
+      var count = 0;
+      for (var ci = 0; ci < coaAccounts.length; ci++) {
+        try {
+          firestorePatch("chartOfAccounts/" + coaAccounts[ci].id, coaAccounts[ci]);
+          count++;
+        } catch (e) { console.log("Seed error: " + e); }
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", message: "Seeded " + count + " accounts" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === "migrateToDoubleEntry") {
+      var migRaw = firestoreList("accountTransactions");
+      var migTxns = [];
+      for (var mi = 0; mi < migRaw.length; mi++) {
+        var mp = fieldsToObj(migRaw[mi].fields);
+        mp.id = migRaw[mi].id;
+        migTxns.push(mp);
+      }
+      var count = 0;
+      for (var mt = 0; mt < migTxns.length; mt++) {
+        var tx = migTxns[mt];
+        var txRefType = String(tx.referenceType || "");
+        var txRefId = String(tx.referenceId || "");
+        var txDate = Number(tx.date || Date.now());
+        var txAmount = Number(tx.amount || 0);
+        var txAccountId = String(tx.accountId || "");
+        var txType = String(tx.type || "");
+        var txDesc = String(tx.description || "");
+        var txRecordedBy = String(tx.recordedBy || "");
+
+        var cashCode = txAccountId === "cash_in_hand" ? "1.1.1" : "1.1.2";
+        var lines = [];
+        if (txType === "credit") {
+          if (txRefType === "sale") {
+            lines.push({ accountCode: cashCode, accountName: txAccountId === "cash_in_hand" ? "Cash in Hand" : "Bank Account", debit: txAmount, credit: 0 });
+            lines.push({ accountCode: "4.1.1", accountName: "Sales Revenue", debit: 0, credit: txAmount });
+          }
+        } else if (txType === "debit") {
+          if (txRefType === "expense") {
+            lines.push({ accountCode: "5.2.12", accountName: "Miscellaneous", debit: txAmount, credit: 0 });
+            lines.push({ accountCode: cashCode, accountName: txAccountId === "cash_in_hand" ? "Cash in Hand" : "Bank Account", debit: 0, credit: txAmount });
+          } else if (txRefType === "purchase") {
+            lines.push({ accountCode: "1.1.4", accountName: "Stock in Trade", debit: txAmount, credit: 0 });
+            lines.push({ accountCode: cashCode, accountName: txAccountId === "cash_in_hand" ? "Cash in Hand" : "Bank Account", debit: 0, credit: txAmount });
+          } else if (txRefType === "transfer") {
+            var fromAcc = txDesc.includes("Bank") ? "1.1.2" : "1.1.1";
+            var toAcc = fromAcc === "1.1.1" ? "1.1.2" : "1.1.1";
+            if (txDesc.includes("Advance") || txDesc.includes("advance")) {
+              lines.push({ accountCode: "1.1.5", accountName: "Staff Advance", debit: txAmount, credit: 0 });
+              lines.push({ accountCode: "1.1.1", accountName: "Cash in Hand", debit: 0, credit: txAmount });
+            } else {
+              lines.push({ accountCode: toAcc, accountName: toAcc === "1.1.2" ? "Bank Account" : "Cash in Hand", debit: txAmount, credit: 0 });
+              lines.push({ accountCode: fromAcc, accountName: fromAcc === "1.1.1" ? "Cash in Hand" : "Bank Account", debit: 0, credit: txAmount });
+            }
+          }
+        }
+        if (lines.length === 0) continue;
+        try {
+          var entryNum = "MIG-" + String(count + 1).padStart(6, "0");
+          firestorePatch("journalEntries/" + tx.id, {
+            entryNumber: entryNum, entryDate: txDate, description: txDesc,
+            lines: lines, referenceType: txRefType, referenceId: txRefId,
+            recordedBy: txRecordedBy, recordedByName: txRecordedBy,
+            isPosted: true, createdAt: Date.now(),
+          });
+          count++;
+        } catch (e) { console.log("Migration error: " + e); }
+      }
+      return ContentService
+        .createTextOutput(JSON.stringify({ status: "ok", message: "Migrated " + count + " journal entries" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 

@@ -47,6 +47,7 @@ export default function AdminOffersPage() {
   const [prodSearch, setProdSearch] = useState("");
   const [expiredBanner, setExpiredBanner] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [detailOffer, setDetailOffer] = useState<Offer | null>(null);
 
   // Auto-expire offers on page load
   useEffect(() => {
@@ -438,7 +439,7 @@ export default function AdminOffersPage() {
                   const status = getStatus(offer);
                   const affectedCount = getAffectedProductIds(offer).length;
                   return (
-                    <div key={offer.id} onClick={() => openEdit(offer)}
+                    <div key={offer.id} onClick={() => setDetailOffer(offer)}
                       className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
@@ -473,7 +474,7 @@ export default function AdminOffersPage() {
                   const status = getStatus(offer);
                   const affectedCount = getAffectedProductIds(offer).length;
                   return (
-                    <div key={offer.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                    <div key={offer.id} onClick={() => setDetailOffer(offer)} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -498,10 +499,10 @@ export default function AdminOffersPage() {
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">{affectedCount} product(s)</span>
                         <div className="flex gap-2">
-                          <Button onClick={() => openEdit(offer)} size="sm" variant="outline" className="text-xs">
+                          <Button onClick={(e) => { e.stopPropagation(); openEdit(offer); }} size="sm" variant="outline" className="text-xs">
                             <Edit2 className="h-3 w-3" /> Edit
                           </Button>
-                          <Button onClick={() => handleDelete(offer.id, offer)} size="sm" variant="outline" className="text-xs text-red-500">
+                          <Button onClick={(e) => { e.stopPropagation(); handleDelete(offer.id, offer); }} size="sm" variant="outline" className="text-xs text-red-500">
                             <Trash2 className="h-3 w-3" /> Delete
                           </Button>
                         </div>
@@ -513,7 +514,55 @@ export default function AdminOffersPage() {
             )}
           </>
         )}
+
+        {detailOffer && (
+          <DetailModal title="Offer Details" onClose={() => setDetailOffer(null)}>
+            <div className="space-y-3 text-sm">
+              <Row label="Title" value={detailOffer.title} />
+              <Row label="Badge Type" value={detailOffer.badgeType.replace("_", " ")} />
+              <Row label="Discount" value={detailOffer.discountType === "percentage" ? `${detailOffer.discountValue}%` : `Rs. ${detailOffer.discountValue}`} />
+              <Row label="Discount Type" value={detailOffer.discountType} />
+              <Row label="Scope" value={detailOffer.scope === "all" ? "All Products" : detailOffer.scope === "category" ? "By Category" : "Individual Products"} />
+              {detailOffer.scope === "category" && detailOffer.categoryId && (
+                <Row label="Category" value={categories.find((c) => c.id === detailOffer.categoryId)?.name || "—"} />
+              )}
+              {detailOffer.scope === "individual" && (
+                <Row label="Products Count" value={String((detailOffer.productIds || []).length)} />
+              )}
+              <Row label="Start Date" value={formatDate(detailOffer.startDate)} />
+              <Row label="End Date" value={formatDate(detailOffer.endDate)} />
+              <Row label="Status" value={detailOffer.isActive ? "Active" : "Inactive"} />
+            </div>
+          </DetailModal>
+        )}
       </div>
     </AdminLayout>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between items-start">
+      <span className="text-muted-foreground text-xs shrink-0 mr-4">{label}</span>
+      <span className="text-right text-secondary">{value}</span>
+    </div>
+  );
+}
+
+function DetailModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
+          <h2 className="text-base font-bold text-secondary">{title}</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }

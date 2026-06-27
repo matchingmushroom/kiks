@@ -39,6 +39,7 @@ export default function AdminCouponsPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [detailCoupon, setDetailCoupon] = useState<Coupon | null>(null);
 
   const filtered = coupons.filter((c) =>
     !search || c.code.toLowerCase().includes(search.toLowerCase())
@@ -284,11 +285,11 @@ export default function AdminCouponsPage() {
                   const validUntilMs = c.validUntil ? toDate(c.validUntil).getTime() : 0;
                   const expired = validUntilMs > 0 && now > validUntilMs;
                   return (
-                    <div key={c.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                    <div key={c.id} onClick={() => setDetailCoupon(c)} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-1.5 min-w-0 flex-1">
                           <span className="font-mono font-medium text-secondary text-sm truncate">{c.code}</span>
-                          <button onClick={() => copyCode(c.code)} className="p-1 text-muted-foreground hover:text-primary rounded" title="Copy">
+                          <button onClick={(e) => { e.stopPropagation(); copyCode(c.code); }} className="p-1 text-muted-foreground hover:text-primary rounded" title="Copy">
                             <Copy className="h-3 w-3" />
                           </button>
                         </div>
@@ -330,16 +331,16 @@ export default function AdminCouponsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-1 pt-1">
-                        <button onClick={() => openEdit(c)}
+                        <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
                           className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => toggleActive(c.id, c.isActive)}
+                        <button onClick={(e) => { e.stopPropagation(); toggleActive(c.id, c.isActive); }}
                           className="p-1.5 text-muted-foreground hover:text-amber-600 hover:bg-amber-50 rounded"
                           title={c.isActive ? "Deactivate" : "Activate"}>
                           <CheckCircle className={`h-3.5 w-3.5 ${c.isActive ? "" : "opacity-40"}`} />
                         </button>
-                        <button onClick={() => handleDelete(c.id, c.code)}
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(c.id, c.code); }}
                           className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -368,11 +369,11 @@ export default function AdminCouponsPage() {
                       const validUntilMs = c.validUntil ? toDate(c.validUntil).getTime() : 0;
                       const expired = validUntilMs > 0 && now > validUntilMs;
                       return (
-                        <tr key={c.id} className="hover:bg-muted/30">
+                        <tr key={c.id} onClick={() => setDetailCoupon(c)} className="hover:bg-muted/30 cursor-pointer">
                           <td className="px-4 py-2.5">
                             <div className="flex items-center gap-1.5">
                               <span className="font-mono font-medium text-secondary">{c.code}</span>
-                              <button onClick={() => copyCode(c.code)} className="p-1 text-muted-foreground hover:text-primary rounded" title="Copy">
+                              <button onClick={(e) => { e.stopPropagation(); copyCode(c.code); }} className="p-1 text-muted-foreground hover:text-primary rounded" title="Copy">
                                 <Copy className="h-3 w-3" />
                               </button>
                             </div>
@@ -401,15 +402,15 @@ export default function AdminCouponsPage() {
                             </span>
                           </td>
                           <td className="px-4 py-2.5 text-right">
-                            <button onClick={() => openEdit(c)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                            <button onClick={(e) => { e.stopPropagation(); openEdit(c); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                               <Edit2 className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => toggleActive(c.id, c.isActive)}
+                            <button onClick={(e) => { e.stopPropagation(); toggleActive(c.id, c.isActive); }}
                               className="p-1.5 text-muted-foreground hover:text-amber-600 hover:bg-amber-50 rounded"
                               title={c.isActive ? "Deactivate" : "Activate"}>
                               <CheckCircle className={`h-3.5 w-3.5 ${c.isActive ? "" : "opacity-40"}`} />
                             </button>
-                            <button onClick={() => handleDelete(c.id, c.code)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(c.id, c.code); }} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </td>
@@ -422,7 +423,54 @@ export default function AdminCouponsPage() {
             )}
           </>
         )}
+
+        {detailCoupon && (
+          <DetailModal title="Coupon Details" onClose={() => setDetailCoupon(null)}>
+            <div className="space-y-3 text-sm">
+              <Row label="Code" value={detailCoupon.code} />
+              <Row label="Discount" value={detailCoupon.discountType === "percentage" ? `${detailCoupon.discountValue}%` : `Rs. ${detailCoupon.discountValue}`} />
+              <Row label="Discount Type" value={detailCoupon.discountType} />
+              <Row label="Coupon Type" value={detailCoupon.couponType || "General"} />
+              <Row label="Issued To" value={detailCoupon.issuedToCustomer?.name ? `${detailCoupon.issuedToCustomer.name}${detailCoupon.issuedToCustomer.phone ? ` (${detailCoupon.issuedToCustomer.phone})` : ""}` : "—"} />
+              <Row label="Used Count" value={`${detailCoupon.usedCount || 0} / ${detailCoupon.usageLimit || "∞"}`} />
+              <Row label="Min Purchase" value={detailCoupon.minPurchaseAmount ? `Rs. ${detailCoupon.minPurchaseAmount}` : "—"} />
+              <Row label="Max Discount" value={detailCoupon.maxDiscount ? `Rs. ${detailCoupon.maxDiscount}` : "—"} />
+              <Row label="Valid From" value={detailCoupon.validFrom ? formatDate(detailCoupon.validFrom) : "—"} />
+              <Row label="Valid Until" value={detailCoupon.validUntil ? formatDate(detailCoupon.validUntil) : "—"} />
+              <Row label="Status" value={detailCoupon.isActive ? "Active" : "Inactive"} />
+              <Row label="Created" value={formatDate(detailCoupon.createdAt)} />
+              {detailCoupon.restrictedToPhones?.length ? <Row label="Restricted To" value={detailCoupon.restrictedToPhones.join(", ")} /> : null}
+            </div>
+          </DetailModal>
+        )}
       </div>
     </AdminLayout>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between items-start">
+      <span className="text-muted-foreground text-xs shrink-0 mr-4">{label}</span>
+      <span className="text-right text-secondary">{value}</span>
+    </div>
+  );
+}
+
+function DetailModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
+          <h2 className="text-base font-bold text-secondary">{title}</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }

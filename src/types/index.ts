@@ -231,7 +231,7 @@ export interface Purchase {
   purchaseDate: number;
   items: PurchaseItem[];
   totalAmount: number;
-  paymentStatus: "paid" | "unpaid" | "partially_paid";
+  paymentStatus: "paid" | "unpaid" | "partially_paid" | "advance";
   paymentMethod?: string;
   paidAmount?: number;
   discountAmount?: number;
@@ -319,6 +319,9 @@ export interface Transfer {
   recipientPhone?: string;
   notes?: string;
   recordedBy: string;
+  recordedByName?: string;
+  settledAmount?: number;
+  status?: "active" | "settled";
   createdAt: number;
   updatedAt: number;
 }
@@ -426,4 +429,36 @@ export interface Offer {
   createdBy: string;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface AccountHead {
+  id: string;
+  code: string;
+  name: string;
+  category: "asset" | "liability" | "equity" | "income" | "expense";
+  subCategory: string;
+  isActive: boolean;
+  openingBalance: number;
+  parentId?: string;
+}
+
+export interface JournalLine {
+  accountCode: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+}
+
+export interface JournalEntry {
+  id: string;
+  entryNumber: string;
+  entryDate: number;
+  description: string;
+  lines: JournalLine[];
+  referenceType: "sale" | "purchase" | "expense" | "receipt" | "payment" | "transfer" | "advance" | "adjustment" | "debtor_payment" | "creditor_payment" | "sales_return";
+  referenceId?: string;
+  recordedBy: string;
+  recordedByName: string;
+  isPosted: boolean;
+  createdAt: number;
 }

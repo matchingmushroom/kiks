@@ -43,6 +43,11 @@ export default function AdminDashboardPage() {
   const [showQrModal, setShowQrModal] = useState(false);
   const [showDebtorModal, setShowDebtorModal] = useState(false);
   const [showPaymentsModal, setShowPaymentsModal] = useState(false);
+  const [detailSale, setDetailSale] = useState<Sale | null>(null);
+  const [detailCashSale, setDetailCashSale] = useState<Sale | null>(null);
+  const [detailQrSale, setDetailQrSale] = useState<Sale | null>(null);
+  const [detailDebtorSale, setDetailDebtorSale] = useState<Sale | null>(null);
+  const [detailPayment, setDetailPayment] = useState<AccountTransaction | null>(null);
   const useBs = !!settings.useBsCalendar;
   const { data: sales } = useFirestore<Sale>("sales", {
     constraints: [orderBy("saleDate", "desc"), limit(200)],
@@ -126,31 +131,37 @@ export default function AdminDashboardPage() {
   const todayQrBank = todaySales.filter((s) => s.payment?.method === "qr" || s.payment?.method === "bank_transfer").reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0);
   const todayDebtor = todaySales.filter((s) => s.saleType === "credit" || s.saleType === "partial").reduce((s, x) => s + (x.payment?.balanceDue || 0), 0);
   const myTransactions = isStaff ? (transactions || []).filter((t) => t.recordedBy === profile?.uid) : (transactions || []);
-  const todayBankCredits = myTransactions.filter((t) => {
+  const todayFilter = (t: AccountTransaction) => {
     const d = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number)).getTime();
-    return d >= todayStart && d < todayEnd && t.accountId === "bank_account" && t.type === "credit";
-  });
-  const todayPaymentsTotal = todayBankCredits.reduce((s, t) => s + t.amount, 0);
-
-  // Transfer effects: debits that reduce cash/bank
-  const todayTxFilter = (t: AccountTransaction) => {
-    const d = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number)).getTime();
-    return d >= todayStart && d < todayEnd && t.referenceType === "transfer";
+    return d >= todayStart && d < todayEnd;
   };
+  const todayCashCredits = myTransactions
+    .filter((t) => todayFilter(t) && t.accountId === "cash_in_hand" && t.type === "credit")
+    .reduce((s, t) => s + t.amount, 0);
   const todayCashDebits = myTransactions
-    .filter((t) => todayTxFilter(t) && t.accountId === "cash_in_hand" && t.type === "debit")
+    .filter((t) => todayFilter(t) && t.accountId === "cash_in_hand" && t.type === "debit")
+    .reduce((s, t) => s + t.amount, 0);
+  const todayBankCredits = myTransactions
+    .filter((t) => todayFilter(t) && t.accountId === "bank_account" && t.type === "credit")
     .reduce((s, t) => s + t.amount, 0);
   const todayBankDebits = myTransactions
-    .filter((t) => todayTxFilter(t) && t.accountId === "bank_account" && t.type === "debit")
+    .filter((t) => todayFilter(t) && t.accountId === "bank_account" && t.type === "debit")
     .reduce((s, t) => s + t.amount, 0);
-
-  // All cash received today (sales + partial + QR from POS all go to cash_in_hand)
-  const todayCashReceived = myTransactions
-    .filter((t) => {
-      const d = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number)).getTime();
-      return d >= todayStart && d < todayEnd && t.accountId === "cash_in_hand" && t.type === "credit" && t.referenceType === "sale";
-    })
-    .reduce((s, t) => s + t.amount, 0);
+  const todayCashLedger = myTransactions
+    .filter((t) => todayFilter(t) && t.accountId === "cash_in_hand")
+    .sort((a, b) => {
+      const da = (a.date as any)?.seconds ? (a.date as any).seconds * 1000 : (a.date as number);
+      const db = (b.date as any)?.seconds ? (b.date as any).seconds * 1000 : (b.date as number);
+      return da - db;
+    });
+  const todayBankLedger = myTransactions
+    .filter((t) => todayFilter(t) && t.accountId === "bank_account")
+    .sort((a, b) => {
+      const da = (a.date as any)?.seconds ? (a.date as any).seconds * 1000 : (a.date as number);
+      const db = (b.date as any)?.seconds ? (b.date as any).seconds * 1000 : (b.date as number);
+      return da - db;
+    });
+  const todayPaymentsTotal = todayBankCredits;
 
   const fytdStart = new Date(getFiscalYearStartEpoch()).toISOString().slice(0, 10);
   const fytdSales = mySales
@@ -303,21 +314,21 @@ export default function AdminDashboardPage() {
             />
             <DailyCard
               title="Cash In Hand"
-              value={formatCurrency(openingCash + todayCashReceived - todayCashDebits)}
-              sub={`Opening: ${formatCurrency(openingCash)} | Received: ${formatCurrency(todayCashReceived)}${todayCashDebits > 0 ? ` | Transfers Out: -${formatCurrency(todayCashDebits)}` : ""}`}
+              value={formatCurrency(openingCash + todayCashCredits - todayCashDebits)}
+              sub={`Opening: ${formatCurrency(openingCash)} | In: ${formatCurrency(todayCashCredits)}${todayCashDebits > 0 ? ` | Out: -${formatCurrency(todayCashDebits)}` : ""}`}
               gradient="from-green-50 to-green-100/50"
               border="border-green-200"
               onClick={() => setShowCashModal(true)}
-              onDownload={() => downloadCSV(todayCashSales, `today-cash-${todayStr}`, false, currentUserName)}
+              onDownload={() => downloadCSV(todayCashLedger, `today-cash-${todayStr}`, true, currentUserName)}
             />
             <DailyCard
               title="QR / Bank Received"
-              value={formatCurrency(openingBank + todayQrBank - todayBankDebits)}
-              sub={`Opening: ${formatCurrency(openingBank)} | Sales: ${formatCurrency(todayQrBank)}${todayBankDebits > 0 ? ` | Transfers Out: -${formatCurrency(todayBankDebits)}` : ""}`}
+              value={formatCurrency(openingBank + todayBankCredits - todayBankDebits)}
+              sub={`Opening: ${formatCurrency(openingBank)} | In: ${formatCurrency(todayBankCredits)}${todayBankDebits > 0 ? ` | Out: -${formatCurrency(todayBankDebits)}` : ""}`}
               gradient="from-blue-50 to-blue-100/50"
               border="border-blue-200"
               onClick={() => setShowQrModal(true)}
-              onDownload={() => downloadCSV(todayQrSales, `today-qr-bank-${todayStr}`, false, currentUserName)}
+              onDownload={() => downloadCSV(todayBankLedger, `today-bank-${todayStr}`, true, currentUserName)}
             />
             <DailyCard
               title="Debtor (Credit Given)"
@@ -329,13 +340,13 @@ export default function AdminDashboardPage() {
               onDownload={() => downloadCSV(todayDebtorSales, `today-debtor-${todayStr}`, false, currentUserName)}
             />
             <DailyCard
-              title="Payments (Bank Deposit)"
+              title="Bank Transactions"
               value={formatCurrency(todayPaymentsTotal)}
-              sub={`${todayBankCredits.length} deposit${todayBankCredits.length !== 1 ? "s" : ""}`}
+              sub={`In: ${formatCurrency(todayBankCredits)} | Out: ${formatCurrency(todayBankDebits)}`}
               gradient="from-purple-50 to-purple-100/50"
               border="border-purple-200"
               onClick={() => setShowPaymentsModal(true)}
-              onDownload={() => downloadCSV(todayBankCredits, `today-payments-${todayStr}`, true, currentUserName)}
+              onDownload={() => downloadCSV(todayBankLedger, `today-bank-${todayStr}`, true, currentUserName)}
             />
           </div>
         </div>
@@ -362,7 +373,7 @@ export default function AdminDashboardPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {todaySales.map((s) => (
-                  <tr key={s.id} className="hover:bg-muted/30">
+                  <tr key={s.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setDetailSale(s)}>
                     <td className="px-3 py-2 font-mono text-xs">{s.id?.slice(0, 8)}</td>
                     <td className="px-3 py-2">{new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
                     <td className="px-3 py-2">{s.customer?.name || <span className="text-muted-foreground italic">Walk-in</span>}</td>
@@ -390,78 +401,116 @@ export default function AdminDashboardPage() {
         </DailyModal>
 
         <DailyModal title="Cash In Hand — Today" show={showCashModal} onClose={() => setShowCashModal(false)} date={todayStr}
-          onDownload={() => downloadCSV(todayCashSales, `today-cash-${todayStr}`, false, currentUserName)}>
-          {todayCashSales.length === 0 ? (
+          onDownload={() => downloadCSV(todayCashLedger, `today-cash-${todayStr}`, true, currentUserName)}>
+          {todayCashLedger.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">No cash transactions today</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-muted text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">Sale ID</th>
-                  <th className="px-3 py-2 font-medium">Time</th>
-                  <th className="px-3 py-2 font-medium">Customer</th>
-                  <th className="px-3 py-2 font-medium text-right">Received</th>
-                  <th className="px-3 py-2 font-medium text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {todayCashSales.map((s) => (
-                  <tr key={s.id} className="hover:bg-muted/30">
-                    <td className="px-3 py-2 font-mono text-xs">{s.id?.slice(0, 8)}</td>
-                    <td className="px-3 py-2">{new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
-                    <td className="px-3 py-2">{s.customer?.name || <span className="text-muted-foreground italic">Walk-in</span>}</td>
-                    <td className="px-3 py-2 text-right font-medium">{formatCurrency(s.payment?.receivedAmount || 0)}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{formatCurrency(s.finalAmount)}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted text-left text-xs text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">Time</th>
+                    <th className="px-3 py-2 font-medium">Type</th>
+                    <th className="px-3 py-2 font-medium">Description</th>
+                    <th className="px-3 py-2 font-medium text-right">In (Cr)</th>
+                    <th className="px-3 py-2 font-medium text-right">Out (Dr)</th>
+                    <th className="px-3 py-2 font-medium text-right">Running Balance</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-border font-semibold text-sm">
-                  <td colSpan={3} className="px-3 py-2 text-right">Total</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(todayCash)}</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(todayCashSales.reduce((s, x) => s + x.finalAmount, 0))}</td>
-                </tr>
-              </tfoot>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {(() => {
+                    let running = 0;
+                    return todayCashLedger.map((t) => {
+                      running += t.type === "credit" ? t.amount : -t.amount;
+                      const time = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number));
+                      let typeLabel = t.referenceType?.replace(/_/g, " ") || "manual";
+                      let typeClass = "bg-gray-100 text-gray-700";
+                      if (t.referenceType === "sale") typeClass = "bg-green-100 text-green-700";
+                      else if (t.referenceType === "debtor_payment") typeClass = "bg-blue-100 text-blue-700";
+                      else if (t.referenceType === "expense") typeClass = "bg-red-100 text-red-700";
+                      else if (t.referenceType === "transfer") typeClass = "bg-orange-100 text-orange-700";
+                      else if (t.referenceType === "creditor_payment") typeClass = "bg-purple-100 text-purple-700";
+                      else if (t.referenceType === "sales_return") typeClass = "bg-pink-100 text-pink-700";
+                      return (
+                        <tr key={t.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => { setDetailCashSale(null); setShowCashModal(false); }}>
+                          <td className="px-3 py-2 whitespace-nowrap">{time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                          <td className="px-3 py-2"><span className={"inline-block px-2 py-0.5 rounded text-xs font-medium " + typeClass}>{typeLabel}</span></td>
+                          <td className="px-3 py-2 max-w-[200px] truncate">{t.description || "-"}</td>
+                          <td className="px-3 py-2 text-right font-medium text-green-600">{t.type === "credit" ? formatCurrency(t.amount) : "-"}</td>
+                          <td className="px-3 py-2 text-right font-medium text-red-600">{t.type === "debit" ? formatCurrency(t.amount) : "-"}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${running >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(running)}</td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border font-semibold text-sm">
+                    <td colSpan={3} className="px-3 py-2 text-right">Net Today</td>
+                    <td className="px-3 py-2 text-right text-green-600">{formatCurrency(todayCashCredits)}</td>
+                    <td className="px-3 py-2 text-right text-red-600">{formatCurrency(todayCashDebits)}</td>
+                    <td className="px-3 py-2 text-right">{formatCurrency(todayCashCredits - todayCashDebits)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           )}
         </DailyModal>
 
-        <DailyModal title="QR / Bank Received — Today" show={showQrModal} onClose={() => setShowQrModal(false)} date={todayStr}
-          onDownload={() => downloadCSV(todayQrSales, `today-qr-bank-${todayStr}`, false, currentUserName)}>
-          {todayQrSales.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No QR/bank transactions today</p>
+        <DailyModal title="QR / Bank — Today" show={showQrModal} onClose={() => setShowQrModal(false)} date={todayStr}
+          onDownload={() => downloadCSV(todayBankLedger, `today-bank-${todayStr}`, true, currentUserName)}>
+          {todayBankLedger.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No bank transactions today</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-muted text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">Sale ID</th>
-                  <th className="px-3 py-2 font-medium">Time</th>
-                  <th className="px-3 py-2 font-medium">Customer</th>
-                  <th className="px-3 py-2 font-medium">Method</th>
-                  <th className="px-3 py-2 font-medium text-right">Received</th>
-                  <th className="px-3 py-2 font-medium text-right">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {todayQrSales.map((s) => (
-                  <tr key={s.id} className="hover:bg-muted/30">
-                    <td className="px-3 py-2 font-mono text-xs">{s.id?.slice(0, 8)}</td>
-                    <td className="px-3 py-2">{new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
-                    <td className="px-3 py-2">{s.customer?.name || <span className="text-muted-foreground italic">Walk-in</span>}</td>
-                    <td className="px-3 py-2 capitalize">{s.payment?.method}</td>
-                    <td className="px-3 py-2 text-right font-medium">{formatCurrency(s.payment?.receivedAmount || 0)}</td>
-                    <td className="px-3 py-2 text-right font-semibold">{formatCurrency(s.finalAmount)}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted text-left text-xs text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">Time</th>
+                    <th className="px-3 py-2 font-medium">Type</th>
+                    <th className="px-3 py-2 font-medium">Description</th>
+                    <th className="px-3 py-2 font-medium text-right">In (Cr)</th>
+                    <th className="px-3 py-2 font-medium text-right">Out (Dr)</th>
+                    <th className="px-3 py-2 font-medium text-right">Running Balance</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-border font-semibold text-sm">
-                  <td colSpan={4} className="px-3 py-2 text-right">Total</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(todayQrBank)}</td>
-                  <td className="px-3 py-2 text-right">{formatCurrency(todayQrSales.reduce((s, x) => s + x.finalAmount, 0))}</td>
-                </tr>
-              </tfoot>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {(() => {
+                    let running = 0;
+                    return todayBankLedger.map((t) => {
+                      running += t.type === "credit" ? t.amount : -t.amount;
+                      const time = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number));
+                      let typeLabel = t.referenceType?.replace(/_/g, " ") || "manual";
+                      let typeClass = "bg-gray-100 text-gray-700";
+                      if (t.referenceType === "sale") typeClass = "bg-green-100 text-green-700";
+                      else if (t.referenceType === "debtor_payment") typeClass = "bg-blue-100 text-blue-700";
+                      else if (t.referenceType === "expense") typeClass = "bg-red-100 text-red-700";
+                      else if (t.referenceType === "transfer") typeClass = "bg-orange-100 text-orange-700";
+                      else if (t.referenceType === "creditor_payment") typeClass = "bg-purple-100 text-purple-700";
+                      else if (t.referenceType === "sales_return") typeClass = "bg-pink-100 text-pink-700";
+                      return (
+                        <tr key={t.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => { setDetailQrSale(null); setShowQrModal(false); }}>
+                          <td className="px-3 py-2 whitespace-nowrap">{time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                          <td className="px-3 py-2"><span className={"inline-block px-2 py-0.5 rounded text-xs font-medium " + typeClass}>{typeLabel}</span></td>
+                          <td className="px-3 py-2 max-w-[200px] truncate">{t.description || "-"}</td>
+                          <td className="px-3 py-2 text-right font-medium text-green-600">{t.type === "credit" ? formatCurrency(t.amount) : "-"}</td>
+                          <td className="px-3 py-2 text-right font-medium text-red-600">{t.type === "debit" ? formatCurrency(t.amount) : "-"}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${running >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(running)}</td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border font-semibold text-sm">
+                    <td colSpan={3} className="px-3 py-2 text-right">Net Today</td>
+                    <td className="px-3 py-2 text-right text-green-600">{formatCurrency(todayBankCredits)}</td>
+                    <td className="px-3 py-2 text-right text-red-600">{formatCurrency(todayBankDebits)}</td>
+                    <td className="px-3 py-2 text-right">{formatCurrency(todayBankCredits - todayBankDebits)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           )}
         </DailyModal>
 
@@ -484,7 +533,7 @@ export default function AdminDashboardPage() {
               </thead>
               <tbody className="divide-y divide-border">
                 {todayDebtorSales.map((s) => (
-                  <tr key={s.id} className="hover:bg-muted/30">
+                  <tr key={s.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setDetailDebtorSale(s)}>
                     <td className="px-3 py-2 font-mono text-xs">{s.id?.slice(0, 8)}</td>
                     <td className="px-3 py-2">{new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
                     <td className="px-3 py-2">{s.customer?.name || <span className="text-muted-foreground italic">Walk-in</span>}</td>
@@ -507,39 +556,60 @@ export default function AdminDashboardPage() {
           )}
         </DailyModal>
 
-        <DailyModal title="Payments (Bank Deposit) — Today" show={showPaymentsModal} onClose={() => setShowPaymentsModal(false)} date={todayStr}
-          onDownload={() => downloadCSV(todayBankCredits, `today-payments-${todayStr}`, true, currentUserName)}>
-          {todayBankCredits.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No bank deposits today</p>
+        <DailyModal title="Bank Transactions — Today" show={showPaymentsModal} onClose={() => setShowPaymentsModal(false)} date={todayStr}
+          onDownload={() => downloadCSV(todayBankLedger, `today-bank-${todayStr}`, true, currentUserName)}>
+          {todayBankLedger.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No bank transactions today</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-muted text-left text-xs text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">Transaction ID</th>
-                  <th className="px-3 py-2 font-medium">Time</th>
-                  <th className="px-3 py-2 font-medium">Description</th>
-                  <th className="px-3 py-2 font-medium">Reference</th>
-                  <th className="px-3 py-2 font-medium text-right">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {todayBankCredits.map((t) => (
-                  <tr key={t.id} className="hover:bg-muted/30">
-                    <td className="px-3 py-2 font-mono text-xs">{t.id?.slice(0, 8)}</td>
-                    <td className="px-3 py-2">{new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
-                    <td className="px-3 py-2 max-w-[180px] truncate">{t.description}</td>
-                    <td className="px-3 py-2 text-xs capitalize">{t.referenceType?.replace("_", " ") || "-"}</td>
-                    <td className="px-3 py-2 text-right font-semibold text-green-600">+{formatCurrency(t.amount)}</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted text-left text-xs text-muted-foreground">
+                    <th className="px-3 py-2 font-medium">Time</th>
+                    <th className="px-3 py-2 font-medium">Type</th>
+                    <th className="px-3 py-2 font-medium">Description</th>
+                    <th className="px-3 py-2 font-medium text-right">In (Cr)</th>
+                    <th className="px-3 py-2 font-medium text-right">Out (Dr)</th>
+                    <th className="px-3 py-2 font-medium text-right">Running Balance</th>
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-border font-semibold text-sm">
-                  <td colSpan={4} className="px-3 py-2 text-right">Total</td>
-                  <td className="px-3 py-2 text-right text-green-600">{formatCurrency(todayPaymentsTotal)}</td>
-                </tr>
-              </tfoot>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {(() => {
+                    let running = 0;
+                    return todayBankLedger.map((t) => {
+                      running += t.type === "credit" ? t.amount : -t.amount;
+                      const time = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number));
+                      let typeLabel = t.referenceType?.replace(/_/g, " ") || "manual";
+                      let typeClass = "bg-gray-100 text-gray-700";
+                      if (t.referenceType === "sale") typeClass = "bg-green-100 text-green-700";
+                      else if (t.referenceType === "debtor_payment") typeClass = "bg-blue-100 text-blue-700";
+                      else if (t.referenceType === "expense") typeClass = "bg-red-100 text-red-700";
+                      else if (t.referenceType === "transfer") typeClass = "bg-orange-100 text-orange-700";
+                      else if (t.referenceType === "creditor_payment") typeClass = "bg-purple-100 text-purple-700";
+                      else if (t.referenceType === "sales_return") typeClass = "bg-pink-100 text-pink-700";
+                      return (
+                        <tr key={t.id} className="hover:bg-muted/30 cursor-pointer" onClick={() => setDetailPayment(t)}>
+                          <td className="px-3 py-2 whitespace-nowrap">{time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                          <td className="px-3 py-2"><span className={"inline-block px-2 py-0.5 rounded text-xs font-medium " + typeClass}>{typeLabel}</span></td>
+                          <td className="px-3 py-2 max-w-[200px] truncate">{t.description || "-"}</td>
+                          <td className="px-3 py-2 text-right font-medium text-green-600">{t.type === "credit" ? formatCurrency(t.amount) : "-"}</td>
+                          <td className="px-3 py-2 text-right font-medium text-red-600">{t.type === "debit" ? formatCurrency(t.amount) : "-"}</td>
+                          <td className={`px-3 py-2 text-right font-semibold ${running >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(running)}</td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-border font-semibold text-sm">
+                    <td colSpan={3} className="px-3 py-2 text-right">Net Today</td>
+                    <td className="px-3 py-2 text-right text-green-600">{formatCurrency(todayBankCredits)}</td>
+                    <td className="px-3 py-2 text-right text-red-600">{formatCurrency(todayBankDebits)}</td>
+                    <td className="px-3 py-2 text-right">{formatCurrency(todayBankCredits - todayBankDebits)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
           )}
         </DailyModal>
 
@@ -719,6 +789,37 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Row Detail Modals */}
+      <RowDetailModal show={!!detailSale} onClose={() => setDetailSale(null)} title="Sale Details">
+        {detailSale && (
+          <SaleDetailContent sale={detailSale} />
+        )}
+      </RowDetailModal>
+
+      <RowDetailModal show={!!detailCashSale} onClose={() => setDetailCashSale(null)} title="Cash Sale Details">
+        {detailCashSale && (
+          <SaleDetailContent sale={detailCashSale} />
+        )}
+      </RowDetailModal>
+
+      <RowDetailModal show={!!detailQrSale} onClose={() => setDetailQrSale(null)} title="QR / Bank Sale Details">
+        {detailQrSale && (
+          <SaleDetailContent sale={detailQrSale} />
+        )}
+      </RowDetailModal>
+
+      <RowDetailModal show={!!detailDebtorSale} onClose={() => setDetailDebtorSale(null)} title="Credit Sale Details">
+        {detailDebtorSale && (
+          <SaleDetailContent sale={detailDebtorSale} />
+        )}
+      </RowDetailModal>
+
+      <RowDetailModal show={!!detailPayment} onClose={() => setDetailPayment(null)} title="Payment Details">
+        {detailPayment && (
+          <PaymentDetailContent transaction={detailPayment} />
+        )}
+      </RowDetailModal>
     </AdminLayout>
   );
 }
@@ -767,6 +868,172 @@ function DailyModal({ title, show, onClose, children, date, onDownload }: {
           {children}
         </div>
       </div>
+    </div>
+  );
+}
+
+function RowDetailModal({ show, onClose, title, children }: {
+  show: boolean; onClose: () => void; title: string; children: React.ReactNode;
+}) {
+  if (!show) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+          <h2 className="text-base font-bold text-secondary">{title}</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 p-4">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function fmtDate(d: unknown) {
+  const ms = (d as any)?.seconds ? (d as any).seconds * 1000 : (d as number);
+  return new Date(ms).toLocaleString();
+}
+
+function SaleDetailContent({ sale }: { sale: Sale }) {
+  return (
+    <div className="space-y-4 text-sm">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <span className="text-muted-foreground block text-xs">Sale ID</span>
+          <span className="font-mono text-xs break-all">{sale.id}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Date / Time</span>
+          <span>{fmtDate(sale.saleDate)}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Customer</span>
+          <span>{sale.customer?.name || <span className="italic text-muted-foreground">Walk-in</span>}</span>
+          {sale.customer?.phone && <span className="text-muted-foreground ml-1">({sale.customer.phone})</span>}
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Sale Type</span>
+          <span className="capitalize">{sale.saleType}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Payment Method</span>
+          <span className="capitalize">{sale.payment?.method || "-"}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Recorded By</span>
+          <span>{sale.recordedByName || sale.recordedBy || "-"}</span>
+        </div>
+      </div>
+      {sale.items && sale.items.length > 0 && (
+        <div>
+          <span className="text-muted-foreground block text-xs mb-1 font-medium">Items</span>
+          <table className="w-full text-xs border border-border rounded-lg">
+            <thead>
+              <tr className="bg-muted text-left text-muted-foreground">
+                <th className="px-2 py-1">Product</th>
+                <th className="px-2 py-1 text-right">Qty</th>
+                <th className="px-2 py-1 text-right">Unit Price</th>
+                <th className="px-2 py-1 text-right">Subtotal</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {sale.items.map((item, i) => (
+                <tr key={i}>
+                  <td className="px-2 py-1">{item.productName}</td>
+                  <td className="px-2 py-1 text-right">{item.quantity}</td>
+                  <td className="px-2 py-1 text-right">{formatCurrency(item.unitPrice)}</td>
+                  <td className="px-2 py-1 text-right">{formatCurrency(item.subtotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
+        <div>
+          <span className="text-muted-foreground block text-xs">Total Amount</span>
+          <span>{formatCurrency(sale.totalAmount)}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Discount</span>
+          <span className={sale.discountAmount > 0 ? "text-red-500" : ""}>{sale.discountAmount > 0 ? `-${formatCurrency(sale.discountAmount)}` : "-"}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Final Amount</span>
+          <span className="font-semibold">{formatCurrency(sale.finalAmount)}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Received</span>
+          <span className="text-green-600 font-medium">{formatCurrency(sale.payment?.receivedAmount || 0)}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Balance Due</span>
+          <span className={sale.payment?.balanceDue > 0 ? "text-red-500 font-medium" : ""}>{sale.payment?.balanceDue > 0 ? formatCurrency(sale.payment.balanceDue) : "-"}</span>
+        </div>
+        {sale.couponIssued && (
+          <div>
+            <span className="text-muted-foreground block text-xs">Coupon Issued</span>
+            <span>{sale.couponIssued.code} ({formatCurrency(sale.couponIssued.discountValue)})</span>
+          </div>
+        )}
+      </div>
+      {sale.notes && (
+        <div className="pt-2 border-t border-border">
+          <span className="text-muted-foreground block text-xs">Notes</span>
+          <span>{sale.notes}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PaymentDetailContent({ transaction }: { transaction: AccountTransaction }) {
+  return (
+    <div className="space-y-3 text-sm">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <span className="text-muted-foreground block text-xs">Transaction ID</span>
+          <span className="font-mono text-xs break-all">{transaction.id}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Date / Time</span>
+          <span>{fmtDate(transaction.date)}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Amount</span>
+          <span className="font-semibold text-green-600">{formatCurrency(transaction.amount)}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Type</span>
+          <span className="capitalize">{transaction.type}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Reference Type</span>
+          <span className="capitalize">{transaction.referenceType?.replace("_", " ") || "-"}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Reference ID</span>
+          <span className="font-mono text-xs">{transaction.referenceId?.slice(0, 12) || "-"}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Account ID</span>
+          <span className="font-mono text-xs">{transaction.accountId}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-xs">Recorded By</span>
+          <span>{transaction.recordedBy || "-"}</span>
+        </div>
+      </div>
+      {transaction.description && (
+        <div className="pt-2 border-t border-border">
+          <span className="text-muted-foreground block text-xs">Description</span>
+          <span>{transaction.description}</span>
+        </div>
+      )}
     </div>
   );
 }

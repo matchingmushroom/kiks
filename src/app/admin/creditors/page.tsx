@@ -7,6 +7,7 @@ import { Creditor } from "@/types";
 import { formatCurrency, formatDate, formatDateTime, toDate, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { resolveAccount } from "@/lib/accounts";
+import { createJournalEntry, buildCreditorPaymentJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   updateDoc, doc, Timestamp, arrayUnion, addDoc, collection,
@@ -103,6 +104,11 @@ export default function AdminCreditorsPage() {
         recordedBy: user?.uid || "",
         createdAt: Timestamp.fromDate(new Date()),
       });
+
+      try {
+        const cje = buildCreditorPaymentJournal(creditor.supplierName, amount, paymentForm.method, creditor.id, user?.uid || "", profile?.displayName || "");
+        await createJournalEntry(cje);
+      } catch (e) { console.error("Creditor payment journal entry failed", e); }
 
       // Sync payment to linked purchase(s)
       let syncErrMsg: string | null = null;

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore } from "@/hooks/useFirestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { Sale, Purchase, Expense, InventoryLog } from "@/types";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import { downloadBlob } from "@/lib/export";
@@ -14,7 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type ReportTab = "sales" | "purchases" | "expenses" | "inventory";
+type ReportTab = "sales" | "purchases" | "expenses" | "inventory" | "trial" | "aging";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -244,34 +246,40 @@ export default function ReportsPage() {
           <TabButton tab="purchases" label="Purchases" />
           <TabButton tab="expenses" label="Expenses" />
           <TabButton tab="inventory" label="Inventory" />
+          <TabButton tab="trial" label="Trial Balance" />
+          <TabButton tab="aging" label="Aging" />
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">From</label>
-            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
-              className="px-3 py-2 border border-border rounded-lg text-sm" />
+        {!["trial", "aging"].includes(activeTab) && (
+          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">From</label>
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+                className="px-3 py-2 border border-border rounded-lg text-sm" />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1">To</label>
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+                className="px-3 py-2 border border-border rounded-lg text-sm" />
+            </div>
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm" />
+            </div>
           </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">To</label>
-            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
-              className="px-3 py-2 border border-border rounded-lg text-sm" />
-          </div>
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm" />
-          </div>
-        </div>
+        )}
 
         {/* Summary */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {activeTab === "sales" && <SummaryCard label="Total Sales" value={formatNumber(salesTotal)} count={`${filteredSales.length} transactions`} />}
-          {activeTab === "purchases" && <SummaryCard label="Total Purchases" value={formatNumber(purchasesTotal)} count={`${filteredPurchases.length} transactions`} />}
-          {activeTab === "expenses" && <SummaryCard label="Total Expenses" value={formatNumber(expensesTotal)} count={`${filteredExpenses.length} transactions`} />}
-          {activeTab === "inventory" && <SummaryCard label="Total Changes" value={`${filteredLogs.length}`} count={`${filteredLogs.reduce((s, l) => s + Math.abs(l.quantityChange), 0)} units moved`} />}
-        </div>
+        {!["trial", "aging"].includes(activeTab) && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {activeTab === "sales" && <SummaryCard label="Total Sales" value={formatNumber(salesTotal)} count={`${filteredSales.length} transactions`} />}
+            {activeTab === "purchases" && <SummaryCard label="Total Purchases" value={formatNumber(purchasesTotal)} count={`${filteredPurchases.length} transactions`} />}
+            {activeTab === "expenses" && <SummaryCard label="Total Expenses" value={formatNumber(expensesTotal)} count={`${filteredExpenses.length} transactions`} />}
+            {activeTab === "inventory" && <SummaryCard label="Total Changes" value={`${filteredLogs.length}`} count={`${filteredLogs.reduce((s, l) => s + Math.abs(l.quantityChange), 0)} units moved`} />}
+          </div>
+        )}
 
         {/* Report Header */}
         <div className="text-xs text-muted-foreground italic">
@@ -411,6 +419,9 @@ export default function ReportsPage() {
           </div>
         )}
 
+        {activeTab === "trial" && <FinancialReportSection type="trial" user={user} />}
+        {activeTab === "aging" && <FinancialReportSection type="aging" user={user} />}
+
         {/* Report Footer */}
         <div className="text-[11px] text-muted-foreground border-t border-border pt-3">
           {reportFooter}
@@ -508,6 +519,122 @@ export default function ReportsPage() {
 }
 
 // ── Sub-components ──
+
+function FinancialReportSection({ type, user }: { type: string; user: any }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [gasUrl, setGasUrl] = useState<string>("");
+  const [detailRow, setDetailRow] = useState<any>(null);
+
+  useEffect(() => {
+    getDoc(doc(db, "shop_settings", "emailBackupConfig")).then((snap) => {
+      if (snap.exists()) setGasUrl((snap.data() as any).gasWebhookUrl || "");
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!gasUrl) { setError("GAS Webhook URL not configured in Settings"); return; }
+    setLoading(true);
+    setError(null);
+    setData(null);
+    const actionMap: Record<string, string> = {
+      trial: "computeTrialBalance", aging: "computeAgedReceivables",
+    };
+    const action = actionMap[type];
+    if (!action) { setLoading(false); return; }
+    fetch(gasUrl, {
+      method: "POST",
+      body: JSON.stringify({ action, start: "1970-01-01", end: new Date().toISOString().slice(0, 10) }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        return res.json();
+      })
+      .then((result) => { setData(result); setLoading(false); })
+      .catch((e) => { console.error("Financial report fetch failed:", e); setError(e?.message || "Unknown error"); setLoading(false); });
+  }, [type, gasUrl]);
+
+  const exportFinancialCSV = () => {
+    if (!data) return;
+    const headers = data.headers || Object.keys(data.data?.[0] || {});
+    const rows = (data.data || []).map((row: any) => headers.map((h: string) => `"${String(row[h] || "").replace(/"/g, '""')}"`).join(","));
+    const csv = `${headers.join(",")}\n${rows.join("\n")}`;
+    downloadBlob(new Blob([csv], { type: "text/csv" }), `${type}-report.csv`);
+  };
+
+  const exportFinancialPDF = async () => {
+    if (!data) return;
+    const { default: jsPDF } = await import("jspdf");
+    const { default: autoTable } = await import("jspdf-autotable");
+    const doc = new jsPDF("landscape", "mm", "a4");
+    doc.setFontSize(14);
+    doc.text(`${type.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())} Report`, 14, 20);
+    doc.setFontSize(8);
+    doc.text(`Generated by ${user?.displayName || user?.email || "Unknown"} | ${new Date().toLocaleString()}`, 14, 26);
+    const headers = data.headers || Object.keys(data.data?.[0] || {});
+    const rows = (data.data || []).map((row: any) => headers.map((h: string) => String(row[h] || "")));
+    autoTable(doc, { head: [headers], body: rows, startY: 30, styles: { fontSize: 7 }, theme: "striped" });
+    doc.save(`${type}-report.pdf`);
+  };
+
+  if (loading) return <p className="text-sm text-muted-foreground py-8 text-center">Loading report...</p>;
+  if (error) return (
+    <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+      <p className="text-sm text-red-700 font-medium">Report fetch failed</p>
+      <p className="text-xs text-red-600 mt-1">{error}</p>
+      <p className="text-xs text-muted-foreground mt-2">Webhook URL: {gasUrl || "—"}</p>
+      <p className="text-xs text-muted-foreground">Ensure your GAS script is deployed with the required actions.</p>
+    </div>
+  );
+  if (!data) return <p className="text-sm text-muted-foreground py-8 text-center">No data available.</p>;
+
+  const headers = data.headers || Object.keys(data.data?.[0] || []);
+  const rows = data.data || [];
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <Button onClick={exportFinancialCSV} variant="outline" size="sm"><FileDown className="h-4 w-4 mr-1" /> CSV</Button>
+        <Button onClick={exportFinancialPDF} variant="outline" size="sm"><FileText className="h-4 w-4 mr-1" /> PDF</Button>
+      </div>
+      <div className="bg-white border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted text-left text-xs text-muted-foreground">
+                {headers.map((h: string) => <th key={h} className="px-4 py-3 font-medium">{h}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.length === 0 ? (
+                <tr><td colSpan={headers.length} className="px-4 py-8 text-center text-muted-foreground">No data</td></tr>
+              ) : rows.map((row: any, i: number) => (
+                <tr key={i} onClick={() => setDetailRow(row)} className="hover:bg-muted/30 cursor-pointer transition-colors">
+                  {headers.map((h: string) => (
+                    <td key={h} className="px-4 py-2">{row[h] ?? ""}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {detailRow && (
+        <DetailModal title={`${type === "trial" ? "Trial Balance" : "Aging"} - Row Details`} onClose={() => setDetailRow(null)}>
+          <div className="space-y-2 text-sm">
+            {headers.map((h: string) => (
+              <div key={h} className="flex justify-between items-start py-1 border-b border-border last:border-0">
+                <span className="text-muted-foreground text-xs shrink-0 mr-4">{h}</span>
+                <span className="text-right text-secondary font-medium">{detailRow[h] ?? ""}</span>
+              </div>
+            ))}
+          </div>
+        </DetailModal>
+      )}
+    </div>
+  );
+}
 
 function SummaryCard({ label, value, count }: { label: string; value: string; count: string }) {
   return (

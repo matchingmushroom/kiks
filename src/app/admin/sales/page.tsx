@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, formatDateTime, generateCouponCode, toDate,
 import { toBS, getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
+import { createJournalEntry, buildSalesReturnJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Button } from "@/components/ui/button";
@@ -588,6 +589,11 @@ function SalesContent() {
           recordedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
+
+        try {
+          const sje = buildSalesReturnJournal(returnSale, refundAmount, user?.uid || "", profile?.displayName || "");
+          await createJournalEntry(sje);
+        } catch (e) { console.error("Sales return journal entry failed", e); }
 
         // Adjust debtor balance for the credit portion of returned items
         const creditPortion = returnFullPrice * returnCreditRatio;

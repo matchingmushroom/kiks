@@ -5,7 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit, useDataCache } from "@/hooks/useFirestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Product, ProductBadge, Category } from "@/types";
-import { formatCurrency, compressImageUnder200KB } from "@/lib/utils";
+import { formatCurrency, formatDate, compressImageUnder200KB } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
 import {
   setDoc,
@@ -68,6 +68,7 @@ export default function AdminProductsPage() {
   const [importing, setImporting] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -670,27 +671,27 @@ export default function AdminProductsPage() {
             {filtered.map((p) => {
               const catName = categories.find((c) => c.id === p.categoryId)?.name || "—";
               return (
-                <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                <div key={p.id} onClick={() => setDetailProduct(p)} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-secondary text-sm truncate">{p.name}</p>
                       <p className="text-xs text-muted-foreground">{catName}{p.brand ? ` • ${p.brand}` : ""}</p>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <button onClick={() => toggleField(p.id, "isActive", !p.isActive)}
+                      <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isActive", !p.isActive); }}
                         className={`p-1.5 rounded ${p.isActive ? "text-green-600" : "text-muted-foreground"}`}
                         title={p.isActive ? "Active" : "Inactive"}>
                         {p.isActive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                       </button>
-                      <button onClick={() => toggleField(p.id, "isFeatured", !p.isFeatured)}
+                      <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isFeatured", !p.isFeatured); }}
                         className={`p-1.5 rounded ${p.isFeatured ? "text-amber-500" : "text-muted-foreground"}`}
                         title={p.isFeatured ? "Featured" : "Not featured"}>
                         <Star className={`h-3.5 w-3.5 ${p.isFeatured ? "fill-amber-500" : ""}`} />
                       </button>
-                      <button onClick={() => openEdit(p)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                      <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                         <Edit2 className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
+                      <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id, p.name); }} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -730,7 +731,7 @@ export default function AdminProductsPage() {
                 {filtered.map((p) => {
                   const catName = categories.find((c) => c.id === p.categoryId)?.name || "—";
                   return (
-                    <tr key={p.id} className="hover:bg-muted/30">
+                    <tr key={p.id} onClick={() => setDetailProduct(p)} className="hover:bg-muted/30 cursor-pointer">
                       <td className="px-4 py-2.5 text-sm font-medium text-secondary">{p.name}</td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">{catName}</td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.brand || "—"}</td>
@@ -745,16 +746,16 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="px-4 py-2.5 text-sm text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => toggleField(p.id, "isActive", !p.isActive)}
+                          <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isActive", !p.isActive); }}
                             className={`p-1.5 rounded ${p.isActive ? "text-green-600" : "text-muted-foreground"}`} title={p.isActive ? "Active" : "Inactive"}>
                             {p.isActive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                           </button>
-                          <button onClick={() => toggleField(p.id, "isFeatured", !p.isFeatured)}
+                          <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isFeatured", !p.isFeatured); }}
                             className={`p-1.5 rounded ${p.isFeatured ? "text-amber-500" : "text-muted-foreground"}`} title={p.isFeatured ? "Featured" : "Not featured"}>
                             <Star className={`h-3.5 w-3.5 ${p.isFeatured ? "fill-amber-500" : ""}`} />
                           </button>
-                          <button onClick={() => openEdit(p)} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded"><Edit2 className="h-3.5 w-3.5" /></button>
-                          <button onClick={() => handleDelete(p.id, p.name)} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="h-3.5 w-3.5" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded"><Edit2 className="h-3.5 w-3.5" /></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id, p.name); }} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
                       </td>
                     </tr>
@@ -764,7 +765,68 @@ export default function AdminProductsPage() {
             </table>
           </div>
         )}
+
+        {detailProduct && (
+          <DetailModal title="Product Details" onClose={() => setDetailProduct(null)}>
+            <div className="space-y-3 text-sm">
+              <Row label="Name" value={detailProduct.name} />
+              <Row label="Category" value={categories.find((c) => c.id === detailProduct.categoryId)?.name || "—"} />
+              <Row label="Brand" value={detailProduct.brand || "—"} />
+              <Row label="Price" value={`Rs. ${detailProduct.price}`} />
+              <Row label="Cost Price" value={detailProduct.costPrice ? `Rs. ${detailProduct.costPrice}` : "—"} />
+              <Row label="Stock" value={String(detailProduct.quantityInStock)} />
+              <Row label="SKU" value={detailProduct.sku || "—"} />
+              <Row label="Base Material" value={detailProduct.baseMaterial || "—"} />
+              <Row label="Purity" value={detailProduct.purity || "—"} />
+              <Row label="Weight" value={detailProduct.weight ? `${detailProduct.weight}g` : "—"} />
+              <Row label="Plating" value={detailProduct.plating || "—"} />
+              <Row label="Badge" value={detailProduct.badge && detailProduct.badge !== "none" ? detailProduct.badge.replace("_", " ") : "None"} />
+              <Row label="Status" value={detailProduct.isActive ? "Active" : "Inactive"} />
+              <Row label="Featured" value={detailProduct.isFeatured ? "Yes" : "No"} />
+              {detailProduct.description && <Row label="Description" value={detailProduct.description} />}
+              {detailProduct.images.filter(Boolean).length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1 font-medium">Images</p>
+                  <div className="flex flex-wrap gap-2">
+                    {detailProduct.images.filter(Boolean).map((url, i) => (
+                      <img key={i} src={url} alt="" className="w-20 h-20 object-cover rounded border border-border"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none" }} />
+                    ))}
+                  </div>
+                </div>
+              )}
+              <Row label="Created" value={formatDate(detailProduct.createdAt)} />
+            </div>
+          </DetailModal>
+        )}
       </div>
     </AdminLayout>
+  );
+}
+
+function Row({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between items-start">
+      <span className="text-muted-foreground text-xs shrink-0 mr-4">{label}</span>
+      <span className="text-right text-secondary">{value}</span>
+    </div>
+  );
+}
+
+function DetailModal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
+          <h2 className="text-base font-bold text-secondary">{title}</h2>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          {children}
+        </div>
+      </div>
+    </div>
   );
 }
