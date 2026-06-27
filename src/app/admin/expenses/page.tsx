@@ -81,6 +81,9 @@ export default function AdminExpensesPage() {
     constraints: [orderBy("date", "desc"), limit(200)],
     realtime: false, cache: true,
   });
+  const [openingCash, setOpeningCash] = useState(0);
+  const [openingBank, setOpeningBank] = useState(0);
+  const [openingSaving, setOpeningSaving] = useState(false);
   const [showTransferForm, setShowTransferForm] = useState(false);
   const [editingTransferId, setEditingTransferId] = useState<string | null>(null);
   const [transferForm, setTransferForm] = useState({
@@ -120,6 +123,31 @@ export default function AdminExpensesPage() {
     const count = templates.filter((t) => t.isActive && t.nextDueDate <= now).length;
     setDueCount(count);
   }, [templates]);
+
+  // Load opening balance for today
+  useEffect(() => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    getDoc(doc(db, "dailyBalances", todayKey)).then((snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setOpeningCash(d.cash || 0);
+        setOpeningBank(d.bank || 0);
+      }
+    }).catch(() => {});
+  }, []);
+
+  const saveOpeningBalance = async () => {
+    setOpeningSaving(true);
+    try {
+      const todayKey = new Date().toISOString().slice(0, 10);
+      await setDoc(doc(db, "dailyBalances", todayKey), {
+        cash: Number(openingCash),
+        bank: Number(openingBank),
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+    } catch (e) { console.error("Failed to save opening balance", e); }
+    setOpeningSaving(false);
+  };
 
   const filtered = useMemo(() => {
     let result = expenses.filter((e) => {
@@ -654,6 +682,34 @@ export default function AdminExpensesPage() {
 
         {tab === "transfers" && (
           <>
+            {/* Opening Balance */}
+            <div className="bg-white border border-border rounded-xl p-4 mb-4 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-secondary flex items-center gap-2">
+                  <ArrowRightLeft className="h-4 w-4 text-primary" />
+                  Opening Balance for Today
+                </h3>
+                <button onClick={saveOpeningBalance} disabled={openingSaving}
+                  className="px-3 py-1.5 text-xs font-medium bg-primary text-white rounded-lg hover:bg-primary/90 disabled:opacity-50">
+                  {openingSaving ? "Saving..." : "Save"}
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Cash in Hand Opening (NPR)</label>
+                  <input type="number" value={openingCash || ""}
+                    onChange={(e) => setOpeningCash(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Bank Account Opening (NPR)</label>
+                  <input type="number" value={openingBank || ""}
+                    onChange={(e) => setOpeningBank(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+              </div>
+            </div>
+
             {showTransferForm && (
               <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
                 <div className="flex items-center justify-between mb-4">

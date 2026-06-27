@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -8,6 +8,8 @@ import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Sale, Product, Debtor, Order, Category, AccountTransaction } from "@/types";
 import { formatCurrency, formatNumber, toDate } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
+import { getDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import Link from "next/link";
 import {
   Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
@@ -68,7 +70,19 @@ export default function AdminDashboardPage() {
   });
 
   const currentUserName = profile?.displayName || "";
+  const [openingCash, setOpeningCash] = useState(0);
+  const [openingBank, setOpeningBank] = useState(0);
   const isStaff = profile?.role === "staff";
+  useEffect(() => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    getDoc(doc(db, "dailyBalances", todayKey)).then((snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setOpeningCash(d.cash || 0);
+        setOpeningBank(d.bank || 0);
+      }
+    }).catch(() => {});
+  }, []);
   const mySales = isStaff ? sales.filter((s) => s.recordedBy === profile?.uid) : sales;
   const myOrders = isStaff ? orders.filter((o) => o.processedBy === profile?.uid) : orders;
 
@@ -117,6 +131,27 @@ export default function AdminDashboardPage() {
     return d >= todayStart && d < todayEnd && t.accountId === "bank_account" && t.type === "credit";
   });
   const todayPaymentsTotal = todayBankCredits.reduce((s, t) => s + t.amount, 0);
+
+  // Transfer effects on cash and bank
+  const todayTransfersTx = myTransactions.filter((t) => {
+    const d = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number)).getTime();
+    return d >= todayStart && d < todayEnd && t.referenceType === "transfer";
+  });
+  const todayCashTransferIn = todayTransfersTx
+    .filter((t) => t.accountId === "cash_in_hand" && t.type === "credit")
+    .reduce((s, t) => s + t.amount, 0);
+  const todayCashTransferOut = todayTransfersTx
+    .filter((t) => t.accountId === "cash_in_hand" && t.type === "debit")
+    .reduce((s, t) => s + t.amount, 0);
+  const todayBankTransferIn = todayTransfersTx
+    .filter((t) => t.accountId === "bank_account" && t.type === "credit")
+    .reduce((s, t) => s + t.amount, 0);
+  const todayBankTransferOut = todayTransfersTx
+    .filter((t) => t.accountId === "bank_account" && t.type === "debit")
+    .reduce((s, t) => s + t.amount, 0);
+
+  const todayCashNet = todayCash + todayCashTransferIn - todayCashTransferOut;
+  const todayQrBankNet = todayQrBank + todayBankTransferIn - todayBankTransferOut;
 
   const fytdStart = new Date(getFiscalYearStartEpoch()).toISOString().slice(0, 10);
   const fytdSales = mySales
@@ -269,8 +304,8 @@ export default function AdminDashboardPage() {
             />
             <DailyCard
               title="Cash In Hand"
-              value={formatCurrency(todayCash)}
-              sub={`${todayCashSales.length} transaction${todayCashSales.length !== 1 ? "s" : ""}`}
+              value={formatCurrency(todayCashNet)}
+              sub={`Op: ${formatCurrency(openingCash)} | Sales: ${todayCashSales.length} txns${todayCashTransferOut > 0 ? ` | Out: -${formatCurrency(todayCashTransferOut)}` : ""}${todayCashTransferIn > 0 ? ` | In: +${formatCurrency(todayCashTransferIn)}` : ""}`}
               gradient="from-green-50 to-green-100/50"
               border="border-green-200"
               onClick={() => setShowCashModal(true)}
@@ -278,8 +313,8 @@ export default function AdminDashboardPage() {
             />
             <DailyCard
               title="QR / Bank Received"
-              value={formatCurrency(todayQrBank)}
-              sub={`${todayQrSales.length} transaction${todayQrSales.length !== 1 ? "s" : ""}`}
+              value={formatCurrency(todayQrBankNet)}
+              sub={`Op: ${formatCurrency(openingBank)} | Sales: ${todayQrSales.length} txns${todayBankTransferOut > 0 ? ` | Out: -${formatCurrency(todayBankTransferOut)}` : ""}${todayBankTransferIn > 0 ? ` | In: +${formatCurrency(todayBankTransferIn)}` : ""}`}
               gradient="from-blue-50 to-blue-100/50"
               border="border-blue-200"
               onClick={() => setShowQrModal(true)}
