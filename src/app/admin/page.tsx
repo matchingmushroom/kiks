@@ -193,6 +193,7 @@ export default function AdminDashboardPage() {
           </button>
         </div>
 
+        {!isStaff && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
           {stats.flatMap((stat) => {
             const cards: React.ReactNode[] = [];
@@ -226,6 +227,7 @@ export default function AdminDashboardPage() {
             return cards;
           })}
         </div>
+        )}
 
         {/* Daily Report */}
         <div className="bg-white rounded-xl border border-border p-4 shadow-sm mb-6">
