@@ -38,7 +38,7 @@ export default function AdminDashboardPage() {
   const useBs = !!settings.useBsCalendar;
   const { data: sales } = useFirestore<Sale>("sales", {
     constraints: [orderBy("saleDate", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true, cache: false,
   });
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc"), limit(200)],
