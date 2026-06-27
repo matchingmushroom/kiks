@@ -203,6 +203,7 @@ export default function POSPage() {
       const cName = walkin ? "Walk-in Customer" : customerName;
       const cPhone = walkin ? "" : customerPhone;
       const saleType = balanceDue > 0 ? (receivedAmount > 0 ? "partial" : "credit") : "cash";
+      const effectiveReceived = paymentMode === "cash" ? finalAmount : receivedAmount;
 
       const saleId = await generateId("SALE");
       await setDoc(doc(db, "sales", saleId), {
@@ -221,7 +222,7 @@ export default function POSPage() {
         totalAmount,
         discountAmount: discount,
         finalAmount,
-        payment: { method: "cash", receivedAmount, balanceDue },
+        payment: { method: "cash", receivedAmount: effectiveReceived, balanceDue },
         warranty: { period: "", terms: "", startDate: Timestamp.fromDate(new Date()), endDate: Timestamp.fromDate(new Date()) },
         couponIssued: appliedCoupon ? { code: appliedCoupon.code, discountValue: appliedCoupon.discountValue, discountType: appliedCoupon.discountType } : null,
         notes: walkin ? "POS sale - Walk-in" : "POS sale",
@@ -259,7 +260,7 @@ export default function POSPage() {
           }),
           subtotal: totalAmount, discountAmount: discount, totalAmount: finalAmount,
           paymentStatus: balanceDue > 0 ? "partial" : "full",
-          cashReceived: receivedAmount, balanceDue,
+          cashReceived: effectiveReceived, balanceDue,
           warranty: { period: "", terms: "" },
           notes: "",
           termsAndConditions: "Goods once sold cannot be returned.",
@@ -291,9 +292,9 @@ export default function POSPage() {
       }
 
       try {
-        if (receivedAmount > 0) {
+        if (effectiveReceived > 0) {
           await addDoc(collection(db, "accountTransactions"), {
-            accountId: resolveAccount("cash"), type: "credit", amount: receivedAmount,
+            accountId: resolveAccount("cash"), type: "credit", amount: effectiveReceived,
             description: `POS sale to ${cName}`, date: Timestamp.fromDate(new Date()),
             referenceType: "sale", referenceId: saleId, recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
           });
@@ -305,11 +306,11 @@ export default function POSPage() {
           const debtorId = await generateId("DEBT");
           await setDoc(doc(db, "debtors", debtorId), {
             customerName: cName, customerPhone: cPhone, customerAddress: "",
-            totalAmount: finalAmount, amountPaid: receivedAmount, balanceDue,
+            totalAmount: finalAmount, amountPaid: effectiveReceived, balanceDue,
             dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
             orderIds: [saleId], status: "active",
-            paymentHistory: receivedAmount > 0
-              ? [{ date: Timestamp.fromDate(new Date()), amount: receivedAmount, method: "cash", notes: "Initial payment" }]
+            paymentHistory: effectiveReceived > 0
+              ? [{ date: Timestamp.fromDate(new Date()), amount: effectiveReceived, method: "cash", notes: "Initial payment" }]
               : [],
             createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
           });
