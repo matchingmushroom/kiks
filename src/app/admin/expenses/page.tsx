@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
-import { Expense, ExpenseHead, RecurringExpenseTemplate } from "@/types";
+import { Expense, ExpenseHead, RecurringExpenseTemplate, Transfer } from "@/types";
 import { formatCurrency, formatDate, toDate, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
@@ -16,7 +16,7 @@ import {
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
-  Plus, Search, X, Save, Trash2, Edit2, Repeat, AlertCircle, LayoutGrid, List, Download, Mail,
+  Plus, Search, X, Save, Trash2, Edit2, Repeat, AlertCircle, LayoutGrid, List, Download, Mail, ArrowRightLeft,
 } from "lucide-react";
 import { exportExpensesCSV, downloadBlob } from "@/lib/export";
 
@@ -66,7 +66,7 @@ export default function AdminExpensesPage() {
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [headFilter, setHeadFilter] = useState("");
-  const [tab, setTab] = useState<"expenses" | "recurring">("expenses");
+  const [tab, setTab] = useState<"expenses" | "recurring" | "transfers">("expenses");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -77,6 +77,23 @@ export default function AdminExpensesPage() {
   const [archiveResults, setArchiveResults] = useState<Expense[] | null>(null);
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
+  const { data: transfers } = useFirestore<Transfer>("transfers", {
+    constraints: [orderBy("date", "desc"), limit(200)],
+    realtime: false, cache: true,
+  });
+  const [showTransferForm, setShowTransferForm] = useState(false);
+  const [editingTransferId, setEditingTransferId] = useState<string | null>(null);
+  const [transferForm, setTransferForm] = useState({
+    type: "bank_deposit" as "bank_deposit" | "advance",
+    amount: 0,
+    description: "",
+    date: new Date().toISOString().slice(0, 10),
+    fromAccountId: "cash_in_hand",
+    toAccountId: "bank_account",
+    recipientName: "",
+    recipientPhone: "",
+    notes: "",
+  });
 
   const searchArchive = async () => {
     if (!expenseSettings.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
@@ -298,6 +315,72 @@ export default function AdminExpensesPage() {
     await deleteDoc(doc(db, "recurringExpenses", id));
   };
 
+  const saveTransfer = async () => {
+    if (!transferForm.amount || !transferForm.description) return;
+    setSaving(true);
+    try {
+      const transferId = await generateId("TRF");
+      const now = Timestamp.fromDate(new Date());
+      const dateTs = Timestamp.fromDate(new Date(transferForm.date));
+      await setDoc(doc(db, "transfers", transferId), {
+        type: transferForm.type,
+        amount: Number(transferForm.amount),
+        description: transferForm.description,
+        date: dateTs,
+        fromAccountId: transferForm.fromAccountId,
+        toAccountId: transferForm.type === "bank_deposit" ? transferForm.toAccountId : "",
+        recipientName: transferForm.type === "advance" ? transferForm.recipientName : "",
+        recipientPhone: transferForm.type === "advance" ? transferForm.recipientPhone : "",
+        notes: transferForm.notes,
+        recordedBy: user?.uid || "",
+        createdAt: now,
+        updatedAt: now,
+      });
+      // Debit from source account
+      await addDoc(collection(db, "accountTransactions"), {
+        accountId: transferForm.fromAccountId,
+        type: "debit",
+        amount: Number(transferForm.amount),
+        description: transferForm.type === "bank_deposit"
+          ? `Bank deposit: ${transferForm.description}`
+          : `Advance to ${transferForm.recipientName || "staff/supplier"}: ${transferForm.description}`,
+        date: dateTs,
+        referenceType: "transfer",
+        referenceId: transferId,
+        recordedBy: user?.uid || "",
+        createdAt: now,
+      });
+      // Credit to destination account for bank deposit
+      if (transferForm.type === "bank_deposit") {
+        await addDoc(collection(db, "accountTransactions"), {
+          accountId: transferForm.toAccountId,
+          type: "credit",
+          amount: Number(transferForm.amount),
+          description: `Cash deposit: ${transferForm.description}`,
+          date: dateTs,
+          referenceType: "transfer",
+          referenceId: transferId,
+          recordedBy: user?.uid || "",
+          createdAt: now,
+        });
+      }
+      setShowTransferForm(false);
+      setTransferForm({
+        type: "bank_deposit", amount: 0, description: "", date: new Date().toISOString().slice(0, 10),
+        fromAccountId: "cash_in_hand", toAccountId: "bank_account",
+        recipientName: "", recipientPhone: "", notes: "",
+      });
+      setEditingTransferId(null);
+    } catch (e) { console.error("Transfer save failed", e); }
+    setSaving(false);
+  };
+
+  const deleteTransfer = async (id: string) => {
+    const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "transfer"), where("referenceId", "==", id)));
+    for (const tx of txSnap.docs) await deleteDoc(doc(db, "accountTransactions", tx.id));
+    await deleteDoc(doc(db, "transfers", id));
+  };
+
   const handleDownloadCSV = () => {
     const csv = exportExpensesCSV(filtered);
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -347,6 +430,14 @@ export default function AdminExpensesPage() {
               <Button onClick={() => { setShowRecurringForm(true); setRecurringForm(emptyRecurring); setEditingRecurringId(null); }} variant="accent">
                 <Plus className="h-4 w-4" /> New Template
               </Button>
+            ) : tab === "transfers" ? (
+              <Button onClick={() => { setShowTransferForm(true); setTransferForm({
+                type: "bank_deposit", amount: 0, description: "", date: new Date().toISOString().slice(0, 10),
+                fromAccountId: "cash_in_hand", toAccountId: "bank_account",
+                recipientName: "", recipientPhone: "", notes: "",
+              }); setEditingTransferId(null); }} variant="accent">
+                <Plus className="h-4 w-4" /> New Transfer
+              </Button>
             ) : (
               <>
                 <Button onClick={openAdd} variant="accent">
@@ -372,6 +463,12 @@ export default function AdminExpensesPage() {
               tab === "recurring" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-secondary"
             }`}>
             Recurring Templates
+          </button>
+          <button onClick={() => setTab("transfers")}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === "transfers" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-secondary"
+            }`}>
+            Transfers
           </button>
         </div>
 
@@ -545,6 +642,135 @@ export default function AdminExpensesPage() {
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {tab === "transfers" && (
+          <>
+            {showTransferForm && (
+              <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-semibold text-secondary">{editingTransferId ? "Edit Transfer" : "New Transfer"}</h2>
+                  <button onClick={() => setShowTransferForm(false)} className="p-1 hover:bg-muted rounded">
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Type *</label>
+                    <select value={transferForm.type} onChange={(e) => setTransferForm({ ...transferForm, type: e.target.value as "bank_deposit" | "advance" })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                      <option value="bank_deposit">Bank Deposit</option>
+                      <option value="advance">Advance</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Amount (NPR) *</label>
+                    <input type="number" value={transferForm.amount || ""} onChange={(e) => setTransferForm({ ...transferForm, amount: Number(e.target.value) })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Date</label>
+                    <input type="date" value={transferForm.date} onChange={(e) => setTransferForm({ ...transferForm, date: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">From Account</label>
+                    <select value={transferForm.fromAccountId} onChange={(e) => setTransferForm({ ...transferForm, fromAccountId: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                      <option value="cash_in_hand">Cash in Hand</option>
+                      <option value="bank_account">Bank Account</option>
+                    </select>
+                  </div>
+                  {transferForm.type === "bank_deposit" ? (
+                    <div>
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">To Account</label>
+                      <select value={transferForm.toAccountId} onChange={(e) => setTransferForm({ ...transferForm, toAccountId: e.target.value })}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="bank_account">Bank Account</option>
+                        <option value="cash_in_hand">Cash in Hand</option>
+                      </select>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">Recipient Name *</label>
+                        <input type="text" value={transferForm.recipientName} onChange={(e) => setTransferForm({ ...transferForm, recipientName: e.target.value })}
+                          placeholder="Staff/supplier name" className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">Recipient Phone</label>
+                        <input type="text" value={transferForm.recipientPhone} onChange={(e) => setTransferForm({ ...transferForm, recipientPhone: e.target.value })}
+                          placeholder="Phone" className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                      </div>
+                    </>
+                  )}
+                  <div className={transferForm.type === "bank_deposit" ? "" : "md:col-span-2"}>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Description *</label>
+                    <input type="text" value={transferForm.description} onChange={(e) => setTransferForm({ ...transferForm, description: e.target.value })}
+                      placeholder="Purpose of transfer" className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  {transferForm.type === "advance" && (
+                    <div className="md:col-span-3">
+                      <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
+                      <textarea value={transferForm.notes} onChange={(e) => setTransferForm({ ...transferForm, notes: e.target.value })}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" rows={2} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3 pt-4 border-t border-border mt-4">
+                  <Button onClick={saveTransfer} disabled={saving || !transferForm.amount || !transferForm.description || (transferForm.type === "advance" && !transferForm.recipientName)} variant="accent">
+                    <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Transfer"}
+                  </Button>
+                  <Button onClick={() => setShowTransferForm(false)} variant="outline">Cancel</Button>
+                </div>
+              </div>
+            )}
+
+            {!transfers || transfers.length === 0 ? (
+              <p className="text-muted-foreground text-center py-12">No transfers yet.</p>
+            ) : (
+              <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted text-left">
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Type</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Description</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Amount</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground">From</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground">To / Recipient</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Date</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {transfers.map((t) => (
+                      <tr key={t.id} className="hover:bg-muted/30">
+                        <td className="px-4 py-2.5">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                            t.type === "bank_deposit" ? "bg-blue-50 text-blue-700" : "bg-amber-50 text-amber-700"
+                          }`}>
+                            {t.type === "bank_deposit" ? "Bank Deposit" : "Advance"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-sm text-secondary font-medium">{t.description}</td>
+                        <td className="px-4 py-2.5 text-sm text-right font-semibold">{formatCurrency(t.amount)}</td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground capitalize">{t.fromAccountId?.replace("_", " ")}</td>
+                        <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                          {t.type === "bank_deposit" ? (t.toAccountId || "").replace("_", " ") : (t.recipientName || "-")}
+                        </td>
+                        <td className="px-4 py-2.5 text-sm text-right text-muted-foreground">{formatDate(t.date)}</td>
+                        <td className="px-4 py-2.5 text-sm text-right">
+                          <button onClick={() => deleteTransfer(t.id)} className="p-1 hover:bg-muted rounded text-red-500" title="Delete">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
                         </td>
                       </tr>
                     ))}

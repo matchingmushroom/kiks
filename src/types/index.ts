@@ -307,6 +307,22 @@ export interface AccountTransaction {
   createdAt: number;
 }
 
+export interface Transfer {
+  id: string;
+  type: "bank_deposit" | "advance";
+  amount: number;
+  description: string;
+  date: number;
+  fromAccountId: string;
+  toAccountId?: string;
+  recipientName?: string;
+  recipientPhone?: string;
+  notes?: string;
+  recordedBy: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface Creditor {
   id: string;
   supplierName: string;
