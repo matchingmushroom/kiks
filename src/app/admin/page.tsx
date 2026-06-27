@@ -11,7 +11,7 @@ import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import Link from "next/link";
 import {
   Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
-  BarChart3, ShoppingCart, Clock, RefreshCw,
+  BarChart3, ShoppingCart, Clock, RefreshCw, X, DollarSign, Landmark, CreditCard,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -34,6 +34,7 @@ function getLast30Days() {
 export default function AdminDashboardPage() {
   const { profile } = useAuth();
   const { settings } = useShopSettings();
+  const [showTodaySales, setShowTodaySales] = useState(false);
   const useBs = !!settings.useBsCalendar;
   const { data: sales } = useFirestore<Sale>("sales", {
     constraints: [orderBy("saleDate", "desc"), limit(200)],
@@ -85,6 +86,18 @@ export default function AdminDashboardPage() {
   const mtdSales = mySales
     .filter((s) => safeDate(s.saleDate) >= mtdStart)
     .reduce((sum, s) => sum + s.finalAmount, 0);
+  const todayStr = now.toISOString().slice(0, 10);
+  const todayStart = new Date(todayStr).getTime();
+  const todayEnd = todayStart + 86400000;
+  const todaySales = mySales.filter((s) => {
+    const d = new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).getTime();
+    return d >= todayStart && d < todayEnd;
+  });
+  const todayTotal = todaySales.reduce((s, x) => s + x.finalAmount, 0);
+  const todayCash = todaySales.filter((s) => s.payment?.method === "cash").reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0);
+  const todayQrBank = todaySales.filter((s) => s.payment?.method === "qr" || s.payment?.method === "bank_transfer").reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0);
+  const todayDebtor = todaySales.filter((s) => s.saleType === "credit" || s.saleType === "partial").reduce((s, x) => s + (x.payment?.balanceDue || 0), 0);
+
   const fytdStart = new Date(getFiscalYearStartEpoch()).toISOString().slice(0, 10);
   const fytdSales = mySales
     .filter((s) => safeDate(s.saleDate) >= fytdStart)
@@ -213,6 +226,91 @@ export default function AdminDashboardPage() {
             return cards;
           })}
         </div>
+
+        {/* Daily Report */}
+        <div className="bg-white rounded-xl border border-border p-4 shadow-sm mb-6">
+          <h2 className="text-sm font-semibold text-secondary mb-3 flex items-center gap-2">
+            <BarChart3 className="h-4 w-4 text-primary" />
+            Daily Report — {todayStr}
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <button onClick={() => setShowTodaySales(true)}
+              className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl p-4 text-left border border-primary/20 hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-primary">
+              <p className="text-[11px] text-muted-foreground">Total Sales Today</p>
+              <p className="text-xl font-bold text-secondary mt-1">{formatCurrency(todayTotal)}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{todaySales.length} transaction{todaySales.length !== 1 ? "s" : ""}</p>
+            </button>
+            <div className="bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl p-4 border border-green-200">
+              <DollarSign className="h-5 w-5 text-green-600 mb-1" />
+              <p className="text-[11px] text-muted-foreground">Cash In Hand</p>
+              <p className="text-xl font-bold text-secondary mt-1">{formatCurrency(todayCash)}</p>
+            </div>
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-xl p-4 border border-blue-200">
+              <Landmark className="h-5 w-5 text-blue-600 mb-1" />
+              <p className="text-[11px] text-muted-foreground">QR / Bank Received</p>
+              <p className="text-xl font-bold text-secondary mt-1">{formatCurrency(todayQrBank)}</p>
+            </div>
+            <div className="bg-gradient-to-br from-rose-50 to-rose-100/50 rounded-xl p-4 border border-rose-200">
+              <CreditCard className="h-5 w-5 text-rose-600 mb-1" />
+              <p className="text-[11px] text-muted-foreground">Debtor (Credit Given)</p>
+              <p className="text-xl font-bold text-secondary mt-1">{formatCurrency(todayDebtor)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Today Sales Detail Modal */}
+        {showTodaySales && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowTodaySales(false)}>
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-3xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+                <h2 className="text-base font-bold text-secondary">Today&apos;s Sales — {todayStr}</h2>
+                <button onClick={() => setShowTodaySales(false)} className="p-1.5 hover:bg-muted rounded-lg">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="overflow-y-auto flex-1 p-4">
+                {todaySales.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No sales today</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted text-left text-xs text-muted-foreground">
+                        <th className="px-3 py-2 font-medium">Sale ID</th>
+                        <th className="px-3 py-2 font-medium">Time</th>
+                        <th className="px-3 py-2 font-medium">Customer</th>
+                        <th className="px-3 py-2 font-medium">Method</th>
+                        <th className="px-3 py-2 font-medium text-right">Received</th>
+                        <th className="px-3 py-2 font-medium text-right">Due</th>
+                        <th className="px-3 py-2 font-medium text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {todaySales.map((s) => (
+                        <tr key={s.id} className="hover:bg-muted/30">
+                          <td className="px-3 py-2 font-mono text-xs">{s.id?.slice(0, 8)}</td>
+                          <td className="px-3 py-2">{new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                          <td className="px-3 py-2">{s.customer?.name || <span className="text-muted-foreground italic">Walk-in</span>}</td>
+                          <td className="px-3 py-2 capitalize">{s.payment?.method || s.saleType}</td>
+                          <td className="px-3 py-2 text-right font-medium">{formatCurrency(s.payment?.receivedAmount || 0)}</td>
+                          <td className="px-3 py-2 text-right text-red-500">{(s.payment?.balanceDue || 0) > 0 ? formatCurrency(s.payment.balanceDue) : "-"}</td>
+                          <td className="px-3 py-2 text-right font-semibold">{formatCurrency(s.finalAmount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-border font-semibold text-sm">
+                        <td colSpan={4} className="px-3 py-2 text-right">Total</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(todaySales.reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0))}</td>
+                        <td className="px-3 py-2 text-right text-red-500">{formatCurrency(todaySales.reduce((s, x) => s + (x.payment?.balanceDue || 0), 0))}</td>
+                        <td className="px-3 py-2 text-right">{formatCurrency(todayTotal)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
