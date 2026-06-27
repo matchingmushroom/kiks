@@ -13,6 +13,8 @@ import {
   Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
   BarChart3, ShoppingCart, Clock, RefreshCw, X, DollarSign, Landmark, CreditCard, FileDown,
 } from "lucide-react";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart as RPieChart, Pie, Cell,
@@ -317,6 +319,8 @@ export default function AdminDashboardPage() {
                   <th className="px-3 py-2 font-medium">Customer</th>
                   <th className="px-3 py-2 font-medium">Method</th>
                   <th className="px-3 py-2 font-medium text-right">Received</th>
+                  <th className="px-3 py-2 font-medium text-right">Sub Total</th>
+                  <th className="px-3 py-2 font-medium text-right">Discount</th>
                   <th className="px-3 py-2 font-medium text-right">Due</th>
                   <th className="px-3 py-2 font-medium text-right">Total</th>
                 </tr>
@@ -329,6 +333,8 @@ export default function AdminDashboardPage() {
                     <td className="px-3 py-2">{s.customer?.name || <span className="text-muted-foreground italic">Walk-in</span>}</td>
                     <td className="px-3 py-2 capitalize">{s.payment?.method || s.saleType}</td>
                     <td className="px-3 py-2 text-right font-medium">{formatCurrency(s.payment?.receivedAmount || 0)}</td>
+                    <td className="px-3 py-2 text-right text-muted-foreground">{formatCurrency(s.totalAmount)}</td>
+                    <td className="px-3 py-2 text-right text-red-500">{(s.discountAmount || 0) > 0 ? `-${formatCurrency(s.discountAmount)}` : "-"}</td>
                     <td className="px-3 py-2 text-right text-red-500">{(s.payment?.balanceDue || 0) > 0 ? formatCurrency(s.payment.balanceDue) : "-"}</td>
                     <td className="px-3 py-2 text-right font-semibold">{formatCurrency(s.finalAmount)}</td>
                   </tr>
@@ -338,6 +344,8 @@ export default function AdminDashboardPage() {
                 <tr className="border-t-2 border-border font-semibold text-sm">
                   <td colSpan={4} className="px-3 py-2 text-right">Total</td>
                   <td className="px-3 py-2 text-right">{formatCurrency(todaySales.reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0))}</td>
+                  <td className="px-3 py-2 text-right">{formatCurrency(todaySales.reduce((s, x) => s + x.totalAmount, 0))}</td>
+                  <td className="px-3 py-2 text-right text-red-500">{formatCurrency(todaySales.reduce((s, x) => s + (x.discountAmount || 0), 0))}</td>
                   <td className="px-3 py-2 text-right text-red-500">{formatCurrency(todaySales.reduce((s, x) => s + (x.payment?.balanceDue || 0), 0))}</td>
                   <td className="px-3 py-2 text-right">{formatCurrency(todayTotal)}</td>
                 </tr>
@@ -730,36 +738,39 @@ function DailyModal({ title, show, onClose, children, date, onDownload }: {
 
 function downloadCSV(data: any[], filename: string, isTransaction = false) {
   if (data.length === 0) return;
-  const esc = (v: unknown) => {
-    if (v === null || v === undefined) return "";
-    const s = String(v);
-    if (s.includes(",") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
-    return s;
-  };
-  let csv = "";
+  const fmtTime = (d: any) =>
+    new Date(d?.seconds ? d.seconds * 1000 : d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.setFontSize(14);
+  doc.text("Today's Report", pageWidth / 2, 15, { align: "center" });
+  doc.setFontSize(9);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, pageWidth / 2, 21, { align: "center" });
   if (isTransaction) {
-    const headers = "Transaction ID,Time,Description,Reference Type,Amount";
     const rows = data.map((t: any) => [
-      esc(t.id), esc(new Date(t.date?.seconds ? t.date.seconds * 1000 : t.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })),
-      esc(t.description), esc(t.referenceType?.replace("_", " ") || ""), esc(t.amount),
-    ].join(","));
-    csv = `${headers}\n${rows.join("\n")}`;
+      t.id?.slice(0, 8) || "", fmtTime(t.date), t.description || "",
+      t.referenceType?.replace("_", " ") || "", t.amount ?? 0,
+    ]);
+    autoTable(doc, {
+      head: [["Transaction ID", "Time", "Description", "Reference Type", "Amount"]],
+      body: rows,
+      startY: 25,
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      headStyles: { fillColor: [51, 51, 51] },
+    });
   } else {
-    const headers = "Sale ID,Time,Customer,Method,Received,Due,Total";
     const rows = data.map((s: any) => [
-      esc(s.id), esc(new Date(s.saleDate?.seconds ? s.saleDate.seconds * 1000 : s.saleDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })),
-      esc(s.customer?.name || "Walk-in"), esc(s.payment?.method || s.saleType),
-      esc(s.payment?.receivedAmount || 0), esc(s.payment?.balanceDue || 0), esc(s.finalAmount),
-    ].join(","));
-    csv = `${headers}\n${rows.join("\n")}`;
+      s.id?.slice(0, 8) || "", fmtTime(s.saleDate), s.customer?.name || "Walk-in",
+      s.payment?.method || s.saleType || "", s.payment?.receivedAmount ?? 0,
+      s.totalAmount ?? 0, s.discountAmount ?? 0, s.payment?.balanceDue ?? 0, s.finalAmount ?? 0,
+    ]);
+    autoTable(doc, {
+      head: [["Sale ID", "Time", "Customer", "Method", "Received", "Sub Total", "Discount", "Due", "Total"]],
+      body: rows,
+      startY: 25,
+      styles: { fontSize: 8, cellPadding: 1.5 },
+      headStyles: { fillColor: [51, 51, 51] },
+    });
   }
-  const blob = new Blob([csv], { type: "text/csv" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${filename}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  doc.save(`${filename}.pdf`);
 }
