@@ -87,7 +87,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         <h3 className="font-semibold text-secondary group-hover:text-primary transition-colors truncate">
           {product.name}
         </h3>
-        <p className="text-sm text-muted-foreground">{product.weight}g</p>
+
         {(Array.isArray(product.idealFor) ? product.idealFor : [product.idealFor].filter(Boolean)).length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
             {(Array.isArray(product.idealFor) ? product.idealFor : [product.idealFor]).filter(Boolean).map((tag) => (
