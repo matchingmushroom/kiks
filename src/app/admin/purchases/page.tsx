@@ -25,7 +25,6 @@ interface FieldOptions {
   baseMaterial: string[];
   plating: string[];
   color: string[];
-  productType: string[];
   idealFor: string[];
   occasion: string[];
 }
@@ -34,7 +33,6 @@ const DEFAULT_FIELD_OPTIONS: FieldOptions = {
   baseMaterial: ["Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"],
   plating: ["Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"],
   color: ["Gold", "Silver", "Multicolor", "White", "Pink", "Green", "Red", "Blue", "Black", "Rose Gold", "Purple", "Peach", "Cream", "Brown", "Copper", "Bronze"],
-  productType: ["Jewel Set", "Necklace", "Earrings", "Bracelet", "Ring", "Mangalsutra Set", "Pendant Set", "Chain", "Bangles", "Nosepin", "Anklet", "Brooch", "Hair Accessory", "Cufflinks"],
   idealFor: ["Women", "Men", "Girls", "Boys", "Unisex", "Women & Girls", "Men & Boys"],
   occasion: ["Party", "Wedding", "Engagement", "Everyday", "Gift", "Workwear", "Dailywear", "Festive"],
 };
@@ -118,7 +116,7 @@ function PurchasesContent() {
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
-  const [csvRows, setCsvRows] = useState<{ productName: string; quantity: number; unitCost: number; salesPrice: number; match: Product | null; error?: string }[]>([]);
+  const [csvRows, setCsvRows] = useState<{ productName: string; quantity: number; unitCost: number; salesPrice: number; categoryShortCode?: string; categoryId?: string; match: Product | null; error?: string }[]>([]);
   const [csvSupplier, setCsvSupplier] = useState("");
   const [csvSupplierPhone, setCsvSupplierPhone] = useState("");
   const [csvPaymentStatus, setCsvPaymentStatus] = useState<"paid" | "unpaid" | "partially_paid">("unpaid");
@@ -139,6 +137,7 @@ function PurchasesContent() {
     const costIdx = headers.findIndex((h) => h === "unitcost" || h === "unit cost" || h === "costprice" || h === "cost");
     const priceIdx = headers.findIndex((h) => h === "salesprice" || h === "sales price" || h === "price" || h === "selling price");
     const skuIdx = headers.findIndex((h) => h === "sku");
+    const catIdx = headers.findIndex((h) => h === "category" || h === "categorycode" || h === "cat");
     if (nameIdx === -1 && skuIdx === -1) { alert("CSV must have a 'productName' or 'sku' column."); return; }
     const parsed: typeof csvRows = [];
     for (let i = 1; i < lines.length; i++) {
@@ -149,18 +148,28 @@ function PurchasesContent() {
       const qty = qtyIdx >= 0 ? Math.max(1, parseInt(cols[qtyIdx]) || 1) : 1;
       const cost = costIdx >= 0 ? parseFloat(cols[costIdx]) || 0 : 0;
       const price = priceIdx >= 0 ? parseFloat(cols[priceIdx]) || 0 : 0;
+      let catShortCode = catIdx >= 0 ? cols[catIdx]?.toUpperCase() || "" : "";
+      let catId = "";
+      if (catShortCode) {
+        const cat = categories.find((c) => c.shortCode?.toUpperCase() === catShortCode);
+        if (cat) catId = cat.id;
+        else catShortCode = ""; // invalid shortcode, ignore
+      }
       const match = products.find((p) =>
         (name && (p.name.toLowerCase() === name.toLowerCase() || p.name.toLowerCase().includes(name.toLowerCase()))) ||
         (sku && p.sku?.toLowerCase() === sku.toLowerCase())
       );
       if (!match) {
-        parsed.push({ productName: name || sku, quantity: qty, unitCost: cost, salesPrice: price, match: null, error: "Product not found" });
+        const errMsg = catId ? "New product (will be created)" : "Product not found — add category column to create new";
+        parsed.push({ productName: name || sku, quantity: qty, unitCost: cost, salesPrice: price, categoryShortCode: catShortCode, categoryId: catId, match: null, error: errMsg });
       } else {
         parsed.push({
           productName: match.name,
           quantity: qty,
           unitCost: cost || match.costPrice || Math.round(match.price * 0.5),
           salesPrice: price || match.price,
+          categoryShortCode: catShortCode,
+          categoryId: catId,
           match,
         });
       }
@@ -180,18 +189,55 @@ function PurchasesContent() {
   };
 
   const handleCsvImport = async () => {
-    if (!csvSupplier || csvRows.length === 0 || csvRows.some((r) => !r.match)) return;
+    if (!csvSupplier || csvRows.length === 0 || csvRows.some((r) => !r.match && !r.categoryId)) return;
     setCsvImporting(true);
     try {
-      const items = csvRows.map((r) => ({
-        productId: r.match!.id,
-        productName: r.productName,
-        sku: r.match!.sku || "",
-        quantity: r.quantity,
-        unitCost: r.unitCost,
-        salesPrice: r.salesPrice,
-        subtotal: r.quantity * r.unitCost,
-      }));
+      const items: PurchaseItemType[] = [];
+      for (const r of csvRows) {
+        let prodId = r.match?.id || "";
+        let prodSku = r.match?.sku || "";
+        if (!r.match && r.categoryId) {
+          const prodId_ = await generateId("PROD");
+          const cat = categories.find((c) => c.id === r.categoryId);
+          const seq = getNextSequence(products, r.categoryId);
+          const newSku = generateSku(cat?.shortCode || "", seq);
+          const newModelNo = generateModelNo(cat?.shortCode || "", seq);
+          await setDoc(doc(db, "products", prodId_), {
+            name: r.productName, description: "", design: "", categoryId: r.categoryId,
+            images: [], videoUrl: "", price: r.salesPrice, costPrice: r.unitCost,
+            weight: 0, metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0,
+            warranty: "", sku: newSku, quantityInStock: 0, isActive: true, isFeatured: false,
+            badge: "", originalPrice: 0, brand: "", modelNo: newModelNo,
+            baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], netQuantity: 1,
+            occasion: [], createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
+          });
+          prodId = prodId_;
+          prodSku = newSku;
+        }
+        const prodRef = doc(db, "products", prodId);
+        const prodSnap = await getDoc(prodRef);
+        if (prodSnap.exists()) {
+          const p = prodSnap.data() as Product;
+          const oldStock = p.quantityInStock || 0;
+          const oldCost = p.costPrice || 0;
+          const newStock = oldStock + r.quantity;
+          const newCost = newStock > 0
+            ? Math.round(((oldCost * oldStock + r.unitCost * r.quantity) / newStock) * 100) / 100
+            : r.unitCost;
+          const updateData: Record<string, unknown> = { quantityInStock: newStock, costPrice: newCost, price: r.salesPrice };
+          if (r.categoryId) updateData.categoryId = r.categoryId;
+          await updateDoc(prodRef, updateData);
+        }
+        await addDoc(collection(db, "inventoryLogs"), {
+          productId: prodId, changeType: "purchase", quantityChange: r.quantity,
+          reason: `CSV import - ${csvSupplier}`, performedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
+        });
+        items.push({
+          productId: prodId, productName: r.productName, sku: prodSku,
+          quantity: r.quantity, unitCost: r.unitCost, salesPrice: r.salesPrice,
+          subtotal: r.quantity * r.unitCost,
+        });
+      }
       const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
       const paid = csvPaymentStatus === "paid" ? totalAmount : csvPaymentStatus === "partially_paid" ? csvPaidAmount : 0;
       const purchaseId = await generateId("PURC");
@@ -215,24 +261,6 @@ function PurchasesContent() {
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       });
-      for (const item of items) {
-        const prodRef = doc(db, "products", item.productId);
-        const prodSnap = await getDoc(prodRef);
-        if (prodSnap.exists()) {
-          const p = prodSnap.data() as Product;
-          const oldStock = p.quantityInStock || 0;
-          const oldCost = p.costPrice || 0;
-          const newStock = oldStock + item.quantity;
-          const newCost = newStock > 0
-            ? Math.round(((oldCost * oldStock + item.unitCost * item.quantity) / newStock) * 100) / 100
-            : item.unitCost;
-          await updateDoc(prodRef, { quantityInStock: newStock, costPrice: newCost, price: item.salesPrice });
-        }
-        await addDoc(collection(db, "inventoryLogs"), {
-          productId: item.productId, changeType: "purchase", quantityChange: item.quantity,
-          reason: `CSV import - ${csvSupplier}`, performedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
-        });
-      }
       if (paid > 0 && csvPaymentMethod) {
         await addDoc(collection(db, "accountTransactions"), {
           accountId: resolveAccount(csvPaymentMethod), type: "debit", amount: paid,
@@ -1274,27 +1302,15 @@ function PurchasesContent() {
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3">
                         <div>
-                          <label className="block text-xs text-muted-foreground mb-1">Product Type</label>
+                          <label className="block text-xs text-muted-foreground mb-1">Sub Category</label>
                           <select value={newProductForm.productType}
-                            onChange={(e) => {
-                              if (e.target.value === "__new__") { setNewOptionField("productType"); setNewOptionValue(""); }
-                              else { setNewProductForm({ ...newProductForm, productType: e.target.value }); }
-                            }}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, productType: e.target.value })}
                             className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                             <option value="">Select</option>
-                            {fieldOptions.productType.map((t) => (<option key={t} value={t}>{t}</option>))}
-                            <option value="__new__">+ Add new</option>
+                            {categories.find((c) => c.id === newProductForm.categoryId)?.subCategories?.map((t) => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
                           </select>
-                          {newOptionField === "productType" && (
-                            <div className="flex gap-2 mt-2">
-                              <input type="text" placeholder="New product type" value={newOptionValue}
-                                onChange={(e) => setNewOptionValue(e.target.value)}
-                                className="flex-1 px-2 py-1 border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary" />
-                              <Button onClick={() => { addFieldOption("productType", newOptionValue); setNewProductForm({ ...newProductForm, productType: newOptionValue }); }} size="sm" variant="accent">
-                                <Plus className="h-3 w-3" /> Add
-                              </Button>
-                            </div>
-                          )}
                         </div>
                         <div>
                           <label className="block text-xs text-muted-foreground mb-1">Net Quantity</label>
@@ -1960,7 +1976,7 @@ function PurchasesContent() {
             </div>
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               <p className="text-xs text-muted-foreground">
-                CSV columns: <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code> (header row required).
+                CSV columns: <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code>, <code className="bg-muted px-1 rounded">category</code> (optional — use category shortCode). Header row required.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
@@ -2060,47 +2076,59 @@ function PurchasesContent() {
                     Preview ({csvRows.length} item{csvRows.length !== 1 ? "s" : ""}):
                   </p>
                   <div className="border border-border rounded-lg overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="bg-muted text-left">
-                          <th className="px-3 py-2 font-medium text-muted-foreground">Product</th>
-                          <th className="px-3 py-2 font-medium text-muted-foreground">Qty</th>
-                          <th className="px-3 py-2 font-medium text-muted-foreground">Unit Cost</th>
-                          <th className="px-3 py-2 font-medium text-muted-foreground">Sales Price</th>
-                          <th className="px-3 py-2 font-medium text-muted-foreground">Subtotal</th>
-                          <th className="px-3 py-2 font-medium text-muted-foreground">Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {csvRows.map((r, i) => (
-                          <tr key={i} className={r.error ? "bg-red-50" : ""}>
-                            <td className="px-3 py-2 font-medium">{r.productName}</td>
-                            <td className="px-3 py-2">{r.quantity}</td>
-                            <td className="px-3 py-2">{formatCurrency(r.unitCost)}</td>
-                            <td className="px-3 py-2">{formatCurrency(r.salesPrice)}</td>
-                            <td className="px-3 py-2">{formatCurrency(r.quantity * r.unitCost)}</td>
-                            <td className="px-3 py-2">
-                              {r.error ? (
-                                <span className="text-red-600 font-medium">{r.error}</span>
-                              ) : (
-                                <span className="text-green-600 flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Matched</span>
-                              )}
-                            </td>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="bg-muted text-left">
+                            <th className="px-3 py-2 font-medium text-muted-foreground">Product</th>
+                            <th className="px-3 py-2 font-medium text-muted-foreground">Category</th>
+                            <th className="px-3 py-2 font-medium text-muted-foreground">Qty</th>
+                            <th className="px-3 py-2 font-medium text-muted-foreground">Unit Cost</th>
+                            <th className="px-3 py-2 font-medium text-muted-foreground">Sales Price</th>
+                            <th className="px-3 py-2 font-medium text-muted-foreground">Subtotal</th>
+                            <th className="px-3 py-2 font-medium text-muted-foreground">Status</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {csvRows.map((r, i) => (
+                            <tr key={i} className={r.error ? "bg-red-50" : ""}>
+                              <td className="px-3 py-2 font-medium">{r.productName}</td>
+                              <td className="px-3 py-2">
+                                {r.categoryShortCode ? (
+                                  <span className="font-mono text-primary">{r.categoryShortCode}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">{r.quantity}</td>
+                              <td className="px-3 py-2">{formatCurrency(r.unitCost)}</td>
+                              <td className="px-3 py-2">{formatCurrency(r.salesPrice)}</td>
+                              <td className="px-3 py-2">{formatCurrency(r.quantity * r.unitCost)}</td>
+                              <td className="px-3 py-2">
+                                {r.error ? (
+                                  r.categoryId ? (
+                                    <span className="text-amber-600 font-medium flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> New</span>
+                                  ) : (
+                                    <span className="text-red-600 font-medium">{r.error}</span>
+                                  )
+                                ) : (
+                                  <span className="text-green-600 flex items-center gap-1"><CheckCircle className="h-3 w-3" /> Matched</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                   </div>
                 </div>
               )}
             </div>
             <div className="flex items-center justify-end gap-2 p-4 border-t border-border shrink-0">
               <p className="text-xs text-muted-foreground flex-1">
-                {csvRows.filter((r) => !r.error).length} of {csvRows.length} items matched
+                {csvRows.filter((r) => !r.error || r.categoryId).length} of {csvRows.length} items ready
               </p>
               <Button onClick={() => setShowCsvModal(false)} variant="outline" disabled={csvImporting}>Cancel</Button>
               <Button onClick={handleCsvImport}
-                disabled={csvImporting || !csvSupplier || csvRows.length === 0 || csvRows.some((r) => !r.match)}
+                disabled={csvImporting || !csvSupplier || csvRows.length === 0 || csvRows.some((r) => !r.match && !r.categoryId)}
                 variant="accent">
                 {csvImporting ? (<span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Importing...</span>) : (<span className="flex items-center gap-2"><Upload className="h-4 w-4" /> Import Purchase</span>)}
               </Button>

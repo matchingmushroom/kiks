@@ -1,6 +1,6 @@
-productName,quantity,unitCost,salesPrice
-Gold Ring,5,2500,3500
-Silver Earrings,10,800,1200
-Diamond Pendant,2,15000,18500
-Gold Chain,3,45000,52000
-Pearl Bracelet,8,1200,1800
+productName,quantity,unitCost,salesPrice,category
+Gold Ring,5,2500,3500,RG
+Silver Earrings,10,800,1200,ER
+Diamond Pendant,2,15000,18500,NC
+Gold Chain,3,45000,52000,NC
+Pearl Bracelet,8,1200,1800,BR

@@ -30,6 +30,7 @@ export default function AdminCategoriesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [shortCode, setShortCode] = useState("");
+  const [subCategories, setSubCategories] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
   const [orderNum, setOrderNum] = useState(0);
@@ -39,7 +40,7 @@ export default function AdminCategoriesPage() {
   const [detailCat, setDetailCat] = useState<Category | null>(null);
 
   const openAdd = () => {
-    setName(""); setShortCode(""); setDescription(""); setImage("");
+    setName(""); setShortCode(""); setSubCategories(""); setDescription(""); setImage("");
     setOrderNum(categories.length);
     setIsActive(true);
     setEditingId(null);
@@ -47,7 +48,7 @@ export default function AdminCategoriesPage() {
   };
 
   const openEdit = (cat: Category) => {
-    setName(cat.name); setShortCode(cat.shortCode || ""); setDescription(cat.description);
+    setName(cat.name); setShortCode(cat.shortCode || ""); setSubCategories(cat.subCategories?.join(", ") || ""); setDescription(cat.description);
     setImage(cat.image); setOrderNum(cat.order);
     setIsActive(cat.isActive);
     setEditingId(cat.id);
@@ -58,7 +59,8 @@ export default function AdminCategoriesPage() {
     if (!name || !shortCode) return;
     setSaving(true);
     try {
-      const data = { name, shortCode: shortCode.toUpperCase(), description, image, order: orderNum, isActive, updatedAt: Timestamp.fromDate(new Date()) };
+      const subCats = subCategories.split(",").map((s) => s.trim()).filter(Boolean);
+      const data = { name, shortCode: shortCode.toUpperCase(), subCategories: subCats, description, image, order: orderNum, isActive, updatedAt: Timestamp.fromDate(new Date()) };
       if (editingId) {
         await updateDoc(doc(db, "categories", editingId), data);
       } else {
@@ -144,6 +146,12 @@ export default function AdminCategoriesPage() {
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Description</label>
                 <input type="text" value={description} onChange={(e) => setDescription(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Sub Categories</label>
+                <textarea value={subCategories} onChange={(e) => setSubCategories(e.target.value)} rows={3} placeholder="e.g., Stud Earrings, Hoop Earrings, Jhumka"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <p className="text-xs text-muted-foreground mt-1">Comma-separated list. These appear in the product Sub Category dropdown.</p>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
@@ -274,6 +282,7 @@ export default function AdminCategoriesPage() {
             <div className="space-y-2 text-sm">
               <Row label="Name" value={detailCat.name} />
               <Row label="Short Code" value={detailCat.shortCode} />
+              <Row label="Sub Categories" value={detailCat.subCategories?.length ? detailCat.subCategories.join(", ") : "—"} />
               <Row label="Description" value={detailCat.description || "—"} />
               <Row label="Order" value={String(detailCat.order)} />
               <Row label="Status" value={detailCat.isActive ? "Active" : "Inactive"} />

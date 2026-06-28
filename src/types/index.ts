@@ -15,6 +15,7 @@ export interface Category {
   id: string;
   name: string;
   shortCode: string;
+  subCategories: string[];
   description: string;
   image: string;
   order: number;

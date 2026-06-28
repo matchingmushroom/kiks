@@ -46,7 +46,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     { label: "Base Material", value: product.baseMaterial },
     { label: "Plating Type", value: product.plating },
     { label: "Color", value: product.color },
-    { label: "Type", value: product.productType },
+    { label: "Sub Category", value: product.productType },
     { label: "Ideal For", value: Array.isArray(product.idealFor) ? product.idealFor.join(", ") : product.idealFor },
     { label: "Occasion", value: Array.isArray(product.occasion) ? product.occasion.join(", ") : product.occasion },
     { label: "Warranty", value: product.warranty },

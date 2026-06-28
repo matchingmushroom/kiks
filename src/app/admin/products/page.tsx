@@ -28,7 +28,7 @@ import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Gl
 const BASE_MATERIALS = ["", "Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"];
 const PLATING_OPTIONS = ["", "Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"];
 const COLOR_OPTIONS = ["", "Gold", "Silver", "Multicolor", "White", "Pink", "Green", "Red", "Blue", "Black", "Rose Gold", "Purple", "Peach", "Cream", "Brown", "Copper", "Bronze"];
-const PRODUCT_TYPES = ["", "Jewel Set", "Necklace", "Earrings", "Bracelet", "Ring", "Mangalsutra Set", "Pendant Set", "Chain", "Bangles", "Nosepin", "Anklet", "Brooch", "Hair Accessory", "Cufflinks"];
+// Sub Categories now come from the selected category's subCategories array
 const IDEAL_FOR_OPTIONS = ["", "Women", "Men", "Girls", "Boys", "Unisex", "Women & Girls", "Men & Boys"];
 const NET_QTY_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 const OCCASION_OPTIONS = ["", "Party", "Wedding", "Engagement", "Everyday", "Gift", "Workwear", "Dailywear"];
@@ -290,7 +290,8 @@ export default function AdminProductsPage() {
       const baseMaterial = BASE_MATERIALS.find((m) => m && html.toLowerCase().includes(m.toLowerCase())) || "";
       const plating = PLATING_OPTIONS.find((p) => p && html.toLowerCase().includes(p.toLowerCase())) || "";
       const color = COLOR_OPTIONS.find((c) => c && html.toLowerCase().includes(c.toLowerCase())) || "";
-      const productType = PRODUCT_TYPES.find((t) => t && html.toLowerCase().includes(t.toLowerCase())) || "";
+      const selectedCat = categories.find((c) => c.id === form.categoryId);
+      const productType = selectedCat?.subCategories?.find((t) => t && html.toLowerCase().includes(t.toLowerCase())) || "";
 
       setForm({
         ...emptyProduct,
@@ -491,7 +492,10 @@ export default function AdminProductsPage() {
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Sub Category</label>
                     <select value={form.productType} onChange={(e) => setForm({ ...form, productType: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                      {PRODUCT_TYPES.map((t) => (<option key={t} value={t}>{t || "Select"}</option>))}
+                      <option value="">Select</option>
+                      {categories.find((c) => c.id === form.categoryId)?.subCategories?.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
                     </select>
                   </div>
                   <div>
