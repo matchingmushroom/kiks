@@ -136,42 +136,48 @@ export default function AdminDashboardPage() {
   const todayStr = now.toISOString().slice(0, 10);
   const todayStart = new Date(todayStr).getTime();
   const todayEnd = todayStart + 86400000;
+  const userSales = sales.filter((s) => s.recordedBy === profile?.uid);
+  const myTodaySales = userSales.filter((s) => {
+    const d = new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).getTime();
+    return d >= todayStart && d < todayEnd;
+  });
+  const userTransactions = (transactions || []).filter((t) => t.recordedBy === profile?.uid);
   const todaySales = mySales.filter((s) => {
     const d = new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).getTime();
     return d >= todayStart && d < todayEnd;
   });
-  const todayCashSales = todaySales.filter((s) => s.payment?.method === "cash");
-  const todayQrSales = todaySales.filter((s) => s.payment?.method === "qr" || s.payment?.method === "bank_transfer");
-  const todayDebtorSales = todaySales.filter((s) => s.saleType === "credit" || s.saleType === "partial");
-  const todayTotal = todaySales.reduce((s, x) => s + x.finalAmount, 0);
-  const todayCash = todaySales.filter((s) => s.payment?.method === "cash").reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0);
-  const todayQrBank = todaySales.filter((s) => s.payment?.method === "qr" || s.payment?.method === "bank_transfer").reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0);
-  const todayDebtor = todaySales.filter((s) => s.saleType === "credit" || s.saleType === "partial").reduce((s, x) => s + (x.payment?.balanceDue || 0), 0);
+  const todayCashSales = myTodaySales.filter((s) => s.payment?.method === "cash");
+  const todayQrSales = myTodaySales.filter((s) => s.payment?.method === "qr" || s.payment?.method === "bank_transfer");
+  const todayDebtorSales = myTodaySales.filter((s) => s.saleType === "credit" || s.saleType === "partial");
+  const todayTotal = myTodaySales.reduce((s, x) => s + x.finalAmount, 0);
+  const todayCash = myTodaySales.filter((s) => s.payment?.method === "cash").reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0);
+  const todayQrBank = myTodaySales.filter((s) => s.payment?.method === "qr" || s.payment?.method === "bank_transfer").reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0);
+  const todayDebtor = myTodaySales.filter((s) => s.saleType === "credit" || s.saleType === "partial").reduce((s, x) => s + (x.payment?.balanceDue || 0), 0);
   const myTransactions = isStaff ? (transactions || []).filter((t) => t.recordedBy === profile?.uid) : (transactions || []);
   const todayFilter = (t: AccountTransaction) => {
     const d = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number)).getTime();
     return d >= todayStart && d < todayEnd;
   };
-  const todayCashCredits = myTransactions
+  const todayCashCredits = userTransactions
     .filter((t) => todayFilter(t) && t.accountId === "cash_in_hand" && t.type === "credit")
     .reduce((s, t) => s + t.amount, 0);
-  const todayCashDebits = myTransactions
+  const todayCashDebits = userTransactions
     .filter((t) => todayFilter(t) && t.accountId === "cash_in_hand" && t.type === "debit")
     .reduce((s, t) => s + t.amount, 0);
-  const todayBankCredits = myTransactions
+  const todayBankCredits = userTransactions
     .filter((t) => todayFilter(t) && t.accountId === "bank_account" && t.type === "credit")
     .reduce((s, t) => s + t.amount, 0);
-  const todayBankDebits = myTransactions
+  const todayBankDebits = userTransactions
     .filter((t) => todayFilter(t) && t.accountId === "bank_account" && t.type === "debit")
     .reduce((s, t) => s + t.amount, 0);
-  const todayCashLedger = myTransactions
+  const todayCashLedger = userTransactions
     .filter((t) => todayFilter(t) && t.accountId === "cash_in_hand")
     .sort((a, b) => {
       const da = (a.date as any)?.seconds ? (a.date as any).seconds * 1000 : (a.date as number);
       const db = (b.date as any)?.seconds ? (b.date as any).seconds * 1000 : (b.date as number);
       return da - db;
     });
-  const todayBankLedger = myTransactions
+  const todayBankLedger = userTransactions
     .filter((t) => todayFilter(t) && t.accountId === "bank_account")
     .sort((a, b) => {
       const da = (a.date as any)?.seconds ? (a.date as any).seconds * 1000 : (a.date as number);
