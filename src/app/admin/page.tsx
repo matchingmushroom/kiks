@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
-import { Sale, Product, Debtor, Order, Category, AccountTransaction } from "@/types";
+import { Sale, Product, Debtor, Order, Category, AccountTransaction, Purchase } from "@/types";
 import { formatCurrency, formatNumber, toDate } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { getDoc, doc } from "firebase/firestore";
@@ -13,7 +13,7 @@ import { db } from "@/lib/firebase";
 import Link from "next/link";
 import {
   Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
-  BarChart3, ShoppingCart, Clock, RefreshCw, X, DollarSign, Landmark, CreditCard, FileDown,
+  BarChart3, ShoppingCart, Clock, RefreshCw, X, DollarSign, Landmark, CreditCard, FileDown, Search,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -73,6 +73,23 @@ export default function AdminDashboardPage() {
     constraints: [orderBy("date", "desc"), limit(200)],
     realtime: false, cache: true,
   });
+
+  const { data: purchases } = useFirestore<Purchase>("purchases", {
+    constraints: [orderBy("purchaseDate", "desc"), limit(500)],
+    realtime: false, cache: true,
+  });
+
+  const [skuSearch, setSkuSearch] = useState("");
+  const [skuResult, setSkuResult] = useState<{
+    product: Product; purchase: Purchase | null;
+  } | null>(null);
+
+  const handleSkuSearch = () => {
+    const p = products.find((x) => x.sku === skuSearch.trim());
+    if (!p) { setSkuResult(null); return; }
+    const pc = purchases.find((x) => x.items.some((i) => i.productId === p.id));
+    setSkuResult({ product: p, purchase: pc || null });
+  };
 
   const currentUserName = profile?.displayName || "";
   const [openingCash, setOpeningCash] = useState(0);
@@ -256,6 +273,47 @@ export default function AdminDashboardPage() {
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-3 py-1.5 border border-border rounded-lg hover:border-primary">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
+        </div>
+
+        {/* SKU Search */}
+        <div className="bg-white rounded-xl border border-border p-4 shadow-sm mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-secondary">SKU Lookup</h2>
+          </div>
+          <div className="flex gap-2">
+            <input type="text" placeholder="Enter SKU number..." value={skuSearch}
+              onChange={(e) => setSkuSearch(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSkuSearch()}
+              className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <button onClick={handleSkuSearch}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">Search</button>
+          </div>
+          {skuResult && (
+            <div className="mt-4 border border-border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-muted/50">
+                    <th className="text-left px-3 py-2 text-xs text-muted-foreground font-medium">Field</th>
+                    <th className="text-left px-3 py-2 text-xs text-muted-foreground font-medium">Value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  <tr><td className="px-3 py-2 text-muted-foreground">Product Name</td><td className="px-3 py-2 font-medium">{skuResult.product.name}</td></tr>
+                  <tr><td className="px-3 py-2 text-muted-foreground">Model No.</td><td className="px-3 py-2">{skuResult.product.modelNo || "—"}</td></tr>
+                  <tr><td className="px-3 py-2 text-muted-foreground">SKU</td><td className="px-3 py-2 font-mono">{skuResult.product.sku}</td></tr>
+                  <tr><td className="px-3 py-2 text-muted-foreground">Inventory Qty</td><td className="px-3 py-2">{skuResult.product.quantityInStock}</td></tr>
+                  <tr><td className="px-3 py-2 text-muted-foreground">MSP</td><td className="px-3 py-2">{formatCurrency(Math.floor((skuResult.product.costPrice || 0) * 1.25))} <span className="text-[10px] text-muted-foreground">(125% of Cost Price)</span></td></tr>
+                  <tr><td className="px-3 py-2 text-muted-foreground">Sale Price</td><td className="px-3 py-2">{formatCurrency(skuResult.product.price)} <span className="text-[10px] text-muted-foreground">(150% of Cost Price = {formatCurrency(Math.floor((skuResult.product.costPrice || 0) * 1.5))})</span></td></tr>
+                  <tr><td className="px-3 py-2 text-muted-foreground">Supplier Name</td><td className="px-3 py-2">{skuResult.purchase?.supplierName || "—"}</td></tr>
+                  <tr><td className="px-3 py-2 text-muted-foreground">Purchase Date</td><td className="px-3 py-2">{skuResult.purchase?.purchaseDate ? toDate(skuResult.purchase.purchaseDate).toLocaleDateString() : "—"}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+          {skuSearch && !skuResult && (
+            <p className="mt-2 text-sm text-red-500">No product found with SKU "{skuSearch.trim()}"</p>
+          )}
         </div>
 
         {!isStaff && (
