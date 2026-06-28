@@ -149,6 +149,34 @@ function CustomHtmlSection({ section }: { section: HomeSection }) {
   );
 }
 
+function ComboSection() {
+  const { data: products, loading, error } = useFirestore<ProductType>("products", {
+    constraints: [where("isActive", "==", true)],
+    realtime: false,
+  });
+
+  if (loading) return null;
+  if (error) return <p className="text-red-500 text-center py-4">Failed to load combos.</p>;
+  const combos = products.filter((p) => p.comboItems?.length);
+  if (combos.length === 0) return null;
+
+  return (
+    <section className="py-16 bg-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-secondary">Combo Deals</h2>
+          <p className="text-muted-foreground mt-2">Curated sets at special prices</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {combos.map((product) => (
+            <ProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function SectionRenderer({ section }: { section: HomeSection }) {
   switch (section.type) {
     case "hero":
@@ -159,6 +187,8 @@ function SectionRenderer({ section }: { section: HomeSection }) {
       return <FeaturedProductsSection />;
     case "new_arrivals":
       return <NewArrivalsSection />;
+    case "combo_deals":
+      return <ComboSection />;
     case "custom_html":
       return <CustomHtmlSection section={section} />;
     default:
@@ -198,6 +228,7 @@ function HomeContent() {
             }}
           />
           <FeaturedProductsSection />
+          <ComboSection />
           <CategoryGridSection />
           <NewArrivalsSection />
         </>

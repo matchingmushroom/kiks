@@ -388,7 +388,7 @@ export interface Customer {
 
 export interface HomeSection {
   id: string;
-  type: "hero" | "featured_products" | "category_grid" | "new_arrivals" | "custom_html";
+  type: "hero" | "featured_products" | "category_grid" | "new_arrivals" | "combo_deals" | "custom_html";
   title: string;
   subtitle: string;
   order: number;
