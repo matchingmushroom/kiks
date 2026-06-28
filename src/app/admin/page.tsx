@@ -13,7 +13,7 @@ import { db } from "@/lib/firebase";
 import Link from "next/link";
 import {
   Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
-  BarChart3, ShoppingCart, Clock, RefreshCw, X, DollarSign, Landmark, CreditCard, FileDown, Search,
+  BarChart3, ShoppingCart, Clock, RefreshCw, X, DollarSign, Landmark, CreditCard, FileDown, Search, User,
 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -407,6 +407,40 @@ export default function AdminDashboardPage() {
               onDownload={() => downloadCSV(todayBankLedger, `today-bank-${todayStr}`, true, currentUserName)}
             />
           </div>
+
+          {/* Staff Breakdown */}
+          {todaySales.length > 0 && (
+          <div className="mt-4 border-t border-border pt-4">
+            <h3 className="text-xs font-semibold text-secondary flex items-center gap-2 mb-3">
+              <Users className="h-3.5 w-3.5 text-primary" />
+              Per Staff
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {Array.from(new Map(todaySales.map((s) => [s.recordedByName || s.recordedBy || "Unknown", s.recordedByName || s.recordedBy || "Unknown"])).entries()).map(([key, name]) => {
+                const staffSales = todaySales.filter((s) => (s.recordedByName || s.recordedBy || "Unknown") === key);
+                const total = staffSales.reduce((sum, s) => sum + s.finalAmount, 0);
+                const cashTotal = staffSales.filter((s) => s.payment?.method === "cash").reduce((sum, s) => sum + (s.payment?.receivedAmount || 0), 0);
+                const qrTotal = staffSales.filter((s) => s.payment?.method === "qr").reduce((sum, s) => sum + (s.payment?.receivedAmount || 0), 0);
+                const creditTotal = staffSales.filter((s) => s.saleType === "credit" || s.saleType === "partial").reduce((sum, s) => sum + (s.payment?.balanceDue || 0), 0);
+                return (
+                  <div key={key} className="bg-white border border-border rounded-xl p-3 shadow-sm hover:shadow-md transition-shadow">
+                    <p className="font-semibold text-secondary text-sm truncate flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-muted-foreground" />
+                      {name}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{staffSales.length} sale{staffSales.length !== 1 ? "s" : ""}</p>
+                    <p className="text-sm font-bold text-primary mt-2">{formatCurrency(total)}</p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[10px] text-muted-foreground">
+                      <span>Cash: {formatCurrency(cashTotal)}</span>
+                      <span>QR/Bank: {formatCurrency(qrTotal)}</span>
+                      {creditTotal > 0 && <span className="text-red-500">Due: {formatCurrency(creditTotal)}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          )}
         </div>
 
         {/* ── Modals ── */}
