@@ -256,7 +256,7 @@ function PurchasesContent() {
         paidAmount: paid,
         billNo: csvBillNo,
         billDate: "",
-        billImageUrl: "",
+        billImageUrl: csvBillImageUrl || "",
         notes: "Bulk import via CSV",
         recordedBy: user?.uid || "",
         recordedByName: profile?.displayName || "",
