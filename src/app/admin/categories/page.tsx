@@ -48,8 +48,8 @@ export default function AdminCategoriesPage() {
   };
 
   const openEdit = (cat: Category) => {
-    setName(cat.name); setShortCode(cat.shortCode || ""); setSubCategories(cat.subCategories?.join(", ") || ""); setDescription(cat.description);
-    setImage(cat.image); setOrderNum(cat.order);
+    setName(cat.name); setShortCode(cat.shortCode || ""); setSubCategories(cat.subCategories?.join(", ") || ""); setDescription(cat.description || "");
+    setImage(cat.image || ""); setOrderNum(cat.order);
     setIsActive(cat.isActive);
     setEditingId(cat.id);
     setShowForm(true);
