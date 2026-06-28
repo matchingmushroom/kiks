@@ -43,6 +43,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const specs = [
     { label: "Brand", value: product.brand },
     { label: "Model Number", value: product.modelNo },
+    { label: "SKU", value: product.sku },
     { label: "Base Material", value: product.baseMaterial },
     { label: "Plating Type", value: product.plating },
     { label: "Color", value: product.color },
