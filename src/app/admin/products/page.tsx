@@ -7,7 +7,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Product, ProductBadge, Category } from "@/types";
 import { formatCurrency, formatDate, compressImageUnder200KB } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
-import { generateSku, generateModelNo, getNextSequence } from "@/lib/sku-generator";
 import {
   setDoc,
   updateDoc,
@@ -21,9 +20,10 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateDummyProducts } from "@/lib/dummyProducts";
+import { generateSku, generateModelNo } from "@/lib/sku-generator";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Globe, Loader2, AlertTriangle, Upload } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Loader2, AlertTriangle, Upload } from "lucide-react";
 
 const BASE_MATERIALS = ["", "Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"];
 const PLATING_OPTIONS = ["", "Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"];
@@ -33,16 +33,7 @@ const IDEAL_FOR_OPTIONS = ["", "Women", "Men", "Girls", "Boys", "Unisex", "Women
 const NET_QTY_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
 const OCCASION_OPTIONS = ["", "Party", "Wedding", "Engagement", "Everyday", "Gift", "Workwear", "Dailywear"];
 
-const emptyProduct = {
-  name: "", description: "", design: "", categoryId: "",
-  images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0,
-  metalType: "Gold", stoneType: "None",
-  stoneWeight: 0, makingCharge: 0, warranty: "1 year",
-  sku: "", quantityInStock: 1, isActive: true, isFeatured: false,
-  badge: "none" as ProductBadge, originalPrice: 0,
-  brand: "", modelNo: "", baseMaterial: "", plating: "",
-  color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[],
-};
+
 
 export default function AdminProductsPage() {
   const { data: products, loading } = useFirestore<Product>("products", {
@@ -62,12 +53,9 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ ...emptyProduct });
+  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "1 year", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
   const [saving, setSaving] = useState(false);
 
-  const [flipkartUrl, setFlipkartUrl] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [showImport, setShowImport] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -80,12 +68,6 @@ export default function AdminProductsPage() {
     const matchCat = !catFilter || p.categoryId === catFilter;
     return matchSearch && matchCat;
   });
-
-  const openAdd = () => {
-    setForm({ ...emptyProduct });
-    setEditingId(null);
-    setShowForm(true);
-  };
 
   const openEdit = (p: Product) => {
     setForm({
@@ -264,57 +246,7 @@ export default function AdminProductsPage() {
     }
   };
 
-  const importFromFlipkart = async () => {
-    if (!flipkartUrl.trim()) return;
-    setImporting(true);
-    try {
-      const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(flipkartUrl)}`;
-      const res = await fetch(proxy);
-      const html = await res.text();
 
-      const doc = new DOMParser().parseFromString(html, "text/html");
-
-      const ldScripts = [...doc.querySelectorAll('script[type="application/ld+json"]')];
-      let ld: any = null;
-      for (const script of ldScripts) {
-        try { ld = JSON.parse(script.textContent || ""); if (ld?.name) break; } catch {}
-      }
-
-      let name = ld?.name || doc.querySelector('[class*="B_NuCI"]')?.textContent || "";
-      let price = ld?.offers?.price || parseFloat(doc.querySelector('[class*="_30jeq3"]')?.textContent?.replace(/[^0-9.]/g, "") || "0");
-      let description = ld?.description || doc.querySelector('[class*="_1mXcCf"]')?.textContent || "";
-      let brand = ld?.brand?.name || "";
-      let images: string[] = [];
-      if (ld?.image) images = Array.isArray(ld.image) ? ld.image : [ld.image];
-
-      const baseMaterial = BASE_MATERIALS.find((m) => m && html.toLowerCase().includes(m.toLowerCase())) || "";
-      const plating = PLATING_OPTIONS.find((p) => p && html.toLowerCase().includes(p.toLowerCase())) || "";
-      const color = COLOR_OPTIONS.find((c) => c && html.toLowerCase().includes(c.toLowerCase())) || "";
-      const selectedCat = categories.find((c) => c.id === form.categoryId);
-      const productType = selectedCat?.subCategories?.find((t) => t && html.toLowerCase().includes(t.toLowerCase())) || "";
-
-      setForm({
-        ...emptyProduct,
-        categoryId: categories[0]?.id || "",
-        name: name || form.name,
-        price: price || form.price,
-        description: description || form.description,
-        brand: brand || form.brand,
-        images: images.length ? images : [""],
-        baseMaterial: baseMaterial || form.baseMaterial,
-        plating: plating || form.plating,
-        color: color || form.color,
-        productType: productType || form.productType,
-      });
-      setShowImport(false);
-      setFlipkartUrl("");
-      setShowForm(true);
-    } catch (e) {
-      console.error("Import failed", e);
-      alert("Could not fetch product data from that URL. Try a different URL or enter details manually.");
-    }
-    setImporting(false);
-  };
 
   return (
     <AdminLayout>
@@ -329,20 +261,8 @@ export default function AdminProductsPage() {
               className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
               {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </button>
-            <Button onClick={() => { setShowImport(true); setFlipkartUrl(""); }} variant="outline">
-              <Globe className="h-4 w-4" /> Import
-            </Button>
-            <Button onClick={handleSeed} disabled={seeding || !categories.length} variant="outline">
-              {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              {seeding ? "Seeding..." : "Seed 50"}
-            </Button>
-            {products.length > 0 && (
-              <Button onClick={() => { setShowDeleteConfirm(true); setDeleteConfirm(""); }} variant="outline" className="text-red-500 border-red-200 hover:bg-red-50">
-                <Trash2 className="h-4 w-4" /> Delete All
-              </Button>
-            )}
-            <Button onClick={openAdd} variant="accent">
-              <Plus className="h-4 w-4" /> Add Product
+            <Button onClick={() => window.location.href = "/admin/purchases"} variant="accent">
+              <Plus className="h-4 w-4" /> Add Product via Purchase
             </Button>
           </div>
         </div>
@@ -369,27 +289,6 @@ export default function AdminProductsPage() {
                   <Button onClick={() => { setShowDeleteConfirm(false); setDeleteConfirm(""); }} variant="outline">Cancel</Button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {showImport && (
-          <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-secondary">Import from Flipkart</h2>
-              <button onClick={() => setShowImport(false)} className="p-1 hover:bg-muted rounded">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <p className="text-sm text-muted-foreground mb-3">Paste a Flipkart product URL to auto-fill product details.</p>
-            <div className="flex gap-3">
-              <input type="url" placeholder="https://www.flipkart.com/..." value={flipkartUrl}
-                onChange={(e) => setFlipkartUrl(e.target.value)}
-                className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              <Button onClick={importFromFlipkart} disabled={importing || !flipkartUrl.trim()} variant="accent">
-                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
-                {importing ? "Fetching..." : "Fetch & Fill"}
-              </Button>
             </div>
           </div>
         )}
@@ -439,13 +338,13 @@ export default function AdminProductsPage() {
                       const catId = e.target.value;
                       if (catId && !editingId) {
                         const cat = categories.find((c) => c.id === catId);
-                        if (cat?.shortCode) {
-                          const seq = getNextSequence(products, catId);
+                          if (cat?.shortCode) {
+                          const cp = form.costPrice || 0;
                           setForm((prev) => ({
                             ...prev,
                             categoryId: catId,
-                            sku: generateSku(cat.shortCode, seq),
-                            modelNo: generateModelNo(cat.shortCode, seq),
+                            sku: generateSku(cat.shortCode, cp, "XX"),
+                            modelNo: generateModelNo(cat.shortCode, cp, 1),
                           }));
                           return;
                         }

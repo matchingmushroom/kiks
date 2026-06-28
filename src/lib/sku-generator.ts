@@ -1,22 +1,10 @@
-export function generateSku(shortCode: string, sequence: number): string {
-  const seq = String(sequence).padStart(3, "0");
-  return `${shortCode}-${seq}`;
+export function generateSku(categoryShortCode: string, costPrice: number, supplierShortCode: string): string {
+  const cp = String(Math.floor(costPrice / 10) + 10).padStart(5, "0");
+  return `S${categoryShortCode}-${cp}-${supplierShortCode}`;
 }
 
-export function generateModelNo(shortCode: string, sequence: number): string {
-  const seq = String(sequence).padStart(3, "0");
-  return `M-${shortCode}-${seq}`;
-}
-
-export function getNextSequence(existingProducts: { sku: string; categoryId: string }[], categoryId: string): number {
-  const categoryProducts = existingProducts.filter((p) => p.categoryId === categoryId);
-  if (categoryProducts.length === 0) return 1;
-  const maxSeq = Math.max(
-    ...categoryProducts.map((p) => {
-      const parts = p.sku.split("-");
-      const last = parts[parts.length - 1];
-      return parseInt(last, 10) || 0;
-    })
-  );
-  return maxSeq + 1;
+export function generateModelNo(categoryShortCode: string, costPrice: number, quantity: number): string {
+  const cp = String(Math.floor(costPrice / 10) + 10).padStart(5, "0");
+  const qty = String(quantity).padStart(5, "0");
+  return `M${categoryShortCode}-${cp}-${qty}`;
 }

@@ -8,7 +8,7 @@ import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier
 import { formatCurrency, formatDate, formatNumber, toDate, compressImageUnder200KB, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
-import { generateSku, generateModelNo, getNextSequence } from "@/lib/sku-generator";
+import { generateSku, generateModelNo } from "@/lib/sku-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { createJournalEntry, buildPurchaseJournal, buildAdvanceSettlementJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -199,9 +199,12 @@ function PurchasesContent() {
         if (!r.match && r.categoryId) {
           const prodId_ = await generateId("PROD");
           const cat = categories.find((c) => c.id === r.categoryId);
-          const seq = getNextSequence(products, r.categoryId);
-          const newSku = generateSku(cat?.shortCode || "", seq);
-          const newModelNo = generateModelNo(cat?.shortCode || "", seq);
+          const supplier = allSuppliers.find((s) => s.name === (csvSupplier || form.supplierName));
+          const supCode = supplier?.shortCode || "XX";
+          const cp = r.unitCost || 0;
+          const qty = r.quantity || 1;
+          const newSku = generateSku(cat?.shortCode || "XX", cp, supCode);
+          const newModelNo = generateModelNo(cat?.shortCode || "XX", cp, qty);
           await setDoc(doc(db, "products", prodId_), {
             name: r.productName, description: "", design: "", categoryId: r.categoryId,
             images: [], videoUrl: "", price: r.salesPrice, costPrice: r.unitCost,
@@ -1178,9 +1181,11 @@ function PurchasesContent() {
                                   setShowNewCategory(true);
                                 } else {
                                   const cat = categories.find((c) => c.id === catId);
-                                  if (cat?.shortCode && products) {
-                                    const seq = getNextSequence(products, catId);
-                                    setNewProductForm({ ...newProductForm, categoryId: catId, sku: generateSku(cat.shortCode, seq), modelNo: generateModelNo(cat.shortCode, seq) });
+                                  const supplier = allSuppliers.find((s) => s.name === form.supplierName);
+                                  const supCode = supplier?.shortCode || "XX";
+                                  const cp = newProductForm.costPrice || 0;
+                                  if (cat?.shortCode) {
+                                    setNewProductForm({ ...newProductForm, categoryId: catId, sku: generateSku(cat.shortCode, cp, supCode), modelNo: generateModelNo(cat.shortCode, cp, 1) });
                                   } else {
                                     setNewProductForm({ ...newProductForm, categoryId: catId });
                                   }
@@ -1394,7 +1399,17 @@ function PurchasesContent() {
                         <div>
                           <label className="block text-xs text-muted-foreground mb-1">Cost Price (NPR)</label>
                           <input type="number" value={newProductForm.costPrice || ""}
-                            onChange={(e) => setNewProductForm({ ...newProductForm, costPrice: Number(e.target.value) })}
+                            onChange={(e) => {
+                              const cp = Number(e.target.value);
+                              const cat = categories.find((c) => c.id === newProductForm.categoryId);
+                              const supplier = allSuppliers.find((s) => s.name === form.supplierName);
+                              const supCode = supplier?.shortCode || "XX";
+                              if (cat?.shortCode) {
+                                setNewProductForm({ ...newProductForm, costPrice: cp, sku: generateSku(cat.shortCode, cp, supCode), modelNo: generateModelNo(cat.shortCode, cp, 1) });
+                              } else {
+                                setNewProductForm({ ...newProductForm, costPrice: cp });
+                              }
+                            }}
                             className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                         </div>
                         <div>
