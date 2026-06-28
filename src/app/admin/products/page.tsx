@@ -53,7 +53,7 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "1 year", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
+  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
   const [saving, setSaving] = useState(false);
 
   const [deletingAll, setDeletingAll] = useState(false);
@@ -265,7 +265,7 @@ export default function AdminProductsPage() {
         design: "", categoryId: catId, images: [], videoUrl: "", price: comboPrice,
         originalPrice: 0, badge: "", costPrice: comboPrice, weight: 0, purity: null,
         metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0,
-        warranty: "1 year", sku: `COMBO-${prodId.slice(-6)}`, quantityInStock: 9999,
+        warranty: "0", sku: `COMBO-${prodId.slice(-6)}`, quantityInStock: 9999,
         isActive: true, isFeatured: false, brand: "", modelNo: `COMBO-${prodId.slice(-6)}`,
         baseMaterial: "", plating: "", color: "", productType: "", idealFor: [],
         netQuantity: 1, occasion: [], comboItems: selectedComboIds, comboPrice,
