@@ -29,6 +29,7 @@ export default function AdminCategoriesPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [shortCode, setShortCode] = useState("");
   const [description, setDescription] = useState("");
   const [image, setImage] = useState("");
   const [orderNum, setOrderNum] = useState(0);
@@ -38,7 +39,7 @@ export default function AdminCategoriesPage() {
   const [detailCat, setDetailCat] = useState<Category | null>(null);
 
   const openAdd = () => {
-    setName(""); setDescription(""); setImage("");
+    setName(""); setShortCode(""); setDescription(""); setImage("");
     setOrderNum(categories.length);
     setIsActive(true);
     setEditingId(null);
@@ -46,7 +47,7 @@ export default function AdminCategoriesPage() {
   };
 
   const openEdit = (cat: Category) => {
-    setName(cat.name); setDescription(cat.description);
+    setName(cat.name); setShortCode(cat.shortCode || ""); setDescription(cat.description);
     setImage(cat.image); setOrderNum(cat.order);
     setIsActive(cat.isActive);
     setEditingId(cat.id);
@@ -54,10 +55,10 @@ export default function AdminCategoriesPage() {
   };
 
   const handleSave = async () => {
-    if (!name) return;
+    if (!name || !shortCode) return;
     setSaving(true);
     try {
-      const data = { name, description, image, order: orderNum, isActive, updatedAt: Timestamp.fromDate(new Date()) };
+      const data = { name, shortCode: shortCode.toUpperCase(), description, image, order: orderNum, isActive, updatedAt: Timestamp.fromDate(new Date()) };
       if (editingId) {
         await updateDoc(doc(db, "categories", editingId), data);
       } else {
@@ -117,6 +118,12 @@ export default function AdminCategoriesPage() {
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Short Code *</label>
+                <input type="text" value={shortCode} onChange={(e) => setShortCode(e.target.value.toUpperCase().slice(0, 4))} placeholder="e.g., RG"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <p className="text-xs text-muted-foreground mt-1">2-4 characters, used for SKU/Model No generation</p>
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Order</label>
                 <input type="number" value={orderNum} onChange={(e) => setOrderNum(Number(e.target.value))}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -140,7 +147,7 @@ export default function AdminCategoriesPage() {
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <Button onClick={handleSave} disabled={saving || !name} variant="accent">
+              <Button onClick={handleSave} disabled={saving || !name || !shortCode} variant="accent">
                 {saving ? "Saving..." : editingId ? "Update" : "Create"}
               </Button>
               <Button onClick={() => setShowForm(false)} variant="outline">Cancel</Button>
@@ -171,6 +178,7 @@ export default function AdminCategoriesPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-secondary text-sm truncate">{cat.name}</p>
+                        {cat.shortCode && <span className="text-xs font-mono text-primary mr-2">{cat.shortCode}</span>}
                         {cat.description && <p className="text-xs text-muted-foreground truncate">{cat.description}</p>}
                       </div>
                       <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${cat.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-muted-foreground"}`}>
@@ -209,6 +217,7 @@ export default function AdminCategoriesPage() {
                   <thead>
                     <tr className="bg-muted text-left">
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Name</th>
+                      <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Code</th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Order</th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Status</th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground text-right">Actions</th>
@@ -220,6 +229,9 @@ export default function AdminCategoriesPage() {
                         <td className="px-4 py-2.5">
                           <p className="font-medium text-secondary">{cat.name}</p>
                           {cat.description && <p className="text-xs text-muted-foreground">{cat.description}</p>}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="font-mono text-xs font-medium text-primary">{cat.shortCode}</span>
                         </td>
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-1">
@@ -261,6 +273,7 @@ export default function AdminCategoriesPage() {
           <DetailModal title={`Category - ${detailCat.name}`} onClose={() => setDetailCat(null)}>
             <div className="space-y-2 text-sm">
               <Row label="Name" value={detailCat.name} />
+              <Row label="Short Code" value={detailCat.shortCode} />
               <Row label="Description" value={detailCat.description || "—"} />
               <Row label="Order" value={String(detailCat.order)} />
               <Row label="Status" value={detailCat.isActive ? "Active" : "Inactive"} />

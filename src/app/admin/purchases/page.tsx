@@ -8,6 +8,7 @@ import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier
 import { formatCurrency, formatDate, formatNumber, toDate, compressImageUnder200KB, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
+import { generateSku, generateModelNo, getNextSequence } from "@/lib/sku-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { createJournalEntry, buildPurchaseJournal, buildAdvanceSettlementJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -1144,10 +1145,17 @@ function PurchasesContent() {
                           <div className="flex gap-2">
                             <select value={newProductForm.categoryId}
                               onChange={(e) => {
-                                if (e.target.value === "__new__") {
+                                const catId = e.target.value;
+                                if (catId === "__new__") {
                                   setShowNewCategory(true);
                                 } else {
-                                  setNewProductForm({ ...newProductForm, categoryId: e.target.value });
+                                  const cat = categories.find((c) => c.id === catId);
+                                  if (cat?.shortCode && products) {
+                                    const seq = getNextSequence(products, catId);
+                                    setNewProductForm({ ...newProductForm, categoryId: catId, sku: generateSku(cat.shortCode, seq), modelNo: generateModelNo(cat.shortCode, seq) });
+                                  } else {
+                                    setNewProductForm({ ...newProductForm, categoryId: catId });
+                                  }
                                 }
                               }}
                               className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">

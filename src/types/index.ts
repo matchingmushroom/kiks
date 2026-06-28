@@ -14,6 +14,7 @@ export interface AppUser {
 export interface Category {
   id: string;
   name: string;
+  shortCode: string;
   description: string;
   image: string;
   order: number;
@@ -358,6 +359,7 @@ export interface CreditorPayment {
 export interface Supplier {
   id: string;
   name: string;
+  shortCode: string;
   phone: string;
   landline?: string;
   address: string;

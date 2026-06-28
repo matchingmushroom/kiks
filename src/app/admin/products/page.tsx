@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Product, ProductBadge, Category } from "@/types";
 import { formatCurrency, formatDate, compressImageUnder200KB } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
+import { generateSku, generateModelNo, getNextSequence } from "@/lib/sku-generator";
 import {
   setDoc,
   updateDoc,
@@ -433,7 +434,23 @@ export default function AdminProductsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Category</label>
-                    <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+                    <select value={form.categoryId} onChange={(e) => {
+                      const catId = e.target.value;
+                      if (catId && !editingId) {
+                        const cat = categories.find((c) => c.id === catId);
+                        if (cat?.shortCode) {
+                          const seq = getNextSequence(products, catId);
+                          setForm((prev) => ({
+                            ...prev,
+                            categoryId: catId,
+                            sku: generateSku(cat.shortCode, seq),
+                            modelNo: generateModelNo(cat.shortCode, seq),
+                          }));
+                          return;
+                        }
+                      }
+                      setForm((prev) => ({ ...prev, categoryId: catId }));
+                    }}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                       <option value="">Select</option>
                       {categories.map((c) => (<option key={c.id} value={c.id}>{c.name}</option>))}

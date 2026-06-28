@@ -12,11 +12,11 @@ const defaultSettings = {
 };
 
 const defaultCategories = [
-  { name: "Rings", description: "Gold, silver & diamond rings", order: 0, isActive: true },
-  { name: "Necklaces", description: "Elegant necklaces & pendants", order: 1, isActive: true },
-  { name: "Earrings", description: "Studs, hoops & danglers", order: 2, isActive: true },
-  { name: "Bracelets", description: "Bangles & bracelets", order: 3, isActive: true },
-  { name: "Nosepins", description: "Traditional & modern nosepins", order: 4, isActive: true },
+  { name: "Rings", shortCode: "RG", description: "Gold, silver & diamond rings", order: 0, isActive: true },
+  { name: "Necklaces", shortCode: "NC", description: "Elegant necklaces & pendants", order: 1, isActive: true },
+  { name: "Earrings", shortCode: "ER", description: "Studs, hoops & danglers", order: 2, isActive: true },
+  { name: "Bracelets", shortCode: "BR", description: "Bangles & bracelets", order: 3, isActive: true },
+  { name: "Nosepins", shortCode: "NP", description: "Traditional & modern nosepins", order: 4, isActive: true },
 ];
 
 const defaultSections = [
