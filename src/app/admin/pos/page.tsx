@@ -566,22 +566,17 @@ export default function POSPage() {
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="text-xs font-semibold text-secondary">Payment</span>
                 <div className="flex gap-1" role="radiogroup" aria-label="Payment mode">
-                  {(["cash", "qr", "partial"] as PaymentMode[]).map((mode) => {
-                    const disabled = mode === "partial" && comboDiscount > 0;
-                    return (
+                  {(["cash", "qr", "partial"] as PaymentMode[]).map((mode) => (
                     <button key={mode} role="radio" aria-checked={paymentMode === mode}
-                      onClick={() => { if (disabled) return; setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
+                      onClick={() => { setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
                       className={`px-3 lg:px-2.5 py-1.5 lg:py-1 text-xs lg:text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
-                        disabled ? "opacity-40 cursor-not-allowed" :
                         paymentMode === mode
                           ? "bg-primary text-white border-primary"
                           : "bg-white text-secondary border-border hover:bg-muted"
-                      }`}
-                      title={disabled ? "Credit not available for combo purchases" : ""}>
+                      }`}>
                       {mode === "partial" ? "Partial" : mode === "qr" ? "QR" : "Cash"}
                     </button>
-                    );
-                  })}
+                  ))}
                 </div>
               </div>
               {paymentMode === "partial" && (
