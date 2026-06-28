@@ -11,7 +11,7 @@ import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
   Plus, ArrowUp, ArrowDown, Eye, EyeOff, Edit2, Trash2, X, Save,
-  Layout, Image, Grid3X3, Sparkles, Code,
+  Layout, Image, Grid3X3, Sparkles, Code, ShoppingBag,
 } from "lucide-react";
 
 const SECTION_TYPES = [
@@ -19,6 +19,7 @@ const SECTION_TYPES = [
   { value: "category_grid", label: "Category Grid", icon: Grid3X3, desc: "Grid of category cards" },
   { value: "featured_products", label: "Featured Products", icon: Sparkles, desc: "Grid of featured products" },
   { value: "new_arrivals", label: "New Arrivals", icon: Layout, desc: "Latest products" },
+  { value: "combo_deals", label: "Combo Deals", icon: ShoppingBag, desc: "Grid of combo products" },
   { value: "custom_html", label: "Custom HTML", icon: Code, desc: "Raw HTML block" },
 ];
 
@@ -27,6 +28,7 @@ const typeConfigDefaults: Record<string, Record<string, unknown>> = {
   featured_products: { maxProducts: 8 },
   category_grid: {},
   new_arrivals: { maxDays: 30 },
+  combo_deals: {},
   custom_html: { htmlContent: "" },
 };
 
@@ -108,6 +110,7 @@ export default function AdminHomepagePage() {
     category_grid: <Grid3X3 className="h-5 w-5" />,
     featured_products: <Sparkles className="h-5 w-5" />,
     new_arrivals: <Layout className="h-5 w-5" />,
+    combo_deals: <ShoppingBag className="h-5 w-5" />,
     custom_html: <Code className="h-5 w-5" />,
   };
 
@@ -116,6 +119,7 @@ export default function AdminHomepagePage() {
     category_grid: "bg-blue-50 text-blue-700 border-blue-200",
     featured_products: "bg-amber-50 text-amber-700 border-amber-200",
     new_arrivals: "bg-green-50 text-green-700 border-green-200",
+    combo_deals: "bg-pink-50 text-pink-700 border-pink-200",
     custom_html: "bg-gray-50 text-gray-700 border-gray-200",
   };
 
