@@ -44,7 +44,12 @@ export function DataCacheProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshCollection = useCallback((key: string) => {
-    cacheRef.current.delete(key);
+    const prefix = key + "|";
+    for (const k of cacheRef.current.keys()) {
+      if (k === key || k.startsWith(prefix)) {
+        cacheRef.current.delete(k);
+      }
+    }
   }, []);
 
   const invalidateAll = useCallback(() => {
