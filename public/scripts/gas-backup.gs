@@ -57,6 +57,19 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (data.action === "doBackup") {
+      try {
+        doBackup();
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "ok", message: "Backup triggered successfully." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      } catch (err) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     if (data.action === "sendReport" && data.csv && data.module) {
       var blob = Utilities.newBlob(data.csv, "text/csv", data.filename || (data.module + ".csv"));
 

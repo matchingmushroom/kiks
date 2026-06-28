@@ -12,7 +12,7 @@ import {
   generateSalesReport, generateProductReport, generateDebtorReport,
   reportToCSV, type ReportData,
 } from "@/lib/export";
-import { getDocs, collection, query, orderBy } from "firebase/firestore";
+import { getDocs, doc, getDoc, collection, query, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 
@@ -44,6 +44,7 @@ export default function AdminBackupPage() {
   const [loadingReport, setLoadingReport] = useState(false);
   const [showDriveGuide, setShowDriveGuide] = useState(false);
   const [detailRow, setDetailRow] = useState<string[] | null>(null);
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   const toggleColl = (id: string) => {
     setSelected((prev) =>
@@ -156,6 +157,24 @@ export default function AdminBackupPage() {
       "4. The backup page will then support one-click email sending."
     );
     window.open(`mailto:?subject=${subject}&body=${body}`, "_blank");
+  };
+
+  const handleSendEmailBackup = async () => {
+    setSendingEmail(true);
+    try {
+      const snap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      if (!snap.exists()) { alert("Configure Email & Backup in Settings first."); return; }
+      const cfg = snap.data() as { gasWebhookUrl?: string; emailTo?: string; driveFolderId?: string };
+      if (!cfg.gasWebhookUrl) { alert("Configure GAS Webhook URL in Settings first."); return; }
+      if (!cfg.emailTo) { alert("Configure recipient email (emailTo) in Settings first."); return; }
+      const res = await fetch(cfg.gasWebhookUrl, {
+        method: "POST",
+        body: JSON.stringify({ action: "doBackup" }),
+      });
+      const data = await res.json();
+      if (data.status === "ok") alert("Backup email sent!"); else alert("Error: " + (data.message || "Unknown"));
+    } catch (e: any) { alert("Failed: " + (e.message || e)); }
+    setSendingEmail(false);
   };
 
   return (
@@ -271,12 +290,17 @@ export default function AdminBackupPage() {
             <Mail className="h-5 w-5 text-primary" /> Email Backup
           </h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Download the ZIP backup from above, then send it via email. For one-click automated email backup,
-            set up <a href="https://www.emailjs.com/" target="_blank" rel="noopener noreferrer" className="text-primary underline">EmailJS</a> and add your credentials to <code className="text-xs bg-muted px-1 py-0.5 rounded">.env.local</code>.
+            Use the GAS webhook (configured in Settings) to email all enabled module CSVs to the configured recipient.
+            Also saves copies to Google Drive if configured.
           </p>
-          <Button onClick={handleEmailBackup} variant="outline">
-            <Mail className="h-4 w-4" /> Open Email Client
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={handleSendEmailBackup} disabled={sendingEmail} variant="accent">
+              <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send Email Backup"}
+            </Button>
+            <Button onClick={handleEmailBackup} variant="outline">
+              <Mail className="h-4 w-4" /> Open Email Client (Manual)
+            </Button>
+          </div>
         </section>
 
         {/* ============ GOOGLE DRIVE ============ */}
