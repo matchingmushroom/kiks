@@ -16,7 +16,7 @@ import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { generateId } from "@/lib/id-generator";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, X, LayoutGrid, List } from "lucide-react";
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, X, LayoutGrid, List, Eye, EyeOff } from "lucide-react";
 
 export default function AdminCategoriesPage() {
   const { data: categories, loading } = useFirestore<Category>("categories", {
@@ -55,12 +55,18 @@ export default function AdminCategoriesPage() {
     setShowForm(true);
   };
 
+  const toggleHomepage = async (cat: Category) => {
+    const newVal = !(cat.showOnHomepage ?? true);
+    await updateDoc(doc(db, "categories", cat.id), { showOnHomepage: newVal, updatedAt: Timestamp.fromDate(new Date()) });
+    refreshCollection("categories");
+  };
+
   const handleSave = async () => {
     if (!name || !shortCode) return;
     setSaving(true);
     try {
       const subCats = subCategories.split(",").map((s) => s.trim()).filter(Boolean);
-      const data = { name, shortCode: shortCode.toUpperCase(), subCategories: subCats, description, image, order: orderNum, isActive, updatedAt: Timestamp.fromDate(new Date()) };
+      const data = { name, shortCode: shortCode.toUpperCase(), subCategories: subCats, description, image, order: orderNum, isActive, showOnHomepage: true, updatedAt: Timestamp.fromDate(new Date()) };
       if (editingId) {
         await updateDoc(doc(db, "categories", editingId), data);
       } else {
@@ -208,6 +214,9 @@ export default function AdminCategoriesPage() {
                         </button>
                       </div>
                       <div className="flex items-center gap-1">
+                        <button onClick={(e) => { e.stopPropagation(); toggleHomepage(cat); }} className={`p-1.5 rounded ${cat.showOnHomepage ?? true ? "text-green-600 hover:text-green-700" : "text-muted-foreground hover:text-primary"}`} title={cat.showOnHomepage ?? true ? "Visible on homepage" : "Hidden from homepage"}>
+                          {(cat.showOnHomepage ?? true) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); openEdit(cat); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                           <Edit2 className="h-3.5 w-3.5" />
                         </button>
@@ -262,6 +271,9 @@ export default function AdminCategoriesPage() {
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-right">
+                          <button onClick={(e) => { e.stopPropagation(); toggleHomepage(cat); }} className={`p-1.5 rounded ${(cat.showOnHomepage ?? true) ? "text-green-600" : "text-muted-foreground hover:text-primary"}`} title={(cat.showOnHomepage ?? true) ? "Visible on homepage" : "Hidden from homepage"}>
+                            {(cat.showOnHomepage ?? true) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                          </button>
                           <button onClick={(e) => { e.stopPropagation(); openEdit(cat); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
@@ -286,6 +298,7 @@ export default function AdminCategoriesPage() {
               <Row label="Description" value={detailCat.description || "—"} />
               <Row label="Order" value={String(detailCat.order)} />
               <Row label="Status" value={detailCat.isActive ? "Active" : "Inactive"} />
+              <Row label="On Homepage" value={detailCat.showOnHomepage ?? true ? "Yes" : "No"} />
               <Row label="Image" value={detailCat.image ? <a href={detailCat.image} target="_blank" rel="noopener noreferrer" className="text-primary underline">View</a> : "—"} />
             </div>
           </DetailModal>

@@ -83,6 +83,7 @@ export async function initializeShopData() {
       await setDoc(doc(db, "categories", id), {
         ...cat,
         image: "",
+        showOnHomepage: true,
         createdAt: Timestamp.fromDate(new Date()),
       });
     }

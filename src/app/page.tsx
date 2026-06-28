@@ -49,9 +49,10 @@ function CategoryGridSection() {
 
   if (loading) return null;
   if (error) return <p className="text-red-500 text-center py-4">Failed to load categories.</p>;
-  if (categories.length === 0) return null;
+  const visible = categories.filter((c) => c.showOnHomepage !== false);
+  if (visible.length === 0) return null;
 
-  const sortedCategories = [...categories].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+  const sortedCategories = [...visible].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
 
   return (
     <section className="py-16 bg-muted">

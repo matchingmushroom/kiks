@@ -20,6 +20,7 @@ export interface Category {
   image: string;
   order: number;
   isActive: boolean;
+  showOnHomepage: boolean;
 }
 
 export type ProductBadge = "none" | "limited_stock" | "out_of_stock" | "price_dropped" | "offer";
