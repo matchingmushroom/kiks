@@ -131,7 +131,8 @@ function PurchasesContent() {
   const parseCSV = (text: string) => {
     const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
     if (lines.length < 2) { alert("CSV must have a header row and at least one data row."); return; }
-    const headers = lines[0].toLowerCase().split(",").map((h) => h.trim());
+    const delim = lines[0].includes("\t") ? "\t" : ",";
+    const headers = lines[0].toLowerCase().split(delim).map((h) => h.trim().replace(/\r$/, ""));
     const nameIdx = headers.findIndex((h) => h === "productname" || h === "product name" || h === "name");
     const qtyIdx = headers.findIndex((h) => h === "quantity" || h === "qty");
     const costIdx = headers.findIndex((h) => h === "unitcost" || h === "unit cost" || h === "costprice" || h === "cost");
@@ -141,7 +142,7 @@ function PurchasesContent() {
     if (nameIdx === -1 && skuIdx === -1) { alert("CSV must have a 'productName' or 'sku' column."); return; }
     const parsed: typeof csvRows = [];
     for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(",").map((c) => c.trim());
+      const cols = lines[i].split(delim).map((c) => c.trim().replace(/\r$/, ""));
       const name = nameIdx >= 0 ? cols[nameIdx] || "" : "";
       const sku = skuIdx >= 0 ? cols[skuIdx] || "" : "";
       const lookupKey = name || sku;
@@ -1991,7 +1992,7 @@ function PurchasesContent() {
             </div>
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               <p className="text-xs text-muted-foreground">
-                CSV columns: <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code>, <code className="bg-muted px-1 rounded">category</code> (optional — use category shortCode). Header row required.
+                CSV columns: <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code>, <code className="bg-muted px-1 rounded">category</code> (optional — use category shortCode). Header row required. Supports comma or tab delimiters.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
