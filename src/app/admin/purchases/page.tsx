@@ -203,7 +203,7 @@ function PurchasesContent() {
           const supCode = supplier?.shortCode || "XX";
           const cp = r.unitCost || 0;
           const qty = r.quantity || 1;
-          const newSku = generateSku(cat?.shortCode || "XX", cp, supCode);
+          const newSku = generateSku(cat?.shortCode || "XX", cp, supCode, qty);
           const newModelNo = generateModelNo(cat?.shortCode || "XX", cp, qty);
           await setDoc(doc(db, "products", prodId_), {
             name: r.productName, description: "", design: "", categoryId: r.categoryId,
@@ -1185,7 +1185,7 @@ function PurchasesContent() {
                                   const supCode = supplier?.shortCode || "XX";
                                   const cp = newProductForm.costPrice || 0;
                                   if (cat?.shortCode) {
-                                    setNewProductForm({ ...newProductForm, categoryId: catId, sku: generateSku(cat.shortCode, cp, supCode), modelNo: generateModelNo(cat.shortCode, cp, 1) });
+                                    setNewProductForm({ ...newProductForm, categoryId: catId, sku: generateSku(cat.shortCode, cp, supCode, 1), modelNo: generateModelNo(cat.shortCode, cp, 1) });
                                   } else {
                                     setNewProductForm({ ...newProductForm, categoryId: catId });
                                   }
@@ -1405,7 +1405,7 @@ function PurchasesContent() {
                               const supplier = allSuppliers.find((s) => s.name === form.supplierName);
                               const supCode = supplier?.shortCode || "XX";
                               if (cat?.shortCode) {
-                                setNewProductForm({ ...newProductForm, costPrice: cp, sku: generateSku(cat.shortCode, cp, supCode), modelNo: generateModelNo(cat.shortCode, cp, 1) });
+                                setNewProductForm({ ...newProductForm, costPrice: cp, sku: generateSku(cat.shortCode, cp, supCode, 1), modelNo: generateModelNo(cat.shortCode, cp, 1) });
                               } else {
                                 setNewProductForm({ ...newProductForm, costPrice: cp });
                               }

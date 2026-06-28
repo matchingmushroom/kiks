@@ -1,6 +1,6 @@
-export function generateSku(categoryShortCode: string, costPrice: number, supplierShortCode: string): string {
+export function generateSku(categoryShortCode: string, costPrice: number, supplierShortCode: string, quantity: number): string {
   const cp = String(Math.floor(costPrice / 10) + 10).padStart(5, "0");
-  return `S${categoryShortCode}-${cp}-${supplierShortCode}`;
+  return `S${categoryShortCode}-${cp}-${supplierShortCode}${quantity}`;
 }
 
 export function generateModelNo(categoryShortCode: string, costPrice: number, quantity: number): string {

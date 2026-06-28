@@ -343,7 +343,7 @@ export default function AdminProductsPage() {
                           setForm((prev) => ({
                             ...prev,
                             categoryId: catId,
-                            sku: generateSku(cat.shortCode, cp, "XX"),
+                            sku: generateSku(cat.shortCode, cp, "XX", 1),
                             modelNo: generateModelNo(cat.shortCode, cp, 1),
                           }));
                           return;
