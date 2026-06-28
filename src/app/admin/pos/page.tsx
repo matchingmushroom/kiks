@@ -61,6 +61,7 @@ export default function POSPage() {
   const [showIssuePopup, setShowIssuePopup] = useState(false);
   const [manualDiscountType, setManualDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [manualDiscountValue, setManualDiscountValue] = useState(0);
+  const [comboDiscount, setComboDiscount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
@@ -86,7 +87,7 @@ export default function POSPage() {
   [items]);
 
   const discount = useMemo(() => {
-    let total = 0;
+    let total = comboDiscount;
     if (manualDiscountValue > 0) {
       total += manualDiscountType === "percentage"
         ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
@@ -98,7 +99,7 @@ export default function POSPage() {
         : appliedCoupon.discountValue;
     }
     return Math.min(total, totalAmount);
-  }, [appliedCoupon, totalAmount, manualDiscountValue, manualDiscountType]);
+  }, [comboDiscount, appliedCoupon, totalAmount, manualDiscountValue, manualDiscountType]);
 
   const finalAmount = Math.max(0, totalAmount - discount);
   const balanceDue = paymentMode === "partial" ? Math.max(0, finalAmount - receivedAmount) : 0;
@@ -111,6 +112,32 @@ export default function POSPage() {
   };
 
   const addItem = (product: Product) => {
+    if (product.comboItems?.length) {
+      let totalMrp = 0;
+      const newItems = [...items];
+      const comboProducts = activeProducts.filter((p) => product.comboItems!.includes(p.id));
+      for (const cp of comboProducts) {
+        const existing = newItems.findIndex((i) => i.productId === cp.id);
+        if (existing >= 0) {
+          const stock = cp.quantityInStock ?? 0;
+          const newQty = Math.min(newItems[existing].quantity + 1, stock);
+          newItems[existing] = { ...newItems[existing], quantity: newQty, subtotal: newQty * newItems[existing].unitPrice };
+        } else {
+          newItems.push({
+            productId: cp.id,
+            productName: cp.name,
+            quantity: 1,
+            unitPrice: cp.price,
+            subtotal: cp.price,
+          });
+        }
+        totalMrp += cp.price;
+      }
+      setItems(newItems);
+      setComboDiscount(totalMrp - (product.comboPrice || product.price));
+      setProductSearch("");
+      return;
+    }
     const stock = product.quantityInStock ?? 0;
     if (stock <= 0) return;
     const existing = items.find((i) => i.productId === product.id);
@@ -163,6 +190,7 @@ export default function POSPage() {
     setPaymentMode("cash");
     setManualDiscountValue(0);
     setManualDiscountType("percentage");
+    setComboDiscount(0);
     setCustomerName("");
     setCustomerPhone("");
     setWalkin(true);
@@ -458,7 +486,10 @@ export default function POSPage() {
                 <button key={p.id} role="option" aria-selected={false}
                   onClick={() => addItem(p)}
                   className="w-full flex items-center justify-between px-4 py-3 lg:px-3 lg:py-1.5 text-sm lg:text-xs hover:bg-primary/5 focus:bg-primary/5 outline-none focus:ring-2 focus:ring-inset focus:ring-primary text-left">
-                  <span className="font-medium truncate text-secondary">{p.name}</span>
+                  <span className="font-medium truncate text-secondary">
+                    {p.name}
+                    {p.comboItems?.length ? <span className="ml-1.5 text-[10px] bg-purple-100 text-purple-700 px-1 py-0.5 rounded font-semibold align-middle">Combo</span> : null}
+                  </span>
                   <span className="text-muted-foreground shrink-0 ml-2">
                     Rs. {formatNumber(p.price)}
                     {p.quantityInStock !== undefined && <span className="ml-1.5">(S: {p.quantityInStock})</span>}
@@ -535,17 +566,22 @@ export default function POSPage() {
               <div className="flex items-center gap-1.5 mb-1.5">
                 <span className="text-xs font-semibold text-secondary">Payment</span>
                 <div className="flex gap-1" role="radiogroup" aria-label="Payment mode">
-                  {(["cash", "qr", "partial"] as PaymentMode[]).map((mode) => (
+                  {(["cash", "qr", "partial"] as PaymentMode[]).map((mode) => {
+                    const disabled = mode === "partial" && comboDiscount > 0;
+                    return (
                     <button key={mode} role="radio" aria-checked={paymentMode === mode}
-                      onClick={() => { setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
+                      onClick={() => { if (disabled) return; setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
                       className={`px-3 lg:px-2.5 py-1.5 lg:py-1 text-xs lg:text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                        disabled ? "opacity-40 cursor-not-allowed" :
                         paymentMode === mode
                           ? "bg-primary text-white border-primary"
                           : "bg-white text-secondary border-border hover:bg-muted"
-                      }`}>
+                      }`}
+                      title={disabled ? "Credit not available for combo purchases" : ""}>
                       {mode === "partial" ? "Partial" : mode === "qr" ? "QR" : "Cash"}
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
               {paymentMode === "partial" && (
@@ -648,6 +684,12 @@ export default function POSPage() {
                   <span>− Rs. {formatNumber(manualDiscountType === "percentage"
                     ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
                     : Math.min(manualDiscountValue, totalAmount))}</span>
+                </div>
+              )}
+              {comboDiscount > 0 && (
+                <div className="flex justify-between text-[11px] text-purple-700">
+                  <span>Combo Discount</span>
+                  <span>− Rs. {formatNumber(comboDiscount)}</span>
                 </div>
               )}
               {appliedCoupon && (

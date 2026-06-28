@@ -5,7 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit, useDataCache } from "@/hooks/useFirestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Product, ProductBadge, Category } from "@/types";
-import { formatCurrency, formatDate, compressImageUnder200KB } from "@/lib/utils";
+import { formatCurrency, formatNumber, formatDate, compressImageUnder200KB } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
 import {
   setDoc,
@@ -23,7 +23,7 @@ import { generateDummyProducts } from "@/lib/dummyProducts";
 import { generateSku, generateModelNo } from "@/lib/sku-generator";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Loader2, AlertTriangle, Upload } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Loader2, AlertTriangle, Upload, Package, Check, ShoppingBag } from "lucide-react";
 
 const BASE_MATERIALS = ["", "Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"];
 const PLATING_OPTIONS = ["", "Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"];
@@ -62,6 +62,12 @@ export default function AdminProductsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [uploading, setUploading] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [showComboModal, setShowComboModal] = useState(false);
+  const [comboName, setComboName] = useState("");
+  const [comboProductSearch, setComboProductSearch] = useState("");
+  const [selectedComboIds, setSelectedComboIds] = useState<string[]>([]);
+  const [comboPrice, setComboPrice] = useState(0);
+  const [savingCombo, setSavingCombo] = useState(false);
 
   const filtered = products.filter((p) => {
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
@@ -246,7 +252,36 @@ export default function AdminProductsPage() {
     }
   };
 
-
+  const handleSaveCombo = async () => {
+    if (!comboName || selectedComboIds.length === 0 || !comboPrice) return;
+    setSavingCombo(true);
+    try {
+      const prodId = await generateId("PROD");
+      const selectedProducts = products.filter((p) => selectedComboIds.includes(p.id));
+      const catId = selectedProducts[0]?.categoryId || categories[0]?.id || "";
+      const txn = Timestamp.fromDate(new Date());
+      await setDoc(doc(db, "products", prodId), {
+        name: comboName, description: `Combo of ${selectedProducts.map((p) => p.name).join(", ")}`,
+        design: "", categoryId: catId, images: [], videoUrl: "", price: comboPrice,
+        originalPrice: 0, badge: "", costPrice: comboPrice, weight: 0, purity: null,
+        metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0,
+        warranty: "1 year", sku: `COMBO-${prodId.slice(-6)}`, quantityInStock: 9999,
+        isActive: true, isFeatured: false, brand: "", modelNo: `COMBO-${prodId.slice(-6)}`,
+        baseMaterial: "", plating: "", color: "", productType: "", idealFor: [],
+        netQuantity: 1, occasion: [], comboItems: selectedComboIds, comboPrice,
+        createdAt: txn, updatedAt: txn,
+      });
+      refreshCollection("products");
+      setShowComboModal(false);
+      setComboName("");
+      setSelectedComboIds([]);
+      setComboPrice(0);
+    } catch (e) {
+      console.error("Combo creation failed", e);
+      alert("Failed to create combo: " + (e instanceof Error ? e.message : "Unknown error"));
+    }
+    setSavingCombo(false);
+  };
 
   return (
     <AdminLayout>
@@ -261,6 +296,9 @@ export default function AdminProductsPage() {
               className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
               {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </button>
+            <Button onClick={() => { setShowComboModal(true); setComboName(""); setComboProductSearch(""); setSelectedComboIds([]); setComboPrice(0); }} variant="outline">
+              <Package className="h-4 w-4" /> Create Combo
+            </Button>
             <Button onClick={() => window.location.href = "/admin/purchases"} variant="accent">
               <Plus className="h-4 w-4" /> Add Product via Purchase
             </Button>
@@ -312,6 +350,63 @@ export default function AdminProductsPage() {
             ))}
           </select>
         </div>
+
+        {showComboModal && (
+          <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-secondary flex items-center gap-2">
+                <Package className="h-5 w-5 text-primary" /> Create Combo
+              </h2>
+              <button onClick={() => setShowComboModal(false)} className="p-1 hover:bg-muted rounded">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Combo Name *</label>
+                <input type="text" placeholder="e.g. Wedding Gift Set" value={comboName}
+                  onChange={(e) => setComboName(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Select Products</label>
+                <input type="text" placeholder="Search products..." value={comboProductSearch}
+                  onChange={(e) => setComboProductSearch(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary mb-2" />
+                <div className="max-h-48 overflow-y-auto border border-border rounded-lg divide-y divide-border">
+                  {products.filter((p) => !p.comboItems?.length && (p.name.toLowerCase().includes(comboProductSearch.toLowerCase()) || (p.sku || "").toLowerCase().includes(comboProductSearch.toLowerCase()))).map((p) => (
+                    <label key={p.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 cursor-pointer text-sm">
+                      <input type="checkbox" checked={selectedComboIds.includes(p.id)}
+                        onChange={() => setSelectedComboIds((prev) => prev.includes(p.id) ? prev.filter((id) => id !== p.id) : [...prev, p.id])}
+                        className="rounded border-border accent-primary" />
+                      <span className="flex-1">{p.name}</span>
+                      <span className="text-muted-foreground">Rs. {formatNumber(p.price)}</span>
+                    </label>
+                  ))}
+                  {products.filter((p) => !p.comboItems?.length).length === 0 && (
+                    <p className="px-3 py-4 text-sm text-muted-foreground text-center">No products available</p>
+                  )}
+                </div>
+                {selectedComboIds.length > 0 && (
+                  <p className="text-xs text-muted-foreground mt-1">{selectedComboIds.length} product(s) selected — Total MRP: Rs. {formatNumber(selectedComboIds.reduce((sum, id) => sum + (products.find((p) => p.id === id)?.price || 0), 0))}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Combo Price (NPR) *</label>
+                <input type="number" placeholder="e.g. 999" value={comboPrice || ""}
+                  onChange={(e) => setComboPrice(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button onClick={() => setShowComboModal(false)} variant="outline">Cancel</Button>
+                <Button onClick={handleSaveCombo} disabled={!comboName || selectedComboIds.length === 0 || !comboPrice || savingCombo} variant="accent">
+                  {savingCombo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  {savingCombo ? "Creating..." : "Create Combo"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {showForm && (
           <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
@@ -443,6 +538,26 @@ export default function AdminProductsPage() {
                 </div>
               </div>
 
+              {editingId && products.find((p) => p.id === editingId)?.comboItems?.length ? (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-4">
+                  <h3 className="text-xs font-semibold text-purple-700 uppercase tracking-wide mb-2">Combo Items</h3>
+                  <div className="space-y-1">
+                    {products.find((p) => p.id === editingId)?.comboItems?.map((pid) => {
+                      const cp = products.find((x) => x.id === pid);
+                      return cp ? (
+                        <div key={pid} className="flex justify-between text-sm">
+                          <span>{cp.name}</span>
+                          <span className="text-muted-foreground">Rs. {formatNumber(cp.price)}</span>
+                        </div>
+                      ) : null;
+                    })}
+                    <div className="flex justify-between text-sm font-medium pt-1 border-t border-purple-200 mt-1">
+                      <span>Combo Price</span>
+                      <span className="text-purple-700">Rs. {formatNumber(products.find((p) => p.id === editingId)?.comboPrice || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               <div>
                 <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 border-b border-border pb-2">Pricing & Stock</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -623,6 +738,9 @@ export default function AdminProductsPage() {
                     <span className={p.quantityInStock <= 3 ? "text-red-600 font-medium" : "text-muted-foreground"}>
                       Stock: {p.quantityInStock}
                     </span>
+                    {p.comboItems?.length ? (
+                      <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-medium">{p.comboItems.length} items</span>
+                    ) : null}
                     {p.badge && p.badge !== "none" && (
                       <span className="bg-muted px-1.5 py-0.5 rounded">
                         {{limited_stock:"Limited",out_of_stock:"OOS",price_dropped:"Price ↓",offer:"Offer"}[p.badge]}
@@ -658,11 +776,13 @@ export default function AdminProductsPage() {
                       <td className="px-4 py-2.5 text-sm text-right">{formatCurrency(p.price)}</td>
                       <td className={`px-4 py-2.5 text-sm text-right ${p.quantityInStock <= 3 ? "text-red-600 font-medium" : ""}`}>{p.quantityInStock}</td>
                       <td className="px-4 py-2.5 text-sm text-center">
-                        {p.badge && p.badge !== "none" && (
+                        {p.comboItems?.length ? (
+                          <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-xs font-medium">Combo</span>
+                        ) : p.badge && p.badge !== "none" ? (
                           <span className="bg-muted px-1.5 py-0.5 rounded text-xs">
                             {{limited_stock:"Limited",out_of_stock:"OOS",price_dropped:"Price ↓",offer:"Offer"}[p.badge]}
                           </span>
-                        )}
+                        ) : null}
                       </td>
                       <td className="px-4 py-2.5 text-sm text-right">
                         <div className="flex items-center justify-end gap-1">
@@ -715,6 +835,26 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
               )}
+              {detailProduct.comboItems?.length ? (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1 font-medium">Combo Items</p>
+                  <div className="space-y-1">
+                    {detailProduct.comboItems.map((pid) => {
+                      const cp = products.find((x) => x.id === pid);
+                      return cp ? (
+                        <div key={pid} className="flex justify-between text-xs">
+                          <span>{cp.name}</span>
+                          <span className="text-muted-foreground">Rs. {formatNumber(cp.price)}</span>
+                        </div>
+                      ) : null;
+                    })}
+                    <div className="flex justify-between text-xs font-medium pt-1 border-t border-border mt-1">
+                      <span>Combo Price</span>
+                      <span className="text-primary">Rs. {formatNumber(detailProduct.comboPrice || detailProduct.price)}</span>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
               <Row label="Created" value={formatDate(detailProduct.createdAt)} />
             </div>
           </DetailModal>
