@@ -17,7 +17,7 @@ export default function ReconciliationPage() {
     constraints: [orderBy("name", "asc"), limit(200)],
     realtime: true,
   });
-  const { data: categories } = useFirestore<Category>("categories", { constraints: [limit(50)], realtime: false, cache: true });
+  const { data: categories } = useFirestore<Category>("categories", { constraints: [limit(50)], realtime: true });
   const { user } = useAuth();
 
   const [search, setSearch] = useState("");

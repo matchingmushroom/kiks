@@ -31,7 +31,7 @@ export default function AdminOrdersPage() {
     constraints: [orderBy("createdAt", "desc"), limit(200)],
     realtime: true,
   });
-  const { data: allCoupons } = useFirestore<Coupon>("coupons", { constraints: [limit(100)], realtime: false, cache: true });
+  const { data: allCoupons } = useFirestore<Coupon>("coupons", { constraints: [limit(100)], realtime: true });
   const { settings } = useShopSettings();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");

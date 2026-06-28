@@ -325,7 +325,7 @@ function BalanceSheetSection() {
 
 function CashBankSection() {
   const { user, profile } = useAuth();
-  const { data: accounts } = useFirestore<Account>("accounts", { realtime: false, cache: true });
+  const { data: accounts } = useFirestore<Account>("accounts", { realtime: true });
   const { data: transactions } = useFirestore<AccountTransaction>("accountTransactions", {
     constraints: [orderBy("date", "desc"), limit(200)],
     realtime: true,

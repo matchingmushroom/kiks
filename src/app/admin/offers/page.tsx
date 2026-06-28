@@ -34,7 +34,7 @@ export default function AdminOffersPage() {
     constraints: [orderBy("createdAt", "desc"), limit(100)],
     realtime: true,
   });
-  const { data: products } = useFirestore<Product>("products", { constraints: [limit(200)], realtime: false, cache: true });
+  const { data: products } = useFirestore<Product>("products", { constraints: [limit(200)], realtime: true });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
     realtime: true,
