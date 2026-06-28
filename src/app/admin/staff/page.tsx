@@ -28,7 +28,7 @@ const ROLE_COLORS: Record<string, string> = {
 export default function AdminStaffPage() {
   const { data: users, loading } = useFirestore<AppUser>("users", {
     constraints: [orderBy("createdAt", "desc")],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);

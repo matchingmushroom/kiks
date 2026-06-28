@@ -26,7 +26,7 @@ function getDaysOverdue(dueDate: unknown): number {
 export default function AdminDebtorsPage() {
   const { data: debtors, loading } = useFirestore<Debtor>("debtors", {
     constraints: [orderBy("createdAt", "desc"), limit(100)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { user, profile } = useAuth();
   const [search, setSearch] = useState("");

@@ -15,7 +15,7 @@ import { Search, Save, ClipboardList, CheckCircle, X, RefreshCw } from "lucide-r
 export default function ReconciliationPage() {
   const { data: products, loading } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: categories } = useFirestore<Category>("categories", { constraints: [limit(50)], realtime: false, cache: true });
   const { user } = useAuth();

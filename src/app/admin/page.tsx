@@ -55,28 +55,28 @@ export default function AdminDashboardPage() {
   });
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: orders } = useFirestore<Order>("orders", {
     constraints: [orderBy("createdAt", "desc"), limit(50)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [limit(50)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: debtors } = useFirestore<Debtor>("debtors", {
     constraints: [orderBy("balanceDue", "desc"), limit(50)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: transactions } = useFirestore<AccountTransaction>("accountTransactions", {
     constraints: [orderBy("date", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
 
   const { data: purchases } = useFirestore<Purchase>("purchases", {
     constraints: [orderBy("purchaseDate", "desc"), limit(500)],
-    realtime: false, cache: true,
+    realtime: true,
   });
 
   const [skuSearch, setSkuSearch] = useState("");

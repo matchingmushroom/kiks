@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy, limit, useDataCache } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Product, Coupon, Sale } from "@/types";
 import { formatCurrency, formatNumber, generateCouponCode } from "@/lib/utils";
 import { toBS } from "@/lib/nepaliDate";
@@ -30,7 +30,6 @@ interface LineItem {
 type PaymentMode = "cash" | "qr" | "partial";
 
 export default function POSPage() {
-  const { refreshCollection } = useDataCache();
   const searchRef = useRef<HTMLInputElement>(null);
   const announceRef = useRef<HTMLDivElement>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
@@ -39,11 +38,11 @@ export default function POSPage() {
   const { user, profile } = useAuth();
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc"), limit(500)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: allCoupons } = useFirestore<Coupon>("coupons", {
     constraints: [orderBy("createdAt", "desc"), limit(100)],
-    realtime: false, cache: true,
+    realtime: true,
   });
 
   const [walkin, setWalkin] = useState(true);
@@ -411,10 +410,6 @@ export default function POSPage() {
     } catch (e: any) {
       setError(e?.message || "Sale failed");
     }
-    refreshCollection("sales");
-    refreshCollection("inventoryLogs");
-    refreshCollection("debtors");
-    refreshCollection("invoices");
     setSaving(false);
   };
 

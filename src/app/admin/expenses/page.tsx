@@ -50,7 +50,7 @@ const emptyRecurring = {
 export default function AdminExpensesPage() {
   const { data: expenses, loading } = useFirestore<Expense>("expenses", {
     constraints: [orderBy("date", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: templates } = useFirestore<RecurringExpenseTemplate>("recurringExpenses", { constraints: [limit(50)], realtime: false, cache: true });
   const { user, profile } = useAuth();
@@ -80,7 +80,7 @@ export default function AdminExpensesPage() {
   const [showArchive, setShowArchive] = useState(false);
   const { data: transfers } = useFirestore<Transfer>("transfers", {
     constraints: [orderBy("date", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const [openingCash, setOpeningCash] = useState(0);
   const [openingBank, setOpeningBank] = useState(0);

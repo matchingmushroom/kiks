@@ -21,7 +21,7 @@ const emptyForm = {
 export default function AdminCustomersPage() {
   const { data: customers, loading } = useFirestore<Customer>("customers", {
     constraints: [orderBy("name", "asc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);

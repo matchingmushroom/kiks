@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy, limit, useDataCache } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { Product, ProductBadge, Category } from "@/types";
 import { formatCurrency, formatNumber, formatDate, compressImageUnder200KB } from "@/lib/utils";
@@ -38,16 +38,14 @@ const OCCASION_OPTIONS = ["", "Party", "Wedding", "Engagement", "Everyday", "Gif
 export default function AdminProductsPage() {
   const { data: products, loading } = useFirestore<Product>("products", {
     constraints: [orderBy("createdAt", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
-    realtime: false, cache: true,
+    realtime: true,
   });
 
   const { user } = useAuth();
-  const { refreshCollection } = useDataCache();
-
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -125,7 +123,6 @@ export default function AdminProductsPage() {
       }
       setShowForm(false);
       setEditingId(null);
-      refreshCollection("products");
     } catch (e) {
       console.error("Save failed", e);
     }
@@ -136,7 +133,6 @@ export default function AdminProductsPage() {
     if (!confirm(`Delete "${name}"?`)) return;
     try {
       await deleteDoc(doc(db, "products", id));
-      refreshCollection("products");
     } catch (e) {
       console.error("Delete failed", e);
     }
@@ -153,7 +149,6 @@ export default function AdminProductsPage() {
         await Promise.all(batch.map((id) => deleteDoc(doc(db, "products", id))));
       }
       alert(`Deleted ${ids.length} products.`);
-      refreshCollection("products");
     } catch (e) {
       console.error("Delete all failed", e);
       alert("Failed to delete all products.");
@@ -172,7 +167,6 @@ export default function AdminProductsPage() {
         await setDoc(doc(db, "products", prodId), p);
       }
       alert(`Added ${dummyProducts.length} dummy products across ${categories.length} categories successfully.`);
-      refreshCollection("products");
     } catch (e) {
       console.error("Seed failed", e);
       alert("Failed to seed products.");
@@ -182,7 +176,6 @@ export default function AdminProductsPage() {
 
   const toggleField = async (id: string, field: "isActive" | "isFeatured", value: boolean) => {
     await updateDoc(doc(db, "products", id), { [field]: value, updatedAt: Timestamp.fromDate(new Date()) });
-    refreshCollection("products");
   };
 
   const updateImage = (index: number, value: string) => {
@@ -271,7 +264,6 @@ export default function AdminProductsPage() {
         netQuantity: 1, occasion: [], comboItems: selectedComboIds, comboPrice,
         createdAt: txn, updatedAt: txn,
       });
-      refreshCollection("products");
       setShowComboModal(false);
       setComboName("");
       setSelectedComboIds([]);

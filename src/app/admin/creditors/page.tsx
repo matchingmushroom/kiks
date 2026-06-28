@@ -21,7 +21,7 @@ import { exportCreditorsCSV, downloadBlob } from "@/lib/export";
 export default function AdminCreditorsPage() {
   const { data: creditors, loading } = useFirestore<Creditor>("creditors", {
     constraints: [orderBy("createdAt", "desc"), limit(100)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { user, profile } = useAuth();
   const [search, setSearch] = useState("");

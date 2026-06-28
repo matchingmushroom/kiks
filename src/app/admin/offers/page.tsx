@@ -32,12 +32,12 @@ export default function AdminOffersPage() {
   const { user } = useAuth();
   const { data: offers, loading } = useFirestore<Offer>("offers", {
     constraints: [orderBy("createdAt", "desc"), limit(100)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: products } = useFirestore<Product>("products", { constraints: [limit(200)], realtime: false, cache: true });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
-    realtime: false, cache: true,
+    realtime: true,
   });
 
   const [showForm, setShowForm] = useState(false);

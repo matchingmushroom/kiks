@@ -328,7 +328,7 @@ function CashBankSection() {
   const { data: accounts } = useFirestore<Account>("accounts", { realtime: false, cache: true });
   const { data: transactions } = useFirestore<AccountTransaction>("accountTransactions", {
     constraints: [orderBy("date", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
 
   const [showTxForm, setShowTxForm] = useState(false);
@@ -510,7 +510,7 @@ function CashBankSection() {
 function CashFlowSection() {
   const { data: entries } = useFirestore<JournalEntry>("journalEntries", {
     constraints: [orderBy("entryDate", "desc"), limit(500)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);

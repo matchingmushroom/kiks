@@ -29,7 +29,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AdminOrdersPage() {
   const { data: orders, loading } = useFirestore<Order>("orders", {
     constraints: [orderBy("createdAt", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: allCoupons } = useFirestore<Coupon>("coupons", { constraints: [limit(100)], realtime: false, cache: true });
   const { settings } = useShopSettings();

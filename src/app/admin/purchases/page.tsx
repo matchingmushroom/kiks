@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy, limit, useDataCache } from "@/hooks/useFirestore";
+import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier, Creditor, Transfer } from "@/types";
 import { formatCurrency, formatDate, formatNumber, toDate, compressImageUnder200KB, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
@@ -59,26 +59,25 @@ const emptyForm = {
 function PurchasesContent() {
   const { data: purchases, loading } = useFirestore<Purchase>("purchases", {
     constraints: [orderBy("purchaseDate", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: categories } = useFirestore<Category>("categories", {
     constraints: [orderBy("order", "asc")],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: allSuppliers } = useFirestore<Supplier>("suppliers", {
     constraints: [orderBy("name", "asc"), limit(100)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: transfers } = useFirestore<Transfer>("transfers", {
     constraints: [orderBy("date", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { user, profile } = useAuth();
-  const { refreshCollection } = useDataCache();
   const router = useRouter();
   const searchParams = useSearchParams();
   const returnCredit = searchParams.get("returnCredit");
@@ -276,10 +275,6 @@ function PurchasesContent() {
         const balance = csvPaymentStatus === "unpaid" ? totalAmount : Math.max(0, totalAmount - paid);
         if (balance > 0) await upsertCreditor(csvSupplier, csvSupplierPhone, balance, purchaseId);
       }
-      refreshCollection("purchases");
-      refreshCollection("products");
-      refreshCollection("inventoryLogs");
-      refreshCollection("creditors");
       setShowCsvModal(false);
       setCsvRows([]);
       setCsvSupplier("");
@@ -429,7 +424,6 @@ function PurchasesContent() {
     setNewProductForm({ ...newProductForm, categoryId: catId });
     setNewCategoryName("");
     setShowNewCategory(false);
-    refreshCollection("categories");
   };
 
   const handleCreateProduct = async () => {
@@ -451,7 +445,6 @@ function PurchasesContent() {
     };
     const prodId = await generateId("PROD");
     await setDoc(doc(db, "products", prodId), prodData);
-    refreshCollection("products");
     const newProduct: Product = {
       id: prodId, ...prodData,
       price: f.salesPrice || f.costPrice,
@@ -622,10 +615,6 @@ function PurchasesContent() {
         }
       }
 
-      refreshCollection("purchases");
-      refreshCollection("products");
-      refreshCollection("inventoryLogs");
-      refreshCollection("creditors");
       setForm({ ...emptyForm });
       setEditingId(null);
       setShowForm(false);
@@ -688,8 +677,6 @@ function PurchasesContent() {
       setSelectedAdvances([]);
       setAdvanceTotal(0);
       setTopUpAmount(0);
-      refreshCollection("purchases");
-      refreshCollection("transfers");
       setPurchaseSaved(true);
       setTimeout(() => setPurchaseSaved(false), 6000);
     } catch (e: any) {
@@ -764,10 +751,6 @@ function PurchasesContent() {
       } else {
         setReturnModal(null);
       }
-      refreshCollection("purchases");
-      refreshCollection("products");
-      refreshCollection("inventoryLogs");
-      refreshCollection("creditors");
     } catch (e) {
       console.error("Return failed", e);
     }
@@ -781,7 +764,6 @@ function PurchasesContent() {
     if (purchase.returned) {
       // Already returned — stock already decremented; skip restock
       await deleteDoc(doc(db, "purchases", id));
-      refreshCollection("purchases");
       return;
     }
     for (const item of purchase.items) {
@@ -805,10 +787,6 @@ function PurchasesContent() {
       await deleteDoc(doc(db, "accountTransactions", tx.id));
     }
     await deleteDoc(doc(db, "purchases", id));
-    refreshCollection("purchases");
-    refreshCollection("products");
-    refreshCollection("inventoryLogs");
-    refreshCollection("creditors");
   };
 
   // Upload bill copy to Drive via GAS webhook

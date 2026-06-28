@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useFirestore, orderBy, useDataCache } from "@/hooks/useFirestore";
+import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Category } from "@/types";
 import {
   setDoc,
@@ -23,8 +23,6 @@ export default function AdminCategoriesPage() {
     constraints: [orderBy("order", "asc")],
     realtime: true,
   });
-
-  const { refreshCollection } = useDataCache();
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,7 +56,6 @@ export default function AdminCategoriesPage() {
   const toggleHomepage = async (cat: Category) => {
     const newVal = !(cat.showOnHomepage ?? true);
     await updateDoc(doc(db, "categories", cat.id), { showOnHomepage: newVal, updatedAt: Timestamp.fromDate(new Date()) });
-    refreshCollection("categories");
   };
 
   const handleSave = async () => {
@@ -74,7 +71,6 @@ export default function AdminCategoriesPage() {
         await setDoc(doc(db, "categories", catId), { ...data, createdAt: Timestamp.fromDate(new Date()) });
       }
       setShowForm(false);
-      refreshCollection("categories");
     } catch (e) {
       console.error("Save failed", e);
     }
@@ -85,7 +81,6 @@ export default function AdminCategoriesPage() {
     if (!confirm(`Delete category "${n}"?`)) return;
     try {
       await deleteDoc(doc(db, "categories", id));
-      refreshCollection("categories");
     } catch (e) {
       console.error("Delete failed", e);
     }
@@ -93,7 +88,6 @@ export default function AdminCategoriesPage() {
 
   const moveOrder = async (id: string, newOrder: number) => {
     await updateDoc(doc(db, "categories", id), { order: newOrder, updatedAt: Timestamp.fromDate(new Date()) });
-    refreshCollection("categories");
   };
 
   return (

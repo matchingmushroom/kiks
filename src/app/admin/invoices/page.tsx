@@ -22,7 +22,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AdminInvoicesPage() {
   const { data: invoices, loading, error } = useFirestore<Invoice>("invoices", {
     constraints: [orderBy("createdAt", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("");

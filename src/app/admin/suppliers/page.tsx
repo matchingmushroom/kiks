@@ -22,7 +22,7 @@ const emptyForm = {
 export default function AdminSuppliersPage() {
   const { data: suppliers, loading } = useFirestore<Supplier>("suppliers", {
     constraints: [orderBy("name", "asc"), limit(100)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);

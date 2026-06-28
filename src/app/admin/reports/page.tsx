@@ -36,19 +36,19 @@ export default function ReportsPage() {
 
   const { data: sales } = useFirestore<Sale>("sales", {
     constraints: [],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: purchases } = useFirestore<Purchase>("purchases", {
     constraints: [],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: expenses } = useFirestore<Expense>("expenses", {
     constraints: [],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: inventoryLogs } = useFirestore<InventoryLog>("inventoryLogs", {
     constraints: [],
-    realtime: false, cache: true,
+    realtime: true,
   });
 
   const fromMs = new Date(dateFrom).getTime();

@@ -19,15 +19,15 @@ export default function AccountingPage() {
   const { settings } = useShopSettings();
   const { data: entries } = useFirestore<JournalEntry>("journalEntries", {
     constraints: [orderBy("entryDate", "desc"), limit(500)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: accounts } = useFirestore<AccountHead>("chartOfAccounts", {
     constraints: [limit(100)],
-    realtime: false, cache: true,
+    realtime: true,
   });
   const { data: transfers } = useFirestore<Transfer>("transfers", {
     constraints: [orderBy("date", "desc"), limit(200)],
-    realtime: false, cache: true,
+    realtime: true,
   });
 
   const [searchQuery, setSearchQuery] = useState("");
