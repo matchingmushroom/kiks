@@ -303,8 +303,8 @@ export default function AdminDashboardPage() {
                   <tr><td className="px-3 py-2 text-muted-foreground">Model No.</td><td className="px-3 py-2">{skuResult.product.modelNo || "—"}</td></tr>
                   <tr><td className="px-3 py-2 text-muted-foreground">SKU</td><td className="px-3 py-2 font-mono">{skuResult.product.sku}</td></tr>
                   <tr><td className="px-3 py-2 text-muted-foreground">Inventory Qty</td><td className="px-3 py-2">{skuResult.product.quantityInStock}</td></tr>
-                  <tr><td className="px-3 py-2 text-muted-foreground">MSP</td><td className="px-3 py-2">{formatCurrency(Math.floor((skuResult.product.costPrice || 0) * 1.25))} <span className="text-[10px] text-muted-foreground">(125% of Cost Price)</span></td></tr>
-                  <tr><td className="px-3 py-2 text-muted-foreground">Sale Price</td><td className="px-3 py-2">{formatCurrency(skuResult.product.price)} <span className="text-[10px] text-muted-foreground">(150% of Cost Price = {formatCurrency(Math.floor((skuResult.product.costPrice || 0) * 1.5))})</span></td></tr>
+                  <tr><td className="px-3 py-2 text-muted-foreground">Store Cost</td><td className="px-3 py-2">{formatCurrency(Math.floor((skuResult.product.costPrice || 0) * 1.25))}</td></tr>
+                  <tr><td className="px-3 py-2 text-muted-foreground">Sale Price</td><td className="px-3 py-2">{formatCurrency(Math.floor((skuResult.product.costPrice || 0) * 1.5))} - {formatCurrency(skuResult.product.price)}</td></tr>
                   <tr><td className="px-3 py-2 text-muted-foreground">Supplier Name</td><td className="px-3 py-2">{skuResult.purchase?.supplierName || "—"}</td></tr>
                   <tr><td className="px-3 py-2 text-muted-foreground">Purchase Date</td><td className="px-3 py-2">{skuResult.purchase?.purchaseDate ? toDate(skuResult.purchase.purchaseDate).toLocaleDateString() : "—"}</td></tr>
                 </tbody>
