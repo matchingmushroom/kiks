@@ -488,7 +488,7 @@ export default function AdminProductsPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Type</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Sub Category</label>
                     <select value={form.productType} onChange={(e) => setForm({ ...form, productType: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                       {PRODUCT_TYPES.map((t) => (<option key={t} value={t}>{t || "Select"}</option>))}
