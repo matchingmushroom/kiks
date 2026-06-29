@@ -23,6 +23,7 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
   const [maxDiscount, setMaxDiscount] = useState(0);
   const [minPurchase, setMinPurchase] = useState(0);
   const [validUntil, setValidUntil] = useState("");
+  const [customPrefix, setCustomPrefix] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedCodes, setGeneratedCodes] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
@@ -37,18 +38,26 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
     return result;
   };
 
+  const buildCodes = (): string[] => {
+    if (customPrefix.trim()) {
+      const prefix = customPrefix.trim().toUpperCase().replace(/\s+/g, "_");
+      const padLen = String(quantity).length < 2 ? 2 : String(quantity).length;
+      return Array.from({ length: quantity }, (_, i) => `${prefix}-${String(i + 1).padStart(padLen, "0")}`);
+    }
+    const uniqueCodes = new Set<string>();
+    while (uniqueCodes.size < quantity) {
+      uniqueCodes.add(generateCode());
+    }
+    return [...uniqueCodes];
+  };
+
   const handleGenerate = async () => {
     if (!quantity || quantity < 1) { setError("Enter a valid quantity."); return; }
     if (!discountValue || discountValue < 1) { setError("Enter a valid discount value."); return; }
     if (!validUntil) { setError("Select a valid until date."); return; }
     setError("");
     setGenerating(true);
-    const codes: string[] = [];
-    const uniqueCodes = new Set<string>();
-    while (uniqueCodes.size < quantity) {
-      uniqueCodes.add(generateCode());
-    }
-    codes.push(...uniqueCodes);
+    const codes = buildCodes();
     try {
       const validUntilDate = Timestamp.fromDate(new Date(validUntil + "T23:59:59"));
       const validFromDate = Timestamp.fromDate(new Date());
@@ -270,8 +279,15 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
             </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Custom Code Prefix (optional)</label>
+              <input type="text" value={customPrefix} placeholder="e.g., FESTIVAL → FESTIVAL-01, FESTIVAL-02..."
+                onChange={(e) => setCustomPrefix(e.target.value)}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <p className="text-xs text-muted-foreground mt-1">Leave empty for fully random 8-char codes.</p>
+            </div>
             <Button onClick={handleGenerate} disabled={generating || !quantity || !discountValue || !validUntil} variant="accent" className="w-full">
-              {generating ? `Generating ${quantity} codes...` : `Generate ${quantity} Coupons & Save`}
+              {generating ? `Generating ${quantity} codes...` : `Generate ${quantity} Coupon${quantity !== 1 ? "s" : ""} & Save`}
             </Button>
           </div>
         ) : (
