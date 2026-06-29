@@ -9,7 +9,7 @@ import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { generateWhatsAppLink } from "@/lib/whatsapp";
 import { generateOrderNumber, formatNumber } from "@/lib/utils";
 import { Coupon } from "@/types";
-import { Trash2, Minus, Plus, Tag, CheckCircle, XCircle, ExternalLink } from "lucide-react";
+import { Trash2, Minus, Plus, Tag, CheckCircle, XCircle, ExternalLink, ShoppingBag, ArrowLeft, MapPin, User, Phone, Home, Percent, Sparkles } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 
@@ -106,10 +106,7 @@ export default function CartPage() {
     setOrdering(true);
 
     try {
-      console.log("[cart] generating order number...");
       const orderNum = generateOrderNumber();
-      console.log("[cart] order number:", orderNum);
-      console.log("[cart] items count:", items.length);
       const itemsData = items.map((i) => ({
         productId: i.productId,
         productName: i.name,
@@ -136,9 +133,7 @@ export default function CartPage() {
         createdAt: Timestamp.fromDate(new Date()),
       };
 
-      console.log("[cart] saving to firestore...");
       const orderRef = await addDoc(collection(db, "orders"), orderData);
-      console.log("[cart] saved, id:", orderRef.id);
 
       if (appliedCoupon) {
         await updateDoc(doc(db, "coupons", appliedCoupon.id), {
@@ -147,7 +142,6 @@ export default function CartPage() {
         });
       }
 
-      console.log("[cart] generating whatsapp link...");
       setOrderNumber(orderNum);
 
       const wLink = generateWhatsAppLink(
@@ -162,12 +156,9 @@ export default function CartPage() {
         deliveryFee,
         deliveryLocation ?? undefined,
       );
-      console.log("[cart] setting success state");
       setWaLink(wLink);
       setOrderPlaced(true);
-      console.log("[cart] DONE");
     } catch (err) {
-      console.error("[cart] Order failed:", err);
       setOrderError("Failed to place order: " + (err instanceof Error ? err.message : "Unknown error"));
       setOrdering(false);
     }
@@ -178,19 +169,21 @@ export default function CartPage() {
       <div className="min-h-screen bg-white flex flex-col">
         <ShopHeader />
         <main className="flex-1 flex items-center justify-center px-4 py-20">
-          <div className="text-center max-w-md">
-            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-secondary mb-2">Order Placed!</h1>
-            <p className="text-muted-foreground mb-2">Order #{orderNumber}</p>
-            <p className="text-sm text-muted-foreground mb-6">
-              Your order has been saved. Click the button below to send your order details via WhatsApp.
+          <div className="text-center max-w-md w-full">
+            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="h-10 w-10 text-green-600" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-secondary mb-2">Order Placed!</h1>
+            <p className="text-sm text-muted-foreground mb-1">Order #{orderNumber}</p>
+            <p className="text-sm text-muted-foreground mb-8">
+              Your order has been saved. Click below to send details via WhatsApp.
             </p>
             {waLink && (
               <a
                 href={waLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors mb-6"
+                className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3 bg-green-600 text-white rounded-full font-medium hover:bg-green-700 transition-colors mb-6"
               >
                 <ExternalLink className="h-5 w-5" /> Open WhatsApp
               </a>
@@ -198,14 +191,14 @@ export default function CartPage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
                 href="/products"
-                className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                className="px-6 py-2.5 bg-accent text-secondary font-semibold rounded-full hover:bg-accent/90 transition-colors text-center"
                 onClick={() => clearCart()}
               >
                 Continue Shopping
               </Link>
               <Link
                 href="/"
-                className="px-6 py-2 border border-border rounded-lg font-medium hover:bg-muted transition-colors"
+                className="px-6 py-2.5 border-2 border-border rounded-full font-medium hover:bg-muted transition-colors text-center"
               >
                 Back to Home
               </Link>
@@ -218,168 +211,212 @@ export default function CartPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="min-h-screen bg-muted/30 flex flex-col">
       <ShopHeader />
-      <main className="flex-1 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 w-full">
-        <h1 className="text-3xl font-bold text-secondary mb-8">Shopping Cart</h1>
+      <main className="flex-1 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12 w-full">
+        <div className="flex items-center gap-3 mb-6 sm:mb-8">
+          <Link href="/products" className="p-2 -ml-2 hover:bg-muted rounded-full transition-colors">
+            <ArrowLeft className="h-5 w-5 text-muted-foreground" />
+          </Link>
+          <h1 className="text-2xl sm:text-3xl font-bold text-secondary">Shopping Cart</h1>
+          {items.length > 0 && (
+            <span className="text-sm text-muted-foreground ml-auto sm:ml-0">
+              {items.length} item{items.length > 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
 
         {items.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-muted-foreground mb-4">Your cart is empty</p>
-            <Link href="/products" className="text-primary hover:underline font-medium">Browse Products</Link>
+          <div className="text-center py-20">
+            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+              <ShoppingBag className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground mb-2">Your cart is empty</p>
+            <p className="text-sm text-muted-foreground mb-6">Looks like you haven&apos;t added anything yet</p>
+            <Link href="/products" className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent text-secondary font-semibold rounded-full hover:bg-accent/90 transition-colors">
+              Browse Products <ShoppingBag className="h-4 w-4" />
+            </Link>
           </div>
         ) : (
-          <div className="space-y-4">
-            {items.map((item) => (
-              <div key={item.productId} className="flex items-center gap-4 bg-white border border-border rounded-xl p-4">
-                <div className="w-20 h-20 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
-                  {item.image ? (
-                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No img</div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+            <div className="lg:col-span-2 space-y-3 sm:space-y-4">
+              {items.map((item) => (
+                <div key={item.productId} className="bg-white rounded-xl border border-border p-3 sm:p-4 flex items-center gap-3 sm:gap-4 shadow-sm">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 bg-muted rounded-lg flex-shrink-0 overflow-hidden">
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No img</div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-secondary text-sm sm:text-base truncate">{item.name}</h3>
+                    <p className="text-primary font-bold text-sm sm:text-base mt-0.5">Rs. {formatNumber(item.price)}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <button
+                        onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-border hover:bg-muted transition-colors"
+                      >
+                        <Minus className="h-3.5 w-3.5" />
+                      </button>
+                      <span className="w-8 sm:w-10 text-center font-semibold text-sm">{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg border border-border hover:bg-muted transition-colors"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="font-bold text-secondary text-sm sm:text-base">Rs. {formatNumber(item.price * item.quantity)}</p>
+                    <button
+                      onClick={() => removeItem(item.productId)}
+                      className="mt-2 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-4 sm:sticky sm:top-28 sm:self-start">
+              <div className="bg-white rounded-xl border border-border p-4 sm:p-5 shadow-sm">
+                <h2 className="font-bold text-secondary mb-3 flex items-center gap-2">
+                  <Percent className="h-4 w-4 text-accent" />
+                  Have a coupon?
+                </h2>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Enter code"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    className="flex-1 px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm uppercase"
+                  />
+                  <button
+                    onClick={validateCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="px-4 py-2 bg-secondary text-white rounded-lg text-sm font-medium hover:bg-secondary/90 transition-colors disabled:opacity-50"
+                  >
+                    {couponLoading ? "..." : "Apply"}
+                  </button>
+                </div>
+                {couponError && (
+                  <p className="flex items-center gap-1 text-xs text-red-500 mt-2">
+                    <XCircle className="h-3.5 w-3.5 shrink-0" /> {couponError}
+                  </p>
+                )}
+                {appliedCoupon && (
+                  <p className="flex items-center gap-1 text-xs text-green-600 mt-2">
+                    <CheckCircle className="h-3.5 w-3.5 shrink-0" /> Coupon applied! ({appliedCoupon.code})
+                  </p>
+                )}
+              </div>
+
+              <div className="bg-white rounded-xl border border-border p-4 sm:p-5 shadow-sm">
+                <h2 className="font-bold text-secondary mb-3">Delivery Location</h2>
+                <div className="flex gap-2">
+                  {(["inside_valley", "outside_valley"] as const).map((loc) => (
+                    <button
+                      key={loc}
+                      onClick={() => setDeliveryLocation(loc)}
+                      className={`flex-1 py-2.5 rounded-lg text-sm font-medium border-2 transition-all ${
+                        deliveryLocation === loc
+                          ? "border-accent bg-accent/5 text-accent"
+                          : "border-border text-muted-foreground hover:border-muted-foreground/30"
+                      }`}
+                    >
+                      <MapPin className="h-4 w-4 mx-auto mb-0.5" />
+                      {loc === "inside_valley" ? "Inside Valley" : "Outside Valley"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-border p-4 sm:p-5 shadow-sm">
+                <h2 className="font-bold text-secondary mb-3">Your Details</h2>
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2 px-3 py-2.5 border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary">
+                    <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Your Name *"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="flex-1 bg-transparent focus:outline-none text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2.5 border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary">
+                    <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <input
+                      type="tel"
+                      placeholder="Your Phone *"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      maxLength={10}
+                      className="flex-1 bg-transparent focus:outline-none text-sm"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-2.5 border border-border rounded-lg focus-within:ring-2 focus-within:ring-primary">
+                    <Home className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Delivery Address"
+                      value={customerAddress}
+                      onChange={(e) => setCustomerAddress(e.target.value)}
+                      className="flex-1 bg-transparent focus:outline-none text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-xl border border-border p-4 sm:p-5 shadow-sm">
+                <h2 className="font-bold text-secondary mb-3">Order Summary</h2>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span>Rs. {formatNumber(totalAmount)}</span>
+                  </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Discount ({appliedCoupon.code})</span>
+                      <span>-Rs. {formatNumber(discount)}</span>
+                    </div>
+                  )}
+                  {deliveryLocation && (
+                    <div className="flex justify-between text-muted-foreground">
+                      <span>Delivery</span>
+                      <span>{deliveryFee === 0 ? <span className="text-green-600 font-medium">Free</span> : `Rs. ${formatNumber(deliveryFee)}`}</span>
+                    </div>
                   )}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-secondary truncate">{item.name}</h3>
+                <div className="flex justify-between font-bold text-secondary text-base sm:text-lg mt-3 pt-3 border-t border-border">
+                  <span>Total</span>
+                  <span>Rs. {formatNumber(finalTotal)}</span>
+                </div>
 
-                  <p className="text-primary font-bold mt-1">Rs. {formatNumber(item.price)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                    className="p-1 rounded hover:bg-muted transition-colors"
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <span className="w-8 text-center font-medium">{item.quantity}</span>
-                  <button
-                    onClick={() => updateQuantity(item.productId, item.quantity + 1)}
-                    className="p-1 rounded hover:bg-muted transition-colors"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </div>
-                <p className="font-semibold text-secondary w-24 text-right">
-                  Rs. {formatNumber(item.price * item.quantity)}
-                </p>
+                {orderError && (
+                  <p className="flex items-center gap-1 text-sm text-red-500 mt-3">
+                    <XCircle className="h-4 w-4 shrink-0" /> {orderError}
+                  </p>
+                )}
+
                 <button
-                  onClick={() => removeItem(item.productId)}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  onClick={placeOrder}
+                  disabled={!customerName || !customerPhone || ordering}
+                  className="w-full mt-4 py-3 bg-accent text-secondary font-bold rounded-full hover:bg-accent/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  {ordering ? (
+                    "Processing..."
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" /> Confirm Your Order
+                    </>
+                  )}
                 </button>
               </div>
-            ))}
-
-            <div className="bg-muted rounded-xl p-6 space-y-4">
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Subtotal ({items.length} item{items.length > 1 ? "s" : ""})</span>
-                <span>Rs. {formatNumber(totalAmount)}</span>
-              </div>
-
-              {appliedCoupon && (
-                <div className="flex justify-between text-sm text-green-600">
-                  <span>Discount ({appliedCoupon.code})</span>
-                  <span>- Rs. {formatNumber(discount)}</span>
-                </div>
-              )}
-
-              {deliveryLocation && (
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>Delivery Fee ({deliveryLocation === "inside_valley" ? "Inside Valley" : "Outside Valley"})</span>
-                  <span>{deliveryFee === 0 ? <span className="text-green-600">Free</span> : `Rs. ${formatNumber(deliveryFee)}`}</span>
-                </div>
-              )}
-
-              <div className="flex justify-between text-lg font-bold text-secondary pt-2 border-t border-border">
-                <span>Total</span>
-                <span>Rs. {formatNumber(finalTotal)}</span>
-              </div>
-
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Coupon code"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  className="flex-1 px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm uppercase"
-                />
-                <button
-                  onClick={validateCoupon}
-                  disabled={couponLoading || !couponCode.trim()}
-                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/90 transition-colors disabled:opacity-50 flex items-center gap-1"
-                >
-                  <Tag className="h-4 w-4" /> Apply
-                </button>
-              </div>
-              {couponError && (
-                <p className="flex items-center gap-1 text-sm text-red-500">
-                  <XCircle className="h-4 w-4" /> {couponError}
-                </p>
-              )}
-              {appliedCoupon && (
-                <p className="flex items-center gap-1 text-sm text-green-600">
-                  <CheckCircle className="h-4 w-4" /> Coupon applied!
-                </p>
-              )}
-
-              <div className="pt-2 space-y-2">
-                <p className="text-sm font-medium text-secondary">Delivery Location</p>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="radio" name="deliveryLocation" value="inside_valley"
-                      checked={deliveryLocation === "inside_valley"}
-                      onChange={() => setDeliveryLocation("inside_valley")}
-                      className="accent-primary" />
-                    Inside Valley
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="radio" name="deliveryLocation" value="outside_valley"
-                      checked={deliveryLocation === "outside_valley"}
-                      onChange={() => setDeliveryLocation("outside_valley")}
-                      className="accent-primary" />
-                    Outside Valley
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-3 pt-2">
-                <input
-                  type="text"
-                  placeholder="Your Name *"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <input
-                  type="tel"
-                  placeholder="Your Phone *"
-                  value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                  maxLength={10}
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <input
-                  type="text"
-                  placeholder="Delivery Address"
-                  value={customerAddress}
-                  onChange={(e) => setCustomerAddress(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-
-              {orderError && (
-                <p className="flex items-center gap-1 text-sm text-red-500">
-                  <XCircle className="h-4 w-4" /> {orderError}
-                </p>
-              )}
-              <button
-                onClick={placeOrder}
-                disabled={!customerName || !customerPhone || ordering}
-                className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {ordering ? "Processing..." : "Order via WhatsApp"}
-              </button>
             </div>
           </div>
         )}
