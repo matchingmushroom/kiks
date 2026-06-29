@@ -9,7 +9,8 @@ import { generateId } from "@/lib/id-generator";
 import { setDoc, updateDoc, deleteDoc, doc, collection, Timestamp, query, where, getDocs, getDoc, orderBy as fsOrderBy, limit } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit2, Trash2, X, Save, Copy, CheckCircle, Search, LayoutGrid, List } from "lucide-react";
+import BulkCouponDialog from "@/components/admin/BulkCouponDialog";
+import { Plus, Edit2, Trash2, X, Save, Copy, CheckCircle, Search, LayoutGrid, List, Printer } from "lucide-react";
 
 const emptyForm = {
   code: "",
@@ -40,6 +41,7 @@ export default function AdminCouponsPage() {
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [detailCoupon, setDetailCoupon] = useState<Coupon | null>(null);
+  const [showBulk, setShowBulk] = useState(false);
 
   const filtered = coupons.filter((c) =>
     !search || c.code.toLowerCase().includes(search.toLowerCase())
@@ -136,7 +138,10 @@ export default function AdminCouponsPage() {
             <h1 className="text-2xl font-bold text-secondary">Coupons</h1>
             <p className="text-sm text-muted-foreground">{coupons.length} total</p>
           </div>
-          <Button onClick={openAdd} variant="accent"><Plus className="h-4 w-4" /> New Coupon</Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => setShowBulk(true)} variant="outline"><Printer className="h-4 w-4" /> Bulk Generate</Button>
+            <Button onClick={openAdd} variant="accent"><Plus className="h-4 w-4" /> New Coupon</Button>
+          </div>
         </div>
 
         <div className="relative max-w-xs mb-6">
@@ -443,6 +448,8 @@ export default function AdminCouponsPage() {
             </div>
           </DetailModal>
         )}
+
+        {showBulk && <BulkCouponDialog onClose={() => setShowBulk(false)} onComplete={() => {}} />}
       </div>
     </AdminLayout>
   );
