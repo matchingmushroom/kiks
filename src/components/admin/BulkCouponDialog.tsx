@@ -169,14 +169,18 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
       </div>
       ${validUntilStr ? `<div class="c-valid">${escapeHtml(langData.validUntil)}: ${escapeHtml(validUntilStr)}</div>` : ""}
       ${minPurchase > 0 ? `<div class="c-min-purchase">${escapeHtml(langData.minPurchase)}: ${minPLbl}</div>` : ""}
+      <div class="c-terms">${langData.terms.map((t) => `<span class="c-tl">${escapeHtml(t)}</span>`).join("")}</div>
       <div class="c-footer"><div class="c-social">${SOCIAL_ICONS}<span class="c-social-user">${escapeHtml(SOCIAL_USERNAME)}</span></div>${websiteUrl ? `<div class="c-website">${escapeHtml(websiteUrl)}</div>` : ""}</div>
     `;
 
     const buildBack = () => `
-      <div class="c-back-terms">
-        ${langData.terms.map((t) => `<div class="c-term-line">• ${escapeHtml(t)}</div>`).join("")}
+      <div class="c-back-brand">
+        ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" class="c-back-logo" />` : ""}
+        <div class="c-back-name">${escapeHtml(shopName)}</div>
+        ${address ? `<div class="c-back-addr">${escapeHtml(address)}</div>` : ""}
+        ${phone ? `<div class="c-back-phone">${escapeHtml(phone)}</div>` : ""}
+        <div class="c-back-social">${SOCIAL_ICONS}<span class="c-social-user">${escapeHtml(SOCIAL_USERNAME)}</span></div>
       </div>
-      ${websiteUrl ? `<div class="c-website">${escapeHtml(websiteUrl)}</div>` : ""}
     `;
 
     // Build pages: fronts then backs
@@ -263,15 +267,23 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
           .c-valid { font-size: 4.5px; color: #888; margin-top: 0.1mm; text-align: center; }
           .c-min-purchase { font-size: 4.5px; color: #888; text-align: center; }
 
-          /* Back layout */
-          .c-back-terms { flex: 1; padding: 0.5mm 0.3mm; display: flex; flex-direction: column; justify-content: center; }
-          .c-term-line { font-size: 5.5px; color: #555; line-height: 1.3; padding: 0.1mm 0; }
+          .c-terms { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.2mm 0.5mm; margin: 0.2mm 0.3mm 2mm; }
+          .c-tl { font-size: 3.2px; color: #999; line-height: 1.2; }
+          .c-tl + .c-tl::before { content: "|"; color: #ddd; margin-right: 0.5mm; }
 
           .c-footer { position: absolute; bottom: 0.5mm; left: 0; right: 0; }
           .c-social { display: flex; align-items: center; justify-content: center; gap: 1.2mm; }
           .c-social .smi { width: 3.5mm; height: 3.5mm; color: #888; }
           .c-social-user { font-size: 3.8px; color: #999; }
           .c-website { text-align: center; font-size: 3.5px; color: #bbb; line-height: 1; }
+
+          /* Back layout */
+          .c-back-brand { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 0.5mm; background: linear-gradient(135deg, #fef9ef 0%, #fff 100%); }
+          .c-back-logo { max-width: 18mm; max-height: 10mm; object-fit: contain; margin-bottom: 0.3mm; }
+          .c-back-name { font-weight: 800; color: #1a1a2e; text-align: center; font-size: 8px; }
+          .c-back-addr, .c-back-phone { font-size: 5px; color: #888; text-align: center; }
+          .c-back-social { display: flex; align-items: center; justify-content: center; gap: 1.2mm; margin-top: 0.5mm; }
+          .c-back-social .smi { width: 3mm; height: 3mm; color: #aaa; }
 
           @media print {
             @page { size: A4; margin: 4mm; }
