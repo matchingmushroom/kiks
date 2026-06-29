@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { Product } from "@/types";
 import { formatNumber } from "@/lib/utils";
-import { ShoppingBag, Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, RefreshCw, Truck } from "lucide-react";
 
 function extractGoogleDriveId(url: string): string | null {
   const m = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^/?#&]+)/);
@@ -15,9 +15,15 @@ function extractGoogleDriveId(url: string): string | null {
 
 function imgUrl(url: string): string {
   const gd = extractGoogleDriveId(url);
-  if (gd) return `https://drive.google.com/thumbnail?id=${gd}&sz=w400`;
-  return url.replace(/images\.unsplash\.com\/photo-([^?]+)/, "https://unsplash.com/photos/$1/download?w=400");
+  if (gd) return `https://drive.google.com/thumbnail?id=${gd}&sz=w600`;
+  return url.replace(/images\.unsplash\.com\/photo-([^?]+)/, "https://unsplash.com/photos/$1/download?w=600");
 }
+
+const usps = [
+  { icon: Truck, label: "Free Shipping", desc: "On orders above Rs. 5000" },
+  { icon: RefreshCw, label: "Easy Returns", desc: "7-day return policy" },
+  { icon: ShieldCheck, label: "Authentic", desc: "100% genuine products" },
+];
 
 export default function ProductDetailClient({ product }: { product: Product }) {
   const router = useRouter();
@@ -51,21 +57,25 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     { label: "Ideal For", value: Array.isArray(product.idealFor) ? product.idealFor.join(", ") : product.idealFor },
     { label: "Occasion", value: Array.isArray(product.occasion) ? product.occasion.join(", ") : product.occasion },
     { label: "Warranty", value: product.warranty },
+    { label: "Weight", value: product.weight ? `${product.weight}g` : "" },
   ].filter(s => s.value && s.value !== "");
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white flex flex-col">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 w-full">
         <button
           onClick={() => router.back()}
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-secondary mb-6"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-secondary mb-4 sm:mb-6 transition-colors group"
         >
-          <ChevronLeft className="h-4 w-4" /> Back
+          <div className="p-1 rounded-full bg-white border border-border group-hover:border-muted-foreground/30 transition-colors">
+            <ChevronLeft className="h-4 w-4" />
+          </div>
+          Back
         </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-          <div>
-            <div className="relative aspect-square bg-muted rounded-xl overflow-hidden mb-3 group">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-12">
+          <div className="lg:sticky lg:top-28 lg:self-start">
+            <div className="relative aspect-square bg-white rounded-2xl border border-border overflow-hidden mb-3 group shadow-sm">
               {images[selectedImage] ? (
                 <>
                   <img
@@ -76,30 +86,47 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                   {images.length > 1 && (
                     <>
                       <button onClick={() => setSelectedImage((selectedImage - 1 + images.length) % images.length)}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ChevronLeft className="h-5 w-5" />
+                        className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ChevronLeft className="h-5 w-5 text-secondary" />
                       </button>
                       <button onClick={() => setSelectedImage((selectedImage + 1) % images.length)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
-                        <ChevronRight className="h-5 w-5" />
+                        className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white rounded-full p-2.5 shadow-md opacity-0 group-hover:opacity-100 transition-opacity">
+                        <ChevronRight className="h-5 w-5 text-secondary" />
                       </button>
                     </>
                   )}
                 </>
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                  No Image
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-slate-50">
+                  <div className="text-center">
+                    <ShoppingBag className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                    <span className="text-sm">No Image Available</span>
+                  </div>
+                </div>
+              )}
+              {product.badge && product.badge !== "none" && (
+                <div className={`absolute top-3 left-3 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-sm ${
+                  product.badge === "limited_stock" ? "bg-orange-500" :
+                  product.badge === "out_of_stock" ? "bg-red-500" :
+                  product.badge === "price_dropped" ? "bg-emerald-600" :
+                  product.badge === "offer" ? "bg-amber-500" : "bg-primary"
+                }`}>
+                  {product.badge === "limited_stock" ? "Limited Stock" :
+                   product.badge === "out_of_stock" ? "Out of Stock" :
+                   product.badge === "price_dropped" ? "Price Dropped" :
+                   product.badge === "offer" ? "Offer" : product.badge}
                 </div>
               )}
             </div>
+
             {images.length > 1 && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 mb-4 overflow-x-auto pb-1 no-scrollbar">
                 {images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
-                    className={`w-16 h-16 rounded-lg border-2 overflow-hidden ${
-                      i === selectedImage ? "border-primary" : "border-border"
+                    className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 overflow-hidden shrink-0 transition-all ${
+                      i === selectedImage ? "border-accent shadow-sm" : "border-border hover:border-muted-foreground/30"
                     }`}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover" />
@@ -109,7 +136,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
             )}
 
             {product.videoUrl && (
-              <div className="mt-4 aspect-video rounded-xl overflow-hidden no-print">
+              <div className="mt-4 aspect-video rounded-xl overflow-hidden no-print shadow-sm border border-border">
                 <iframe
                   src={product.videoUrl.replace("watch?v=", "embed/")}
                   title="Product Video"
@@ -119,80 +146,108 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 />
               </div>
             )}
+
+            <div className="hidden lg:grid grid-cols-3 gap-3 mt-6">
+              {usps.map((usp) => (
+                <div key={usp.label} className="flex flex-col items-center text-center gap-1.5 p-3 bg-slate-50 rounded-xl">
+                  <usp.icon className="h-5 w-5 text-accent" />
+                  <p className="text-xs font-semibold text-secondary">{usp.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{usp.desc}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div>
-            <h1 className="text-3xl font-bold text-secondary mb-2">{product.name}</h1>
-            {product.badge === "price_dropped" || product.badge === "offer" ? (
-              <div className="flex items-baseline gap-3 mb-6">
-                <span className="text-2xl text-muted-foreground line-through">
-                  Rs. {formatNumber(product.originalPrice || product.price)}
-                </span>
-                <span className="text-3xl font-bold text-primary">
+          <div className="flex flex-col">
+            <div className="bg-white rounded-2xl border border-border p-5 sm:p-6 shadow-sm">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-secondary leading-tight">{product.name}</h1>
+              </div>
+
+              {product.badge === "price_dropped" || product.badge === "offer" ? (
+                <div className="flex items-baseline gap-3 mb-4">
+                  <span className="text-xl sm:text-2xl text-muted-foreground line-through">
+                    Rs. {formatNumber(product.originalPrice || product.price)}
+                  </span>
+                  <span className="text-2xl sm:text-3xl font-bold text-primary">
+                    Rs. {formatNumber(product.price)}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-2xl sm:text-3xl font-bold text-primary mb-4">
                   Rs. {formatNumber(product.price)}
-                </span>
-                {product.badge === "price_dropped" && (
-                  <span className="text-xs bg-emerald-600 text-white px-2 py-0.5 rounded font-medium">Price Dropped</span>
-                )}
-                {product.badge === "offer" && (
-                  <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded font-medium">Offer</span>
-                )}
-              </div>
-            ) : (
-              <p className="text-3xl font-bold text-primary mb-6">
-                Rs. {formatNumber(product.price)}
+                </p>
+              )}
+
+              <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-6">
+                {product.description || "No description available."}
               </p>
-            )}
 
-            <p className="text-muted-foreground mb-6 leading-relaxed">
-              {product.description || "No description available."}
-            </p>
-
-            {specs.length > 0 && (
-              <div className="border border-border rounded-xl divide-y divide-border mb-8">
-                {specs.map((spec) => (
-                  <div key={spec.label} className="flex justify-between px-4 py-2.5 text-sm">
-                    <span className="text-muted-foreground">{spec.label}</span>
-                    <span className="font-medium text-secondary">{spec.value}</span>
-                  </div>
-                ))}
+              <div className="flex gap-3 mb-6">
+                <button
+                  onClick={handleAddToCart}
+                  disabled={product.quantityInStock <= 0}
+                  className="flex-1 py-3 bg-accent text-secondary font-bold rounded-xl hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm hover:shadow-md text-sm sm:text-base"
+                >
+                  {added ? (
+                    <><Check className="h-5 w-5 text-green-700" /> Added to Cart</>
+                  ) : (
+                    <><ShoppingBag className="h-5 w-5" /> Add to Cart</>
+                  )}
+                </button>
+                <button
+                  onClick={() => {
+                    handleAddToCart();
+                    router.push("/cart");
+                  }}
+                  disabled={product.quantityInStock <= 0}
+                  className="flex-1 py-3 border-2 border-accent text-accent font-bold rounded-xl hover:bg-accent/5 transition-all disabled:opacity-50 text-sm sm:text-base"
+                >
+                  Buy Now
+                </button>
               </div>
-            )}
 
-            <div className="flex items-center gap-2 mb-6 flex-wrap">
-              {product.badge === "limited_stock" && (
-                <span className="text-xs bg-orange-500 text-white px-2 py-1 rounded font-medium">Limited Stock</span>
-              )}
-              {product.badge === "out_of_stock" && (
-                <span className="text-xs bg-red-500 text-white px-2 py-1 rounded font-medium">Out of Stock</span>
-              )}
               {product.quantityInStock <= 0 && (
-                <span className="text-xs bg-red-500 text-white px-2 py-1 rounded font-medium">Out of Stock</span>
+                <p className="text-sm text-red-500 bg-red-50 px-4 py-2.5 rounded-xl text-center font-medium mb-4">
+                  This product is currently out of stock
+                </p>
+              )}
+
+              {product.sku && (
+                <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
+                  <span className="bg-slate-100 px-2 py-1 rounded">SKU: {product.sku}</span>
+                  {product.modelNo && <span className="bg-slate-100 px-2 py-1 rounded">Model: {product.modelNo}</span>}
+                </div>
               )}
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleAddToCart}
-                disabled={product.quantityInStock <= 0}
-                className="flex-1 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {added ? (
-                  <><Check className="h-5 w-5" /> Added to Cart</>
-                ) : (
-                  <><ShoppingBag className="h-5 w-5" /> Add to Cart</>
-                )}
-              </button>
-              <button
-                onClick={() => {
-                  handleAddToCart();
-                  router.push("/cart");
-                }}
-                disabled={product.quantityInStock <= 0}
-                className="flex-1 py-3 border border-primary text-primary rounded-lg font-medium hover:bg-primary/5 transition-colors disabled:opacity-50"
-              >
-                Buy Now
-              </button>
+            {specs.length > 0 && (
+              <div className="bg-white rounded-2xl border border-border p-5 sm:p-6 shadow-sm mt-4">
+                <h2 className="text-base font-bold text-secondary mb-4">Product Details</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0 divide-y sm:divide-y-0 sm:divide-x-0 border-border/60">
+                  {specs.map((spec) => (
+                    <div key={spec.label} className="flex justify-between py-3 sm:py-2.5 sm:border-b sm:border-border/40 sm:last:border-b-0">
+                      <span className="text-sm text-muted-foreground">{spec.label}</span>
+                      <span className="text-sm font-medium text-secondary text-right">{spec.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="lg:hidden grid grid-cols-3 gap-3 mt-4">
+              {usps.map((usp) => (
+                <div key={usp.label} className="flex flex-col items-center text-center gap-1.5 p-3 bg-white rounded-xl border border-border">
+                  <usp.icon className="h-5 w-5 text-accent" />
+                  <p className="text-xs font-semibold text-secondary">{usp.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{usp.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-4 justify-center mt-6 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Secure Checkout</span>
+              <span className="flex items-center gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Easy Returns</span>
             </div>
           </div>
         </div>

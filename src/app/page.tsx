@@ -256,7 +256,7 @@ function ComboSection() {
   }
 
   const cards = combos.map((product) => (
-    <div key={product.id} className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all">
+    <Link key={product.id} href={`/product-viewer?id=${product.id}`} className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all block">
       <div className="aspect-square bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden flex items-center justify-center">
         <span className="text-muted-foreground text-sm">Combo Set</span>
         <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs px-2 py-1 rounded font-medium">
@@ -270,7 +270,7 @@ function ComboSection() {
           <p className="text-primary font-bold text-lg">Rs. {formatNumber(product.comboPrice || product.price)}</p>
         </div>
       </div>
-    </div>
+    </Link>
   ));
 
   return (
@@ -279,7 +279,7 @@ function ComboSection() {
         <SectionHeader title="Combo Deals" subtitle="Curated sets at special prices" />
         <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {combos.map((product) => (
-            <div key={product.id} className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all">
+            <Link key={product.id} href={`/product-viewer?id=${product.id}`} className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all block">
               <div className="aspect-square bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden flex items-center justify-center">
                 <span className="text-muted-foreground text-sm">Combo Set</span>
                 <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs px-2 py-1 rounded font-medium">
@@ -293,7 +293,7 @@ function ComboSection() {
                   <p className="text-primary font-bold text-lg">Rs. {formatNumber(product.comboPrice || product.price)}</p>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
         <div className="sm:hidden">
