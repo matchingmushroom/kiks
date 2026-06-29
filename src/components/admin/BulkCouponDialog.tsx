@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { setDoc, doc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateId } from "@/lib/id-generator";
+import CouponCardPrint from "./CouponCardPrint";
 
 interface BulkCouponDialogProps {
   onClose: () => void;
@@ -15,7 +15,6 @@ interface BulkCouponDialogProps {
 }
 
 export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDialogProps) {
-  const { settings } = useShopSettings();
   const { user } = useAuth();
   const [couponCode, setCouponCode] = useState("");
   const [quantity, setQuantity] = useState(10);
@@ -24,10 +23,11 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
   const [maxDiscount, setMaxDiscount] = useState(0);
   const [minPurchase, setMinPurchase] = useState(0);
   const [validUntil, setValidUntil] = useState("");
-  const [printCopies, setPrintCopies] = useState(1);
   const [generating, setGenerating] = useState(false);
   const [savedCode, setSavedCode] = useState("");
   const [saved, setSaved] = useState(false);
+  const [savedCouponId, setSavedCouponId] = useState("");
+  const [showCardPrint, setShowCardPrint] = useState(false);
   const [error, setError] = useState("");
 
   const generateCode = () => {
@@ -68,6 +68,7 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
         updatedAt: Timestamp.fromDate(new Date()),
       });
       setSavedCode(code);
+      setSavedCouponId(cupId);
       setSaved(true);
       if (onComplete) onComplete();
     } catch (e) {
@@ -78,119 +79,7 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
   };
 
   const handlePrint = () => {
-    const printWin = window.open("", "_blank");
-    if (!printWin) { alert("Pop-up blocked. Allow pop-ups and try again."); return; }
-
-    const shopName = settings.shopName || "KIKS Collections";
-    const address = settings.address || "";
-    const phone = settings.phone || "";
-    const logoUrl = settings.logoUrl || "";
-    const validUntilStr = validUntil
-      ? new Date(validUntil + "T23:59:59").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
-      : "";
-    const discountLabel = discountType === "fixed"
-      ? `Rs. ${Number(discountValue).toLocaleString("en-IN")}`
-      : `${discountValue}%`;
-    const maxDiscountLabel = maxDiscount > 0
-      ? `Rs. ${Number(maxDiscount).toLocaleString("en-IN")}`
-      : "";
-    const minPurchaseLabel = minPurchase > 0
-      ? `Rs. ${Number(minPurchase).toLocaleString("en-IN")}`
-      : "";
-
-    const card = (code: string) => `
-      <div class="coupon-card">
-        <div class="coupon-inner">
-          <div class="coupon-side">
-            <div class="coupon-header">
-              ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" class="coupon-logo" />` : ""}
-              <div class="coupon-shop-name">${escapeHtml(shopName)}</div>
-              <div class="coupon-shop-info">${escapeHtml(address)} | ${escapeHtml(phone)}</div>
-            </div>
-            <div class="coupon-divider">===========================================</div>
-            <div class="coupon-thanks">Thank You for Shopping with us!</div>
-            <div class="coupon-code-label">Here is your Coupon Code:</div>
-            <div class="coupon-code">👉 ${escapeHtml(code)}</div>
-            <div class="coupon-offer">Use this to get:</div>
-            ${discountType === "fixed"
-              ? `<div class="coupon-discount">🎁 ${discountLabel} OFF</div>`
-              : `<div class="coupon-discount">🎁 ${discountLabel} OFF${maxDiscount > 0 ? ` (Up to ${maxDiscountLabel})` : ""}</div>`
-            }
-            <div class="coupon-divider">-------------------------------------------</div>
-            <div class="coupon-terms-title">Terms &amp; Conditions:</div>
-            <div class="coupon-terms">
-              1. Valid until: ${validUntilStr}<br/>
-              ${minPurchase > 0 ? `2. Minimum Purchase required: ${minPurchaseLabel}<br/>` : ""}
-              3. Coupon valid for online orders via website or In-Store purchases.
-            </div>
-            <div class="coupon-divider">===========================================</div>
-          </div>
-
-          <div class="coupon-side">
-            <div class="coupon-header">
-              ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" class="coupon-logo" />` : ""}
-              <div class="coupon-shop-name">${escapeHtml(shopName)}</div>
-              <div class="coupon-shop-info">${escapeHtml(address)} | ${escapeHtml(phone)}</div>
-            </div>
-            <div class="coupon-divider">===========================================</div>
-            <div class="coupon-thanks">हामीसँग किनमेल गर्नुभएकोमा धन्यवाद!</div>
-            <div class="coupon-code-label">तपाईंको कुपन कोड यहाँ छ:</div>
-            <div class="coupon-code">👉 ${escapeHtml(code)}</div>
-            <div class="coupon-offer">यो कुपन प्रयोग गरी पाउनुहोस्:</div>
-            ${discountType === "fixed"
-              ? `<div class="coupon-discount">🎁 ${discountLabel} छुट</div>`
-              : `<div class="coupon-discount">🎁 ${discountLabel} छुट${maxDiscount > 0 ? ` (बढीमा ${maxDiscountLabel} सम्म)` : ""}</div>`
-            }
-            <div class="coupon-divider">-------------------------------------------</div>
-            <div class="coupon-terms-title">शर्त तथा नियमहरू:</div>
-            <div class="coupon-terms">
-              १. मान्य अवधि: ${validUntilStr} सम्म<br/>
-              ${minPurchase > 0 ? `२. न्यूनतम खरिद रकम: ${minPurchaseLabel}<br/>` : ""}
-              ३. यो कुपन वेबसाइट मार्फत अनलाइन अर्डर गर्दा वा स्टोरमै आएर खरिद गर्दा लागू हुनेछ।
-            </div>
-            <div class="coupon-divider">===========================================</div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    const cards = Array.from({ length: printCopies }, () => card(savedCode)).join("");
-
-    printWin.document.write(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Coupon - ${escapeHtml(savedCode)}</title>
-        <style>
-          * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, Helvetica, sans-serif; background: #fff; padding: 5mm; }
-          .coupon-card { width: 100%; page-break-inside: avoid; break-inside: avoid; margin-bottom: 5mm; }
-          .coupon-inner {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 3mm;
-            border: 2px solid #333; border-radius: 6px; padding: 4mm;
-          }
-          .coupon-side { padding: 2mm; }
-          .coupon-side:first-child { border-right: 2px dashed #ccc; }
-          .coupon-header { text-align: center; margin-bottom: 2mm; }
-          .coupon-logo { max-width: 50mm; max-height: 18mm; object-fit: contain; margin-bottom: 2mm; }
-          .coupon-shop-name { font-size: 16px; font-weight: 700; }
-          .coupon-shop-info { font-size: 10px; color: #666; }
-          .coupon-divider { font-family: monospace; font-size: 8px; color: #aaa; text-align: center; margin: 1.5mm 0; letter-spacing: 0.5px; }
-          .coupon-thanks { font-size: 12px; font-weight: 600; text-align: center; margin-bottom: 2mm; }
-          .coupon-code-label { font-size: 10px; color: #555; text-align: center; }
-          .coupon-code { font-size: 20px; font-weight: 700; text-align: center; margin: 2mm 0; letter-spacing: 3px; color: #d32f2f; }
-          .coupon-offer { font-size: 10px; color: #555; text-align: center; }
-          .coupon-discount { font-size: 14px; font-weight: 700; color: #d32f2f; text-align: center; margin: 1mm 0; }
-          .coupon-terms-title { font-size: 9px; font-weight: 600; margin-top: 2mm; margin-bottom: 1mm; }
-          .coupon-terms { font-size: 8px; color: #555; line-height: 1.5; }
-          @media print { @page { margin: 4mm; } }
-        </style>
-      </head>
-      <body>${cards}</body>
-      </html>
-    `);
-    printWin.document.close();
-    setTimeout(() => printWin.print(), 500);
+    setShowCardPrint(true);
   };
 
   return (
@@ -266,26 +155,37 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
         ) : (
           <div className="p-4 space-y-4">
             <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2">
-              <span>✅ Coupon <span className="font-mono font-bold">{savedCode}</span> created! (Print limit: {quantity} copies)</span>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Copies to Print</label>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setPrintCopies(Math.max(1, printCopies - 1))}
-                  className="w-9 h-9 flex items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted text-lg font-medium">−</button>
-                <input type="number" min={1} max={quantity} value={printCopies}
-                  onChange={(e) => setPrintCopies(Math.min(quantity, Math.max(1, Number(e.target.value) || 1)))}
-                  className="w-20 text-center text-sm border border-border rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-primary" />
-                <button onClick={() => setPrintCopies(Math.min(quantity, printCopies + 1))}
-                  className="w-9 h-9 flex items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted text-lg font-medium">+</button>
-                <span className="text-xs text-muted-foreground">/ {quantity} max</span>
-              </div>
+              <span>✅ Coupon <span className="font-mono font-bold">{savedCode}</span> created!</span>
             </div>
             <div className="flex gap-3">
-              <Button onClick={handlePrint} variant="accent" className="flex-1">Print {printCopies} Copy{printCopies !== 1 ? "ies" : "y"}</Button>
+              <Button onClick={handlePrint} variant="accent" className="flex-1">Print as Visiting Card</Button>
               <Button onClick={onClose} variant="outline" className="flex-1">Close</Button>
             </div>
           </div>
+        )}
+        {showCardPrint && (
+          <CouponCardPrint
+            coupons={[{
+              id: savedCouponId,
+              code: savedCode,
+              discountType: discountType,
+              discountValue: Number(discountValue),
+              maxDiscount: Number(maxDiscount),
+              minPurchaseAmount: Number(minPurchase),
+              validFrom: Date.now(),
+              validUntil: validUntil ? new Date(validUntil + "T23:59:59").getTime() : Date.now(),
+              usageLimit: quantity,
+              usedCount: 0,
+              isActive: true,
+              couponType: "",
+              restrictedToPhones: [],
+              issuedToCustomer: { name: "", phone: "" },
+              issuedForOrderId: "",
+              createdAt: Date.now(),
+              createdBy: user?.uid || "",
+            }]}
+            onClose={() => setShowCardPrint(false)}
+          />
         )}
       </div>
     </div>

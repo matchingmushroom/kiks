@@ -10,7 +10,8 @@ import { setDoc, updateDoc, deleteDoc, doc, collection, Timestamp, query, where,
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import BulkCouponDialog from "@/components/admin/BulkCouponDialog";
-import { Plus, Edit2, Trash2, X, Save, Copy, CheckCircle, Search, LayoutGrid, List, Printer } from "lucide-react";
+import CouponCardPrint from "@/components/admin/CouponCardPrint";
+import { Plus, Edit2, Trash2, X, Save, Copy, CheckCircle, Search, LayoutGrid, List, Printer, CreditCard } from "lucide-react";
 
 const emptyForm = {
   code: "",
@@ -43,6 +44,7 @@ export default function AdminCouponsPage() {
   const [detailCoupon, setDetailCoupon] = useState<Coupon | null>(null);
   const [showBulk, setShowBulk] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [printCards, setPrintCards] = useState<Coupon[] | null>(null);
 
   const filtered = coupons.filter((c) =>
     !search || c.code.toLowerCase().includes(search.toLowerCase())
@@ -311,9 +313,15 @@ export default function AdminCouponsPage() {
                   {selectedIds.length === filtered.length ? "Deselect All" : "Select All"}
                 </button>
                 {selectedIds.length > 0 && (
-                  <button onClick={handleBulkDelete} className="text-xs text-red-600 hover:underline font-medium flex items-center gap-1">
-                    <Trash2 className="h-3 w-3" /> Delete {selectedIds.length}
-                  </button>
+                  <>
+                    <button onClick={() => setPrintCards(coupons.filter((c) => selectedIds.includes(c.id)))}
+                      className="text-xs text-indigo-600 hover:underline font-medium flex items-center gap-1">
+                      <CreditCard className="h-3 w-3" /> Print {selectedIds.length}
+                    </button>
+                    <button onClick={handleBulkDelete} className="text-xs text-red-600 hover:underline font-medium flex items-center gap-1">
+                      <Trash2 className="h-3 w-3" /> Delete {selectedIds.length}
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -376,6 +384,11 @@ export default function AdminCouponsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-1 pt-1">
+                        <button onClick={(e) => { e.stopPropagation(); setPrintCards([c]); }}
+                          className="p-1.5 text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                          title="Print as Card">
+                          <CreditCard className="h-3.5 w-3.5" />
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
                           className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                           <Edit2 className="h-3.5 w-3.5" />
@@ -457,6 +470,11 @@ export default function AdminCouponsPage() {
                             </span>
                           </td>
                           <td className="px-4 py-2.5 text-right">
+                            <button onClick={(e) => { e.stopPropagation(); setPrintCards([c]); }}
+                              className="p-1.5 text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                              title="Print as Card">
+                              <CreditCard className="h-3.5 w-3.5" />
+                            </button>
                             <button onClick={(e) => { e.stopPropagation(); openEdit(c); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                               <Edit2 className="h-3.5 w-3.5" />
                             </button>
@@ -500,6 +518,7 @@ export default function AdminCouponsPage() {
         )}
 
         {showBulk && <BulkCouponDialog onClose={() => setShowBulk(false)} onComplete={() => {}} />}
+        {printCards && <CouponCardPrint coupons={printCards} onClose={() => setPrintCards(null)} />}
       </div>
     </AdminLayout>
   );
