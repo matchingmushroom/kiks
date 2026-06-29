@@ -17,7 +17,8 @@ import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, getDocs, deleteDoc, query, where, limit, arrayRemove, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2, RotateCcw, Printer, Download, Mail } from "lucide-react";
+import BarcodeScannerDialog from "@/components/admin/BarcodeScannerDialog";
+import { Plus, Search, X, Save, CheckCircle, AlertTriangle, LayoutGrid, List, ExternalLink, Eye, Trash2, RotateCcw, Printer, Download, Mail, Camera } from "lucide-react";
 import Link from "next/link";
 import { exportSalesCSV, downloadBlob } from "@/lib/export";
 
@@ -76,6 +77,7 @@ function SalesContent() {
   const [invoiceError, setInvoiceError] = useState<string | null>(null);
   const [saleError, setSaleError] = useState<string | null>(null);
   const [savedInvoiceId, setSavedInvoiceId] = useState<string | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [manualCustomer, setManualCustomer] = useState(false);
   const [orderData, setOrderData] = useState<Order | null>(null);
@@ -230,9 +232,10 @@ function SalesContent() {
     }
   }, [orderId]);
 
-  const filteredProducts = products.filter((p) =>
-    p.isActive && p.name.toLowerCase().includes(productSearch.toLowerCase())
-  );
+  const filteredProducts = products.filter((p) => {
+    const q = productSearch.toLowerCase();
+    return p.isActive && (p.name.toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q));
+  });
 
   const recalc = (items: LineItem[], discount: number, received: number) => {
     const total = items.reduce((sum, item) => sum + item.subtotal, 0);
@@ -865,7 +868,12 @@ function SalesContent() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input type="text" placeholder="Search products to add..." value={productSearch}
                   onChange={(e) => setProductSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  className="w-full pl-9 pr-10 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <button type="button" onClick={() => setShowScanner(true)}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
+                  title="Scan barcode with camera">
+                  <Camera className="h-4 w-4" />
+                </button>
                 {productSearch && filteredProducts.length > 0 && (
                   <div className="absolute z-10 top-full mt-1 left-0 right-0 bg-white border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
                     {filteredProducts.slice(0, 10).map((p) => (
@@ -1393,6 +1401,12 @@ function SalesContent() {
             </div>
           </div>
         </div>
+      )}
+      {showScanner && (
+        <BarcodeScannerDialog
+          onScan={(value) => { setProductSearch(value); }}
+          onClose={() => setShowScanner(false)}
+        />
       )}
     </div>
   );

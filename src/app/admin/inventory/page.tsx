@@ -12,7 +12,8 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package, LayoutGrid, List, Download, Mail } from "lucide-react";
+import BarcodeScannerDialog from "@/components/admin/BarcodeScannerDialog";
+import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package, LayoutGrid, List, Download, Mail, Camera } from "lucide-react";
 import { exportInventoryCSV, downloadBlob } from "@/lib/export";
 
 export default function AdminInventoryPage() {
@@ -45,13 +46,15 @@ export default function AdminInventoryPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const canExport = profile?.role !== "staff";
 
   const categoryMap = new Map(categories.map((c) => [c.id, c.name]));
 
   const filtered = useMemo(() => {
     let result = products.filter((p) => {
-      const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
+      const q = search.toLowerCase();
+      const matchSearch = !search || p.name.toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q);
       if (stockFilter === "low") return matchSearch && p.quantityInStock > 0 && p.quantityInStock <= 3;
       if (stockFilter === "out") return matchSearch && p.quantityInStock <= 0;
       if (stockFilter === "active") return matchSearch && p.isActive;
@@ -200,7 +203,12 @@ export default function AdminInventoryPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input type="text" placeholder="Search products..." value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  className="w-full pl-9 pr-10 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <button type="button" onClick={() => setShowScanner(true)}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
+                  title="Scan barcode with camera">
+                  <Camera className="h-4 w-4" />
+                </button>
               </div>
               <select value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}
                 className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
@@ -438,6 +446,12 @@ export default function AdminInventoryPage() {
           </DetailModal>
         );
       })()}
+      {showScanner && (
+        <BarcodeScannerDialog
+          onScan={(value) => { setSearch(value); }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </AdminLayout>
   );
 }

@@ -15,8 +15,9 @@ import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import BarcodeScannerDialog from "@/components/admin/BarcodeScannerDialog";
 import {
-  Search, X, Minus, Plus, Trash2, CheckCircle, Percent, Tag, User,
+  Search, X, Minus, Plus, Trash2, CheckCircle, Percent, Tag, User, Camera,
 } from "lucide-react";
 
 interface LineItem {
@@ -53,6 +54,7 @@ export default function POSPage() {
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
   const [receivedAmount, setReceivedAmount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
   const [couponCodeInput, setCouponCodeInput] = useState("");
   const [couponApplyError, setCouponApplyError] = useState("");
   const [issueDiscountType, setIssueDiscountType] = useState<"percentage" | "fixed">("percentage");
@@ -471,7 +473,12 @@ export default function POSPage() {
               onKeyDown={(e) => {
                 if (e.key === "Enter" && filteredProducts.length > 0) { addItem(filteredProducts[0]); }
               }}
-              className="w-full pl-11 lg:pl-9 pr-4 py-3 lg:py-1.5 border-2 border-border rounded-lg text-base lg:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+              className="w-full pl-11 lg:pl-9 pr-12 py-3 lg:py-1.5 border-2 border-border rounded-lg text-base lg:text-sm focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+            <button type="button" onClick={() => setShowScanner(true)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded-lg transition-colors"
+              title="Scan barcode with camera">
+              <Camera className="h-5 w-5 lg:h-4 lg:w-4" />
+            </button>
           </div>
 
           {/* Search results dropdown */}
@@ -769,6 +776,12 @@ export default function POSPage() {
             </div>
           </div>
         </div>
+      )}
+      {showScanner && (
+        <BarcodeScannerDialog
+          onScan={(value) => { setProductSearch(value); }}
+          onClose={() => setShowScanner(false)}
+        />
       )}
     </AdminLayout>
   );
