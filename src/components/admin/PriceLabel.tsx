@@ -26,11 +26,11 @@ export default function PriceLabel({ productName, sku, price }: PriceLabelProps)
   }, [sku]);
 
   return (
-    <div className="price-label">
-      <div className="pl-name">{productName}</div>
-      <svg ref={svgRef} className="pl-barcode" />
-      <div className="pl-sku">{sku}</div>
-      <div className="pl-mrp">MRP: Rs. {price.toLocaleString("en-IN")}</div>
+    <div className="price-label" style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "2mm 1.5mm", fontFamily: "Arial, Helvetica, sans-serif", width: "50.8mm", height: "25.4mm", border: "0.5px solid #ccc", borderRadius: "2px", overflow: "hidden" }}>
+      <div className="pl-name" style={{ fontSize: "8px", fontWeight: 700, textAlign: "center", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%" }}>{productName}</div>
+      <svg ref={svgRef} className="pl-barcode" style={{ maxWidth: "46mm", height: "10mm", margin: 0 }} />
+      <div className="pl-sku" style={{ fontSize: "6px", color: "#555", textAlign: "center", letterSpacing: "0.3px" }}>{sku}</div>
+      <div className="pl-mrp" style={{ fontSize: "10px", fontWeight: 700, textAlign: "center", marginTop: 0 }}>MRP: Rs. {price.toLocaleString("en-IN")}</div>
     </div>
   );
 }

@@ -103,8 +103,8 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
           }
           .pl-barcode {
             max-width: 46mm;
-            height: 12mm;
-            margin: 1px 0;
+            height: 10mm;
+            margin: 0;
           }
           .pl-sku {
             font-size: 6px;
@@ -113,10 +113,10 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
             letter-spacing: 0.3px;
           }
           .pl-mrp {
-            font-size: 8px;
+            font-size: 10px;
             font-weight: 700;
             text-align: center;
-            margin-top: 1px;
+            margin-top: 0;
           }
           @media print {
             @page { margin: 5mm; }
