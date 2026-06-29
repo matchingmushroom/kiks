@@ -31,11 +31,8 @@ export default function Carousel({
   const scrollTo = useCallback((index: number) => {
     const container = containerRef.current;
     if (!container) return;
-    const child = container.children[index] as HTMLElement;
-    if (child) {
-      child.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
-      setCurrent(index);
-    }
+    container.scrollTo({ left: index * container.clientWidth, behavior: "smooth" });
+    setCurrent(index);
   }, []);
 
   const next = useCallback(() => scrollTo((current + 1) % total), [current, total, scrollTo]);
