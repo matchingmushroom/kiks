@@ -42,10 +42,32 @@ export default function AdminCouponsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [detailCoupon, setDetailCoupon] = useState<Coupon | null>(null);
   const [showBulk, setShowBulk] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   const filtered = coupons.filter((c) =>
     !search || c.code.toLowerCase().includes(search.toLowerCase())
   );
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filtered.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map((c) => c.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Delete ${selectedIds.length} selected coupon${selectedIds.length !== 1 ? "s" : ""}?`)) return;
+    for (const id of selectedIds) {
+      await deleteDoc(doc(db, "coupons", id));
+    }
+    setSelectedIds([]);
+  };
 
   const presetTypes = ["General", "For Confirmed Buyers", "Tiktok10", "Facebook10"];
   const existingTypes = [...new Set(coupons.map((c) => c.couponType).filter(Boolean))] as string[];
@@ -273,15 +295,27 @@ export default function AdminCouponsPage() {
           <p className="text-muted-foreground text-center py-12">No coupons found.</p>
         ) : (
           <>
-            <div className="flex items-center gap-1 mb-3">
-              <button onClick={() => setViewMode("grid")}
-                className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
-                <LayoutGrid className="h-4 w-4" />
-              </button>
-              <button onClick={() => setViewMode("list")}
-                className={`p-1.5 rounded ${viewMode === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
-                <List className="h-4 w-4" />
-              </button>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1">
+                <button onClick={() => setViewMode("grid")}
+                  className={`p-1.5 rounded ${viewMode === "grid" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+                <button onClick={() => setViewMode("list")}
+                  className={`p-1.5 rounded ${viewMode === "list" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+                  <List className="h-4 w-4" />
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={toggleSelectAll} className="text-xs text-primary hover:underline font-medium">
+                  {selectedIds.length === filtered.length ? "Deselect All" : "Select All"}
+                </button>
+                {selectedIds.length > 0 && (
+                  <button onClick={handleBulkDelete} className="text-xs text-red-600 hover:underline font-medium flex items-center gap-1">
+                    <Trash2 className="h-3 w-3" /> Delete {selectedIds.length}
+                  </button>
+                )}
+              </div>
             </div>
             {viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -290,13 +324,19 @@ export default function AdminCouponsPage() {
                   const validUntilMs = c.validUntil ? toDate(c.validUntil).getTime() : 0;
                   const expired = validUntilMs > 0 && now > validUntilMs;
                   return (
-                    <div key={c.id} onClick={() => setDetailCoupon(c)} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer">
+                    <div key={c.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                          <span className="font-mono font-medium text-secondary text-sm truncate">{c.code}</span>
-                          <button onClick={(e) => { e.stopPropagation(); copyCode(c.code); }} className="p-1 text-muted-foreground hover:text-primary rounded" title="Copy">
-                            <Copy className="h-3 w-3" />
-                          </button>
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <input type="checkbox" checked={selectedIds.includes(c.id)}
+                            onChange={() => toggleSelect(c.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="accent-primary h-4 w-4 shrink-0" />
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1 cursor-pointer" onClick={() => setDetailCoupon(c)}>
+                            <span className="font-mono font-medium text-secondary text-sm truncate">{c.code}</span>
+                            <button onClick={(e) => { e.stopPropagation(); copyCode(c.code); }} className="p-1 text-muted-foreground hover:text-primary rounded shrink-0" title="Copy">
+                              <Copy className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
                         <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
                           expired ? "bg-red-50 text-red-700" :
@@ -359,6 +399,11 @@ export default function AdminCouponsPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-muted text-left">
+                      <th className="px-2 py-2.5 w-8">
+                        <input type="checkbox" checked={selectedIds.length === filtered.length && filtered.length > 0}
+                          onChange={toggleSelectAll}
+                          className="accent-primary h-4 w-4" />
+                      </th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Code</th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Discount</th>
                       <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Type</th>
@@ -374,8 +419,13 @@ export default function AdminCouponsPage() {
                       const validUntilMs = c.validUntil ? toDate(c.validUntil).getTime() : 0;
                       const expired = validUntilMs > 0 && now > validUntilMs;
                       return (
-                        <tr key={c.id} onClick={() => setDetailCoupon(c)} className="hover:bg-muted/30 cursor-pointer">
-                          <td className="px-4 py-2.5">
+                        <tr key={c.id} className="hover:bg-muted/30">
+                          <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" checked={selectedIds.includes(c.id)}
+                              onChange={() => toggleSelect(c.id)}
+                              className="accent-primary h-4 w-4" />
+                          </td>
+                          <td className="px-4 py-2.5 cursor-pointer" onClick={() => setDetailCoupon(c)}>
                             <div className="flex items-center gap-1.5">
                               <span className="font-mono font-medium text-secondary">{c.code}</span>
                               <button onClick={(e) => { e.stopPropagation(); copyCode(c.code); }} className="p-1 text-muted-foreground hover:text-primary rounded" title="Copy">
