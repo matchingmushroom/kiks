@@ -20,13 +20,24 @@ export default function BarcodeScannerDialog({ onScan, onClose }: BarcodeScanner
 
     const start = async () => {
       try {
-        const { Html5Qrcode } = await import("html5-qrcode");
+        const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import("html5-qrcode");
         if (cancelled) return;
 
         const element = scannerRef.current;
         if (!element) return;
 
-        const scanner = new Html5Qrcode("barcode-scanner-container");
+        const scanner = new Html5Qrcode("barcode-scanner-container", {
+          verbose: false,
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.ITF,
+          ],
+        });
         html5QrCodeRef.current = scanner;
         setScanning(true);
 
@@ -35,15 +46,6 @@ export default function BarcodeScannerDialog({ onScan, onClose }: BarcodeScanner
           {
             fps: 10,
             qrbox: { width: 250, height: 150 },
-            formatsToSupport: [
-              Html5Qrcode.getSupportedFormats().CODE_128,
-              Html5Qrcode.getSupportedFormats().EAN_13,
-              Html5Qrcode.getSupportedFormats().UPC_A,
-              Html5Qrcode.getSupportedFormats().CODE_39,
-              Html5Qrcode.getSupportedFormats().EAN_8,
-              Html5Qrcode.getSupportedFormats().UPC_E,
-              Html5Qrcode.getSupportedFormats().ITF,
-            ],
           },
           (decodedText) => {
             if (cancelled || done) return;
