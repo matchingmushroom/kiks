@@ -19,7 +19,8 @@ import {
 import { db } from "@/lib/firebase";
 import { exportPurchasesCSV, downloadBlob } from "@/lib/export";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw, ChevronDown, PlusCircle, Download, Mail, Upload, Loader2, FileImage, ExternalLink } from "lucide-react";
+import PrintLabelsDialog from "@/components/admin/PrintLabelsDialog";
+import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw, ChevronDown, PlusCircle, Download, Mail, Upload, Loader2, FileImage, ExternalLink, Printer } from "lucide-react";
 
 interface FieldOptions {
   baseMaterial: string[];
@@ -91,6 +92,8 @@ function PurchasesContent() {
   const [saving, setSaving] = useState(false);
   const [purchaseSaved, setPurchaseSaved] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
+  const [printLabelsData, setPrintLabelsData] = useState<{ items: { productName: string; sku: string; price: number; quantity: number }[] } | null>(null);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [returnModal, setReturnModal] = useState<Purchase | null>(null);
   const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
@@ -286,6 +289,7 @@ function PurchasesContent() {
       setCsvBillImageUrl("");
       setCsvManualSupplier(false);
       setPurchaseSaved(true);
+      setPrintLabelsData({ items: items.map((i) => ({ productName: i.productName, sku: i.sku, price: i.salesPrice, quantity: i.quantity })) });
       setTimeout(() => setPurchaseSaved(false), 6000);
     } catch (e: any) {
       setPurchaseError(e?.message || "CSV import failed.");
@@ -619,6 +623,7 @@ function PurchasesContent() {
       setEditingId(null);
       setShowForm(false);
       setPurchaseSaved(true);
+      setPrintLabelsData({ items: form.items.map((i) => ({ productName: i.productName, sku: i.sku, price: i.salesPrice, quantity: i.quantity })) });
       setTimeout(() => setPurchaseSaved(false), 6000);
     } catch (e: any) {
       setPurchaseError(e?.message || "Purchase failed. Please try again.");
@@ -956,6 +961,7 @@ function PurchasesContent() {
   };
 
   return (
+    <>
     <div className="p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -1005,8 +1011,13 @@ function PurchasesContent() {
         </div>
 
         {purchaseSaved && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm text-green-700">
-            <CheckCircle className="h-5 w-5" /> Purchase recorded successfully!
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center gap-3 text-sm text-green-700">
+            <CheckCircle className="h-5 w-5 shrink-0" /> Purchase recorded successfully!
+            {printLabelsData && (
+              <Button onClick={() => setShowPrintDialog(true)} variant="accent" size="sm" className="ml-auto">
+                <Printer className="h-4 w-4" /> Print Price Labels
+              </Button>
+            )}
           </div>
         )}
 
@@ -2131,6 +2142,14 @@ function PurchasesContent() {
         </div>
       )}
       </div>
+
+      {showPrintDialog && printLabelsData && (
+        <PrintLabelsDialog
+          items={printLabelsData.items}
+          onClose={() => { setShowPrintDialog(false); setPrintLabelsData(null); }}
+        />
+      )}
+    </>
   );
 }
 
