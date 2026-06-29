@@ -14,6 +14,10 @@ const defaultSettings: ShopSettings = {
   address: "Kathmandu, Nepal",
   whatsappNumber: "977XXXXXXXXX",
   currency: "NPR",
+  facebook: "",
+  instagram: "",
+  youtube: "",
+  twitter: "",
 };
 
 interface ShopSettingsContextType {

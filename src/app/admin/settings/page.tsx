@@ -18,6 +18,10 @@ interface Settings {
   whatsappNumber: string;
   currency: string;
   website: string;
+  facebook: string;
+  instagram: string;
+  youtube: string;
+  twitter: string;
   useBsCalendar?: boolean;
   deliveryFeeInsideValley?: number;
   deliveryFeeOutsideValley?: number;
@@ -46,6 +50,10 @@ const defaults: Settings = {
   whatsappNumber: "977XXXXXXXXX",
   currency: "NPR",
   website: "",
+  facebook: "",
+  instagram: "",
+  youtube: "",
+  twitter: "",
 };
 
 const emailDefaults: EmailBackupConfig = {
@@ -284,6 +292,34 @@ export default function SettingsPage() {
                   placeholder="https://example.com"
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 <p className="text-xs text-muted-foreground mt-1">Used in coupon terms and public links</p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Facebook URL</label>
+                <input type="url" value={form.facebook}
+                  onChange={(e) => setForm({ ...form, facebook: e.target.value })}
+                  placeholder="https://facebook.com/yourpage"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Instagram URL</label>
+                <input type="url" value={form.instagram}
+                  onChange={(e) => setForm({ ...form, instagram: e.target.value })}
+                  placeholder="https://instagram.com/yourhandle"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">YouTube URL</label>
+                <input type="url" value={form.youtube}
+                  onChange={(e) => setForm({ ...form, youtube: e.target.value })}
+                  placeholder="https://youtube.com/@yourchannel"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Twitter / X URL</label>
+                <input type="url" value={form.twitter}
+                  onChange={(e) => setForm({ ...form, twitter: e.target.value })}
+                  placeholder="https://twitter.com/yourhandle"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
             </div>
 

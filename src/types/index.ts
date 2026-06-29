@@ -405,6 +405,10 @@ export interface ShopSettings {
   whatsappNumber: string;
   currency: string;
   website?: string;
+  facebook?: string;
+  instagram?: string;
+  youtube?: string;
+  twitter?: string;
   gasWebhookUrl?: string;
   emailTo?: string;
   driveFolderId?: string;
