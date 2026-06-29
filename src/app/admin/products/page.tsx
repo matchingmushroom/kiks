@@ -567,8 +567,15 @@ export default function AdminProductsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Stock Quantity</label>
-                    <input type="number" value={form.quantityInStock} onChange={(e) => setForm({ ...form, quantityInStock: Number(e.target.value) })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    {editingId && products.find((p) => p.id === editingId)?.comboItems?.length ? (
+                      <div className="w-full px-3 py-2 bg-muted/50 border border-border rounded-lg text-sm text-muted-foreground flex items-center gap-2">
+                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-medium">Combo</span>
+                        Unlimited
+                      </div>
+                    ) : (
+                      <input type="number" value={form.quantityInStock} onChange={(e) => setForm({ ...form, quantityInStock: Number(e.target.value) })}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">SKU</label>
