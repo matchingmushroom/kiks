@@ -17,15 +17,16 @@ interface BulkCouponDialogProps {
 export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDialogProps) {
   const { settings } = useShopSettings();
   const { user } = useAuth();
+  const [couponCode, setCouponCode] = useState("");
   const [quantity, setQuantity] = useState(10);
   const [discountType, setDiscountType] = useState<"fixed" | "percentage">("fixed");
   const [discountValue, setDiscountValue] = useState(100);
   const [maxDiscount, setMaxDiscount] = useState(0);
   const [minPurchase, setMinPurchase] = useState(0);
   const [validUntil, setValidUntil] = useState("");
-  const [customPrefix, setCustomPrefix] = useState("");
+  const [printCopies, setPrintCopies] = useState(1);
   const [generating, setGenerating] = useState(false);
-  const [generatedCodes, setGeneratedCodes] = useState<string[]>([]);
+  const [savedCode, setSavedCode] = useState("");
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,55 +39,40 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
     return result;
   };
 
-  const buildCodes = (): string[] => {
-    if (customPrefix.trim()) {
-      const prefix = customPrefix.trim().toUpperCase().replace(/\s+/g, "_");
-      const padLen = String(quantity).length < 2 ? 2 : String(quantity).length;
-      return Array.from({ length: quantity }, (_, i) => `${prefix}-${String(i + 1).padStart(padLen, "0")}`);
-    }
-    const uniqueCodes = new Set<string>();
-    while (uniqueCodes.size < quantity) {
-      uniqueCodes.add(generateCode());
-    }
-    return [...uniqueCodes];
-  };
-
   const handleGenerate = async () => {
     if (!quantity || quantity < 1) { setError("Enter a valid quantity."); return; }
     if (!discountValue || discountValue < 1) { setError("Enter a valid discount value."); return; }
     if (!validUntil) { setError("Select a valid until date."); return; }
     setError("");
     setGenerating(true);
-    const codes = buildCodes();
+    const code = couponCode.trim().toUpperCase() || generateCode();
     try {
       const validUntilDate = Timestamp.fromDate(new Date(validUntil + "T23:59:59"));
       const validFromDate = Timestamp.fromDate(new Date());
-      for (const code of codes) {
-        const cupId = await generateId("CUPN");
-        await setDoc(doc(db, "coupons", cupId), {
-          code,
-          discountType,
-          discountValue: Number(discountValue),
-          minPurchaseAmount: Number(minPurchase),
-          maxDiscount: Number(maxDiscount),
-          validFrom: validFromDate,
-          validUntil: validUntilDate,
-          usageLimit: 1,
-          usedCount: 0,
-          isActive: true,
-          couponType: "Bulk",
-          issuedToCustomer: { name: "", phone: "" },
-          issuedForOrderId: "",
-          createdAt: Timestamp.fromDate(new Date()),
-          updatedAt: Timestamp.fromDate(new Date()),
-        });
-      }
-      setGeneratedCodes(codes);
+      const cupId = await generateId("CUPN");
+      await setDoc(doc(db, "coupons", cupId), {
+        code,
+        discountType,
+        discountValue: Number(discountValue),
+        minPurchaseAmount: Number(minPurchase),
+        maxDiscount: Number(maxDiscount),
+        validFrom: validFromDate,
+        validUntil: validUntilDate,
+        usageLimit: quantity,
+        usedCount: 0,
+        isActive: true,
+        couponType: "Bulk",
+        issuedToCustomer: { name: "", phone: "" },
+        issuedForOrderId: "",
+        createdAt: Timestamp.fromDate(new Date()),
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+      setSavedCode(code);
       setSaved(true);
       if (onComplete) onComplete();
     } catch (e) {
-      console.error("Bulk save failed", e);
-      setError("Failed to save coupons. Check console.");
+      console.error("Save failed", e);
+      setError("Failed to save coupon. Check console.");
     }
     setGenerating(false);
   };
@@ -112,7 +98,7 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
       ? `Rs. ${Number(minPurchase).toLocaleString("en-IN")}`
       : "";
 
-    const cards = generatedCodes.map((code) => `
+    const card = (code: string) => `
       <div class="coupon-card">
         <div class="coupon-inner">
           <div class="coupon-side">
@@ -166,40 +152,25 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
           </div>
         </div>
       </div>
-    `).join("");
+    `;
+
+    const cards = Array.from({ length: printCopies }, () => card(savedCode)).join("");
 
     printWin.document.write(`
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Bulk Coupons</title>
+        <title>Coupon - ${escapeHtml(savedCode)}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body {
-            font-family: Arial, Helvetica, sans-serif;
-            background: #fff;
-            padding: 5mm;
-          }
-          .coupon-card {
-            width: 100%;
-            page-break-inside: avoid;
-            break-inside: avoid;
-            margin-bottom: 5mm;
-          }
+          body { font-family: Arial, Helvetica, sans-serif; background: #fff; padding: 5mm; }
+          .coupon-card { width: 100%; page-break-inside: avoid; break-inside: avoid; margin-bottom: 5mm; }
           .coupon-inner {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 3mm;
-            border: 2px solid #333;
-            border-radius: 6px;
-            padding: 4mm;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 3mm;
+            border: 2px solid #333; border-radius: 6px; padding: 4mm;
           }
-          .coupon-side {
-            padding: 2mm;
-          }
-          .coupon-side:first-child {
-            border-right: 2px dashed #ccc;
-          }
+          .coupon-side { padding: 2mm; }
+          .coupon-side:first-child { border-right: 2px dashed #ccc; }
           .coupon-header { text-align: center; margin-bottom: 2mm; }
           .coupon-logo { max-width: 50mm; max-height: 18mm; object-fit: contain; margin-bottom: 2mm; }
           .coupon-shop-name { font-size: 16px; font-weight: 700; }
@@ -212,9 +183,7 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
           .coupon-discount { font-size: 14px; font-weight: 700; color: #d32f2f; text-align: center; margin: 1mm 0; }
           .coupon-terms-title { font-size: 9px; font-weight: 600; margin-top: 2mm; margin-bottom: 1mm; }
           .coupon-terms { font-size: 8px; color: #555; line-height: 1.5; }
-          @media print {
-            @page { margin: 4mm; }
-          }
+          @media print { @page { margin: 4mm; } }
         </style>
       </head>
       <body>${cards}</body>
@@ -228,20 +197,31 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
-          <h2 className="text-base font-bold text-secondary">Bulk Coupon Generator</h2>
+          <h2 className="text-base font-bold text-secondary">Coupon Generator</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg"><X className="h-4 w-4" /></button>
         </div>
 
         {!saved ? (
           <div className="p-4 space-y-4">
-            <p className="text-sm text-muted-foreground">Generate multiple coupon codes at once and print them in English + Nepali.</p>
             {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
             <div className="grid grid-cols-2 gap-4">
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Coupon Code</label>
+                <div className="flex gap-2">
+                  <input type="text" value={couponCode} placeholder="e.g., FESTIVAL10 (leave empty to auto-generate)"
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <button onClick={() => setCouponCode(generateCode())}
+                    className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted shrink-0">Auto</button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Enter your custom code or click Auto for a random 8-char code.</p>
+              </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Quantity of Coupons *</label>
-                <input type="number" min={1} max={500} value={quantity}
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Print Quantity *</label>
+                <input type="number" min={1} max={9999} value={quantity}
                   onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <p className="text-xs text-muted-foreground mt-1">Max copies you can print.</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Discount Type *</label>
@@ -259,7 +239,7 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
               </div>
               {discountType === "percentage" && (
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">Max Discount Amount (NPR)</label>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Max Discount (NPR)</label>
                   <input type="number" min={0} value={maxDiscount}
                     onChange={(e) => setMaxDiscount(Number(e.target.value))}
                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
@@ -279,29 +259,30 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Custom Code Prefix (optional)</label>
-              <input type="text" value={customPrefix} placeholder="e.g., FESTIVAL → FESTIVAL-01, FESTIVAL-02..."
-                onChange={(e) => setCustomPrefix(e.target.value)}
-                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              <p className="text-xs text-muted-foreground mt-1">Leave empty for fully random 8-char codes.</p>
-            </div>
             <Button onClick={handleGenerate} disabled={generating || !quantity || !discountValue || !validUntil} variant="accent" className="w-full">
-              {generating ? `Generating ${quantity} codes...` : `Generate ${quantity} Coupon${quantity !== 1 ? "s" : ""} & Save`}
+              {generating ? "Creating coupon..." : "Create Coupon"}
             </Button>
           </div>
         ) : (
           <div className="p-4 space-y-4">
             <div className="bg-green-50 text-green-700 px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-2">
-              <span>✅ {generatedCodes.length} coupon{generatedCodes.length !== 1 ? "s" : ""} generated and saved successfully!</span>
+              <span>✅ Coupon <span className="font-mono font-bold">{savedCode}</span> created! (Print limit: {quantity} copies)</span>
             </div>
-            <div className="bg-slate-50 rounded-lg p-3 max-h-32 overflow-y-auto flex flex-wrap gap-1">
-              {generatedCodes.map((code) => (
-                <span key={code} className="inline-block font-mono text-xs bg-white border border-border px-2 py-1 rounded">{code}</span>
-              ))}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Copies to Print</label>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setPrintCopies(Math.max(1, printCopies - 1))}
+                  className="w-9 h-9 flex items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted text-lg font-medium">−</button>
+                <input type="number" min={1} max={quantity} value={printCopies}
+                  onChange={(e) => setPrintCopies(Math.min(quantity, Math.max(1, Number(e.target.value) || 1)))}
+                  className="w-20 text-center text-sm border border-border rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-primary" />
+                <button onClick={() => setPrintCopies(Math.min(quantity, printCopies + 1))}
+                  className="w-9 h-9 flex items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted text-lg font-medium">+</button>
+                <span className="text-xs text-muted-foreground">/ {quantity} max</span>
+              </div>
             </div>
             <div className="flex gap-3">
-              <Button onClick={handlePrint} variant="accent" className="flex-1">Print Coupons</Button>
+              <Button onClick={handlePrint} variant="accent" className="flex-1">Print {printCopies} Copy{printCopies !== 1 ? "ies" : "y"}</Button>
               <Button onClick={onClose} variant="outline" className="flex-1">Close</Button>
             </div>
           </div>
