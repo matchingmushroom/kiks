@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ShopSettingsProvider } from "@/contexts/ShopSettingsContext";
+import DynamicTitle from "@/components/DynamicTitle";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,6 +47,7 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>
             <ShopSettingsProvider>
+              <DynamicTitle />
               {children}
             </ShopSettingsProvider>
           </CartProvider>
