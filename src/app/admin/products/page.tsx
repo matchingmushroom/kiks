@@ -23,7 +23,8 @@ import { generateDummyProducts } from "@/lib/dummyProducts";
 import { generateSku, generateModelNo } from "@/lib/sku-generator";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Loader2, AlertTriangle, Upload, Package, Check, ShoppingBag } from "lucide-react";
+import PrintLabelsDialog from "@/components/admin/PrintLabelsDialog";
+import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Loader2, AlertTriangle, Upload, Package, Check, ShoppingBag, Printer } from "lucide-react";
 
 const BASE_MATERIALS = ["", "Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"];
 const PLATING_OPTIONS = ["", "Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"];
@@ -56,6 +57,7 @@ export default function AdminProductsPage() {
 
   const [deletingAll, setDeletingAll] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [printLabelProduct, setPrintLabelProduct] = useState<{ productName: string; sku: string; price: number } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -849,9 +851,21 @@ export default function AdminProductsPage() {
               ) : null}
               <Row label="Created" value={formatDate(detailProduct.createdAt)} />
             </div>
+            <div className="mt-4 pt-4 border-t border-border flex justify-end">
+              <Button onClick={() => setPrintLabelProduct({ productName: detailProduct.name, sku: detailProduct.sku || "", price: detailProduct.price })} variant="accent" size="sm">
+                <Printer className="h-4 w-4" /> Print Label
+              </Button>
+            </div>
           </DetailModal>
         )}
       </div>
+
+      {printLabelProduct && (
+        <PrintLabelsDialog
+          items={[{ ...printLabelProduct, quantity: 1 }]}
+          onClose={() => setPrintLabelProduct(null)}
+        />
+      )}
     </AdminLayout>
   );
 }

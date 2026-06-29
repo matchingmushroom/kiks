@@ -94,6 +94,7 @@ function PurchasesContent() {
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [printLabelsData, setPrintLabelsData] = useState<{ items: { productName: string; sku: string; price: number; quantity: number }[] } | null>(null);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const [printLabelsPurchase, setPrintLabelsPurchase] = useState<{ items: { productName: string; sku: string; price: number; quantity: number }[] } | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [returnModal, setReturnModal] = useState<Purchase | null>(null);
   const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
@@ -1638,6 +1639,10 @@ function PurchasesContent() {
                       className={"inline-flex items-center gap-1 text-xs " + (p.returned ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:text-primary")}>
                       <RotateCcw className="h-3 w-3" /> {p.returned ? "Returned" : "Return"}
                     </button>
+                    <button onClick={() => setPrintLabelsPurchase({ items: p.items.map((i) => ({ productName: i.productName, sku: i.sku, price: i.salesPrice, quantity: i.quantity })) })}
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                      <Printer className="h-3 w-3" />
+                    </button>
                     <button onClick={() => handleDelete(p.id)}
                       className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
                       <Trash2 className="h-3 w-3" />
@@ -1690,6 +1695,9 @@ function PurchasesContent() {
                         )}
                         <Button onClick={() => openReturn(p)} disabled={p.returned} size="sm" variant="outline" className={"text-xs px-2 py-1 " + (p.returned ? "opacity-40 cursor-not-allowed" : "")} title={p.returned ? "Already returned" : "Return"}>
                           <Undo2 className="h-3 w-3" />
+                        </Button>
+                        <Button onClick={() => setPrintLabelsPurchase({ items: p.items.map((i) => ({ productName: i.productName, sku: i.sku, price: i.salesPrice, quantity: i.quantity })) })} size="sm" variant="outline" className="text-xs px-2 py-1" title="Print Labels">
+                          <Printer className="h-3 w-3" />
                         </Button>
                         <Button onClick={() => handleDelete(p.id)} size="sm" variant="outline" className="text-xs px-2 py-1 text-red-500">
                           <Trash2 className="h-3 w-3" />
@@ -2147,6 +2155,12 @@ function PurchasesContent() {
         <PrintLabelsDialog
           items={printLabelsData.items}
           onClose={() => { setShowPrintDialog(false); setPrintLabelsData(null); }}
+        />
+      )}
+      {printLabelsPurchase && (
+        <PrintLabelsDialog
+          items={printLabelsPurchase.items}
+          onClose={() => setPrintLabelsPurchase(null)}
         />
       )}
     </>

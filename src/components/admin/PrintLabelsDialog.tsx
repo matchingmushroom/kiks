@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import PriceLabel from "./PriceLabel";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +18,7 @@ interface PrintLabelsDialogProps {
 
 export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogProps) {
   const [checked, setChecked] = useState<boolean[]>(() => items.map(() => true));
+  const [quantities, setQuantities] = useState<number[]>(() => items.map((it) => it.quantity));
 
   const toggle = (idx: number) => {
     const next = [...checked];
@@ -26,16 +26,24 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
     setChecked(next);
   };
 
-  const selected = items.filter((_, i) => checked[i]);
-  const totalLabels = selected.reduce((s, it) => s + it.quantity, 0);
+  const setQty = (idx: number, val: number) => {
+    const next = [...quantities];
+    next[idx] = Math.max(0, val);
+    setQuantities(next);
+  };
+
+  const totalLabels = items.reduce((s, _, i) => s + (checked[i] ? quantities[i] : 0), 0);
 
   const handlePrint = () => {
     const printWin = window.open("", "_blank");
     if (!printWin) { alert("Pop-up blocked. Allow pop-ups and try again."); return; }
 
     const rows: string[] = [];
-    for (const item of selected) {
-      for (let i = 0; i < item.quantity; i++) {
+    for (let i = 0; i < items.length; i++) {
+      if (!checked[i]) continue;
+      const item = items[i];
+      const qty = quantities[i];
+      for (let j = 0; j < qty; j++) {
         rows.push(`
           <div class="label-cell">
             <div class="pl-name">${escapeHtml(item.productName)}</div>
@@ -110,12 +118,6 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
             text-align: center;
             margin-top: 1px;
           }
-          .dashed-cut {
-            width: 100%;
-            border: none;
-            border-top: 1px dashed #aaa;
-            margin: 1mm 0;
-          }
           @media print {
             @page { margin: 5mm; }
             body { background: #fff; }
@@ -158,14 +160,20 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
         </div>
         <div className="p-4 space-y-3">
           {items.map((item, idx) => (
-            <label key={idx} className="flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:bg-muted/50">
+            <div key={idx} className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/50">
               <input type="checkbox" checked={checked[idx]} onChange={() => toggle(idx)} className="accent-primary h-4 w-4 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-secondary truncate">{item.productName}</p>
                 <p className="text-xs text-muted-foreground">SKU: {item.sku} &middot; MRP: Rs. {item.price.toLocaleString("en-IN")}</p>
               </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">Qty: {item.quantity}</span>
-            </label>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => setQty(idx, quantities[idx] - 1)} className="w-7 h-7 flex items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted text-sm font-medium">−</button>
+                <input type="number" min={0} value={quantities[idx]}
+                  onChange={(e) => setQty(idx, parseInt(e.target.value) || 0)}
+                  className="w-14 text-center text-sm border border-border rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-primary" />
+                <button onClick={() => setQty(idx, quantities[idx] + 1)} className="w-7 h-7 flex items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted text-sm font-medium">+</button>
+              </div>
+            </div>
           ))}
         </div>
         <div className="p-4 border-t border-border flex items-center justify-between">
