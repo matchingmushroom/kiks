@@ -49,7 +49,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const specs = [
     { label: "Brand", value: product.brand },
     { label: "Model Number", value: product.modelNo },
-    { label: "SKU", value: product.sku },
     { label: "Base Material", value: product.baseMaterial },
     { label: "Plating Type", value: product.plating },
     { label: "Color", value: product.color },
@@ -213,12 +212,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 </p>
               )}
 
-              {product.sku && (
-                <div className="flex items-center gap-2 mb-1 text-xs text-muted-foreground">
-                  <span className="bg-slate-100 px-2 py-1 rounded">SKU: {product.sku}</span>
-                  {product.modelNo && <span className="bg-slate-100 px-2 py-1 rounded">Model: {product.modelNo}</span>}
-                </div>
-              )}
             </div>
 
             {specs.length > 0 && (

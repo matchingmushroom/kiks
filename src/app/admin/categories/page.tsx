@@ -47,7 +47,7 @@ export default function AdminCategoriesPage() {
 
   const openEdit = (cat: Category) => {
     setName(cat.name); setShortCode(cat.shortCode || ""); setSubCategories(cat.subCategories?.join(", ") || ""); setDescription(cat.description || "");
-    setImage(cat.image || ""); setOrderNum(cat.order);
+    setImage(cat.image || ""); setOrderNum(cat.order ?? categories.length);
     setIsActive(cat.isActive);
     setEditingId(cat.id);
     setShowForm(true);
@@ -63,12 +63,11 @@ export default function AdminCategoriesPage() {
     setSaving(true);
     try {
       const subCats = subCategories.split(",").map((s) => s.trim()).filter(Boolean);
-      const data = { name, shortCode: shortCode.toUpperCase(), subCategories: subCats, description, image, order: orderNum, isActive, showOnHomepage: true, updatedAt: Timestamp.fromDate(new Date()) };
       if (editingId) {
-        await updateDoc(doc(db, "categories", editingId), data);
+        await updateDoc(doc(db, "categories", editingId), { name, shortCode: shortCode.toUpperCase(), subCategories: subCats, description, image, order: orderNum, isActive, updatedAt: Timestamp.fromDate(new Date()) });
       } else {
         const catId = await generateId("CAT");
-        await setDoc(doc(db, "categories", catId), { ...data, createdAt: Timestamp.fromDate(new Date()) });
+        await setDoc(doc(db, "categories", catId), { name, shortCode: shortCode.toUpperCase(), subCategories: subCats, description, image, order: orderNum, isActive, showOnHomepage: true, createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()) });
       }
       setShowForm(false);
     } catch (e) {
