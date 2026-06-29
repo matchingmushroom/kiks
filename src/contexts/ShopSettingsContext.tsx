@@ -18,6 +18,8 @@ const defaultSettings: ShopSettings = {
   instagram: "",
   youtube: "",
   twitter: "",
+  tiktok: "",
+  hiddenSocialLinks: [],
 };
 
 interface ShopSettingsContextType {

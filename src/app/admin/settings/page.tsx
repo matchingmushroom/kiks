@@ -22,6 +22,8 @@ interface Settings {
   instagram: string;
   youtube: string;
   twitter: string;
+  tiktok: string;
+  hiddenSocialLinks: string[];
   useBsCalendar?: boolean;
   deliveryFeeInsideValley?: number;
   deliveryFeeOutsideValley?: number;
@@ -54,6 +56,8 @@ const defaults: Settings = {
   instagram: "",
   youtube: "",
   twitter: "",
+  tiktok: "",
+  hiddenSocialLinks: [],
 };
 
 const emailDefaults: EmailBackupConfig = {
@@ -320,6 +324,33 @@ export default function SettingsPage() {
                   onChange={(e) => setForm({ ...form, twitter: e.target.value })}
                   placeholder="https://twitter.com/yourhandle"
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">TikTok URL</label>
+                <input type="url" value={form.tiktok}
+                  onChange={(e) => setForm({ ...form, tiktok: e.target.value })}
+                  placeholder="https://tiktok.com/@yourhandle"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-border">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Show on Footer</p>
+              <div className="flex flex-wrap gap-4">
+                {["facebook", "instagram", "youtube", "twitter", "tiktok"].map((p) => (
+                  <label key={p} className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox"
+                      checked={!form.hiddenSocialLinks.includes(p)}
+                      onChange={(e) => {
+                        const hidden = e.target.checked
+                          ? form.hiddenSocialLinks.filter((k) => k !== p)
+                          : [...form.hiddenSocialLinks, p];
+                        setForm({ ...form, hiddenSocialLinks: hidden });
+                      }}
+                      className="accent-primary w-4 h-4" />
+                    <span className="text-sm capitalize">{p}</span>
+                  </label>
+                ))}
               </div>
             </div>
 

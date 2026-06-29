@@ -409,6 +409,8 @@ export interface ShopSettings {
   instagram?: string;
   youtube?: string;
   twitter?: string;
+  tiktok?: string;
+  hiddenSocialLinks?: string[];
   gasWebhookUrl?: string;
   emailTo?: string;
   driveFolderId?: string;

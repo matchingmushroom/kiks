@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Facebook, Instagram, Youtube, Twitter } from "lucide-react";
+import { Facebook, Instagram, Youtube, Twitter, Music2 } from "lucide-react";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 
 const socialChannels = [
@@ -9,12 +9,16 @@ const socialChannels = [
   { key: "instagram" as const, icon: Instagram, label: "Instagram" },
   { key: "youtube" as const, icon: Youtube, label: "YouTube" },
   { key: "twitter" as const, icon: Twitter, label: "Twitter / X" },
+  { key: "tiktok" as const, icon: Music2, label: "TikTok" },
 ];
 
 export default function ShopFooter() {
   const { settings } = useShopSettings();
+  const hidden = settings.hiddenSocialLinks || [];
 
-  const socialLinks = socialChannels.filter((ch) => settings[ch.key]);
+  const socialLinks = socialChannels.filter(
+    (ch) => settings[ch.key] && !hidden.includes(ch.key)
+  );
 
   return (
     <footer className="bg-secondary text-secondary-foreground py-12">
