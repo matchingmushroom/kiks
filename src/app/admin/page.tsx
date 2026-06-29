@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import AdminLayout from "@/components/admin/AdminLayout";
+import PageHeader, { StatCard, AdminCard } from "@/components/admin/PageHeader";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Sale, Product, Debtor, Order, Category, AccountTransaction, Purchase } from "@/types";
 import { formatCurrency, formatNumber, toDate } from "@/lib/utils";
@@ -11,10 +12,7 @@ import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
-import {
-  Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart,
-  BarChart3, ShoppingCart, Clock, RefreshCw, X, DollarSign, Landmark, CreditCard, FileDown, Search,
-} from "lucide-react";
+import { Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart, BarChart3, ShoppingCart, Clock, RefreshCw, X, DollarSign, Landmark, CreditCard, FileDown, Search, Sparkles } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -266,27 +264,20 @@ export default function AdminDashboardPage() {
 
   return (
     <AdminLayout>
-      <div className="p-6">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-secondary mb-1">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Welcome back, {profile?.displayName || "User"}
-              {isStaff && <span className="ml-2 text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">Showing your data</span>}
-            </p>
-          </div>
-          <button onClick={() => window.location.reload()}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-3 py-1.5 border border-border rounded-lg hover:border-primary">
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh
-          </button>
-        </div>
+      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+        <PageHeader
+          title="Dashboard"
+          subtitle={`Welcome back, ${profile?.displayName || "User"}${isStaff ? " · Showing your data" : ""}`}
+          actions={
+            <button onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-3 py-1.5 border border-border rounded-lg hover:border-primary">
+              <RefreshCw className="h-3.5 w-3.5" /> Refresh
+            </button>
+          }
+        />
 
         {/* SKU Search */}
-        <div className="bg-white rounded-xl border border-border p-4 shadow-sm mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-secondary">SKU Lookup</h2>
-          </div>
+        <AdminCard title="SKU Lookup" className="mb-6" action={<Search className="h-4 w-4 text-muted-foreground" />}>
           <div className="flex gap-2">
             <input type="text" placeholder="Enter SKU number..." value={skuSearch}
               onChange={(e) => setSkuSearch(e.target.value)}
@@ -320,7 +311,7 @@ export default function AdminDashboardPage() {
           {skuSearch && !skuResult && (
             <p className="mt-2 text-sm text-red-500">No product found with SKU "{skuSearch.trim()}"</p>
           )}
-        </div>
+        </AdminCard>
 
         {!isStaff && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
@@ -331,25 +322,15 @@ export default function AdminDashboardPage() {
             const Card = ({ children }: { children: React.ReactNode }) => isLink ? <Link href={href} className="block">{children}</Link> : <>{children}</>;
             cards.push(
               <Card key={stat.label}>
-                <div className="bg-white rounded-xl border border-border p-3 shadow-sm hover:shadow-md transition-shadow">
-                  <div className={`inline-flex p-1.5 rounded-lg ${stat.color} mb-2`}>
-                    <stat.icon className="h-3.5 w-3.5" />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-                  <p className="text-sm font-bold text-secondary mt-0.5">{stat.value}</p>
-                </div>
+                <StatCard title={stat.label} value={stat.value} icon={<stat.icon className="h-3.5 w-3.5" />}
+                  color={stat.label === "Total Sales (YTD)" ? "accent" : stat.label === "Low Stock Items" ? "amber" : stat.label === "Active Debtors" ? "rose" : "emerald"} />
               </Card>
             );
             if (stat.fytd) {
               cards.push(
-                <div key={stat.label + "-fytd"}>
-                  <div className="bg-white rounded-xl border border-border p-3 shadow-sm hover:shadow-md transition-shadow">
-                    <div className={`inline-flex p-1.5 rounded-lg ${stat.fytd.color} mb-2`}>
-                      <stat.icon className="h-3.5 w-3.5" />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">{stat.fytd.label}</p>
-                    <p className="text-sm font-bold text-secondary mt-0.5">{stat.fytd.value}</p>
-                  </div>
+                <div key={stat.label + "-fytd"} className="col-span-full sm:col-span-1">
+                  <StatCard title={stat.fytd.label} value={stat.fytd.value}
+                    icon={<stat.icon className="h-3.5 w-3.5" />} color="purple" />
                 </div>
               );
             }
@@ -359,61 +340,25 @@ export default function AdminDashboardPage() {
         )}
 
         {/* Daily Report */}
-        <div className="bg-white rounded-xl border border-border p-4 shadow-sm mb-6">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-secondary flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              Daily Report — {todayStr}
-            </h2>
+        <AdminCard title={`Daily Report — ${todayStr}`} className="mb-6" action={<BarChart3 className="h-4 w-4 text-primary" />}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <StatCard title="Total Sales Today" value={formatCurrency(todayTotal)}
+              sub={`${todaySales.length} transaction${todaySales.length !== 1 ? "s" : ""}`} color="accent"
+              onClick={() => setShowTodaySales(true)} />
+            <StatCard title="Cash In Hand" value={formatCurrency(openingCash + todayCashCredits - todayCashDebits)}
+              sub={`Opening: ${formatCurrency(openingCash)}`} color="emerald"
+              onClick={() => setShowCashModal(true)} />
+            <StatCard title="QR / Bank Received" value={formatCurrency(openingBank + todayBankCredits - todayBankDebits)}
+              sub={`In: ${formatCurrency(todayBankCredits)}`} color="blue"
+              onClick={() => setShowQrModal(true)} />
+            <StatCard title="Debtor (Credit Given)" value={formatCurrency(todayDebtor)}
+              sub={`${todayDebtorSales.length} transaction${todayDebtorSales.length !== 1 ? "s" : ""}`} color="rose"
+              onClick={() => setShowDebtorModal(true)} />
+            <StatCard title="Bank Transactions" value={formatCurrency(todayPaymentsTotal)}
+              sub={`In: ${formatCurrency(todayBankCredits)} | Out: ${formatCurrency(todayBankDebits)}`} color="purple"
+              onClick={() => setShowPaymentsModal(true)} />
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <DailyCard
-              title="Total Sales Today"
-              value={formatCurrency(todayTotal)}
-              sub={`${todaySales.length} transaction${todaySales.length !== 1 ? "s" : ""}`}
-              gradient="from-primary/10 to-primary/5"
-              border="border-primary/20"
-              onClick={() => setShowTodaySales(true)}
-              onDownload={() => downloadCSV(todaySales, `today-sales-${todayStr}`, false, currentUserName)}
-            />
-            <DailyCard
-              title="Cash In Hand"
-              value={formatCurrency(openingCash + todayCashCredits - todayCashDebits)}
-              sub={`Opening: ${formatCurrency(openingCash)} | In: ${formatCurrency(todayCashCredits)}${todayCashDebits > 0 ? ` | Out: -${formatCurrency(todayCashDebits)}` : ""}`}
-              gradient="from-green-50 to-green-100/50"
-              border="border-green-200"
-              onClick={() => setShowCashModal(true)}
-              onDownload={() => downloadCSV(todayCashLedger, `today-cash-${todayStr}`, true, currentUserName)}
-            />
-            <DailyCard
-              title="QR / Bank Received"
-              value={formatCurrency(openingBank + todayBankCredits - todayBankDebits)}
-              sub={`Opening: ${formatCurrency(openingBank)} | In: ${formatCurrency(todayBankCredits)}${todayBankDebits > 0 ? ` | Out: -${formatCurrency(todayBankDebits)}` : ""}`}
-              gradient="from-blue-50 to-blue-100/50"
-              border="border-blue-200"
-              onClick={() => setShowQrModal(true)}
-              onDownload={() => downloadCSV(todayBankLedger, `today-bank-${todayStr}`, true, currentUserName)}
-            />
-            <DailyCard
-              title="Debtor (Credit Given)"
-              value={formatCurrency(todayDebtor)}
-              sub={`${todayDebtorSales.length} transaction${todayDebtorSales.length !== 1 ? "s" : ""}`}
-              gradient="from-rose-50 to-rose-100/50"
-              border="border-rose-200"
-              onClick={() => setShowDebtorModal(true)}
-              onDownload={() => downloadCSV(todayDebtorSales, `today-debtor-${todayStr}`, false, currentUserName)}
-            />
-            <DailyCard
-              title="Bank Transactions"
-              value={formatCurrency(todayPaymentsTotal)}
-              sub={`In: ${formatCurrency(todayBankCredits)} | Out: ${formatCurrency(todayBankDebits)}`}
-              gradient="from-purple-50 to-purple-100/50"
-              border="border-purple-200"
-              onClick={() => setShowPaymentsModal(true)}
-              onDownload={() => downloadCSV(todayBankLedger, `today-bank-${todayStr}`, true, currentUserName)}
-            />
-          </div>
-        </div>
+        </AdminCard>
 
         {/* ── Modals ── */}
         <DailyModal title="Today's Sales" show={showTodaySales} onClose={() => setShowTodaySales(false)} date={todayStr}
