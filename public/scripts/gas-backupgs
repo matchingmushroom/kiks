@@ -15,8 +15,8 @@
 // ── CONFIGURE THESE ───────────────────────────────────
 
 var FIREBASE_CONFIG = {
-  projectId: "your-firebase-project-id",
-  apiKey: "AIzaSyYourApiKey",
+  projectId: "kiks-collections",
+  apiKey: "AIzaSyBWYuU_UpuHhgvbG9KjaSIvQxazWpeIXZE",
 };
 
 // ── DO NOT EDIT BELOW ─────────────────────────────────

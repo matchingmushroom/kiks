@@ -78,7 +78,7 @@ function doPost(e) {
         ["date", ">=", start],
         ["date", "<", end]
       ]);
-      var products = firestoreList("products");
+      var products = firestoreListPlain("products");
 
       // Also get archived data from Sheet
       try {
@@ -147,13 +147,13 @@ function doPost(e) {
       var asOf = new Date(data.asOf);
       asOf.setDate(asOf.getDate() + 1);
 
-      var allProducts = firestoreList("products");
+      var allProducts = firestoreListPlain("products");
       var allSales = firestoreQuery("sales", [["saleDate", "<", asOf]]);
       var allExpenses = firestoreQuery("expenses", [["date", "<", asOf]]);
-      var allDebtors = firestoreList("debtors");
+      var allDebtors = firestoreListPlain("debtors");
       var allPurchases = firestoreQuery("purchases", [["purchaseDate", "<", asOf]]);
-      var allCreditors = firestoreList("creditors");
-      var allAccounts = firestoreList("accounts");
+      var allCreditors = firestoreListPlain("creditors");
+      var allAccounts = firestoreListPlain("accounts");
       var allTxns = firestoreQuery("accountTransactions", [["date", "<", asOf]]);
       var jeRaw = firestoreList("journalEntries");
       var jeEntries = [];
@@ -946,6 +946,17 @@ function getFieldValue(field) {
 }
 
 // ── STRUCTURED QUERY HELPER ────────────────────────────
+
+function firestoreListPlain(collection) {
+  var raw = firestoreList(collection);
+  var out = [];
+  for (var i = 0; i < raw.length; i++) {
+    var obj = fieldsToObj(raw[i].fields);
+    obj.id = raw[i].id;
+    out.push(obj);
+  }
+  return out;
+}
 
 function firestoreQuery(collection, whereClauses, orderByClause, limitVal) {
   var token = ScriptApp.getOAuthToken();
