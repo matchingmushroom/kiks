@@ -514,6 +514,11 @@ export default function AdminCouponsPage() {
               <Row label="Created" value={formatDate(detailCoupon.createdAt)} />
               {detailCoupon.restrictedToPhones?.length ? <Row label="Restricted To" value={detailCoupon.restrictedToPhones.join(", ")} /> : null}
             </div>
+            <div className="mt-4 pt-4 border-t border-border flex justify-end">
+              <Button onClick={() => { const c = detailCoupon; setDetailCoupon(null); setPrintCards([c]); }} variant="accent" size="sm">
+                <CreditCard className="h-4 w-4" /> Print as Card
+              </Button>
+            </div>
           </DetailModal>
         )}
 
