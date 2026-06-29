@@ -2,12 +2,14 @@
 
 import { useState, useEffect, type ReactNode } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { doc, getDoc, setDoc, addDoc, collection, getDocs, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, addDoc, collection, getDocs, deleteDoc, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { Save, Image, Download, Mail, Database, Calendar } from "lucide-react";
 import { getPreviousFYRange } from "@/lib/nepaliDate";
+import { createJournalEntry } from "@/lib/journal";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Settings {
   shopName: string;
@@ -586,6 +588,7 @@ interface PartnerEntry {
 }
 
 function PartnershipSection() {
+  const { user, profile } = useAuth();
   const [partners, setPartners] = useState<PartnerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
@@ -608,14 +611,37 @@ function PartnershipSection() {
   const handleAdd = async () => {
     if (!name.trim() || amount <= 0) return;
     setSaving(true);
-    if (editId) {
-      await setDoc(doc(db, "partnerCapitals", editId), { name: name.trim(), amount, addedAt: Date.now() });
-      setEditId(null);
-    } else {
-      await addDoc(collection(db, "partnerCapitals"), { name: name.trim(), amount, addedAt: Date.now() });
+    try {
+      if (editId) {
+        const prev = partners.find((p) => p.id === editId);
+        await setDoc(doc(db, "partnerCapitals", editId), { name: name.trim(), amount, addedAt: Date.now() });
+        // Delete old journal entry if amount changed, so it can be re-created
+        if (prev && prev.amount !== amount) {
+          const jeSnap = await getDocs(query(collection(db, "journalEntries"), where("referenceType", "==", "capital"), where("referenceId", "==", editId)));
+          for (const je of jeSnap.docs) await deleteDoc(doc(db, "journalEntries", je.id));
+        }
+        setEditId(null);
+      } else {
+        const addedAt = Date.now();
+        const docRef = await addDoc(collection(db, "partnerCapitals"), { name: name.trim(), amount, addedAt });
+        await createJournalEntry({
+          entryDate: addedAt,
+          description: `Capital contribution - ${name.trim()}`,
+          lines: [
+            { accountCode: "1.1.2", accountName: "Bank Account", debit: amount, credit: 0 },
+            { accountCode: "3.1.1", accountName: "Owner's Capital", debit: 0, credit: amount },
+          ],
+          referenceType: "capital",
+          referenceId: docRef.id,
+          recordedBy: user?.uid || "",
+          recordedByName: profile?.displayName || "System",
+        });
+      }
+      setName(""); setAmount(0);
+      await load();
+    } catch (e) {
+      console.error("Capital save failed", e);
     }
-    setName(""); setAmount(0);
-    await load();
     setSaving(false);
   };
 
@@ -626,6 +652,8 @@ function PartnershipSection() {
   const handleDelete = async (id: string) => {
     if (!confirm("Remove this partner?")) return;
     await deleteDoc(doc(db, "partnerCapitals", id));
+    const jeSnap = await getDocs(query(collection(db, "journalEntries"), where("referenceType", "==", "capital"), where("referenceId", "==", id)));
+    for (const je of jeSnap.docs) await deleteDoc(doc(db, "journalEntries", je.id));
     await load();
   };
 

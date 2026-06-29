@@ -469,7 +469,7 @@ export interface JournalEntry {
   entryDate: number;
   description: string;
   lines: JournalLine[];
-  referenceType: "sale" | "purchase" | "expense" | "receipt" | "payment" | "transfer" | "advance" | "adjustment" | "debtor_payment" | "creditor_payment" | "sales_return";
+  referenceType: "sale" | "purchase" | "expense" | "receipt" | "payment" | "transfer" | "advance" | "adjustment" | "debtor_payment" | "creditor_payment" | "sales_return" | "capital";
   referenceId?: string;
   recordedBy: string;
   recordedByName: string;

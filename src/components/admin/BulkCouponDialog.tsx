@@ -53,7 +53,7 @@ const LANG_LABELS: Record<PrintLang, { codeLabel: string; offer: string; off: st
   },
 };
 
-const CARDS_PER_PAGE = 10; // 2 cols x 5 rows on A4
+const CARDS_PER_PAGE = 15; // 3 cols x 5 rows on A4
 
 export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDialogProps) {
   const { user } = useAuth();
@@ -140,6 +140,8 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
       ? `Rs. ${Number(minPurchase).toLocaleString("en-IN")}`
       : "";
 
+    const websiteUrl = settings.website || "";
+
     const buildFront = () => `
       <table class="c-front-table">
         <tr>
@@ -153,28 +155,25 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
           </td>
         </tr>
       </table>
+      <div class="c-hero">
+        <div class="c-hero-val">${escapeHtml(dLabel)} ${escapeHtml(langData.off)}</div>
+        ${maxDLbl ? `<div class="c-hero-sub">${escapeHtml(langData.upTo)} ${escapeHtml(maxDLbl)}</div>` : ""}
+      </div>
+      <div class="c-exclusive">${escapeHtml(langData.exclusive)}</div>
       <div class="c-code-section">
         <div class="c-code-lbl">${escapeHtml(langData.codeLabel)}</div>
         <div class="c-code">${escapeHtml(code)}</div>
       </div>
-      <div class="c-offer-section">
-        ${discountType === "fixed"
-          ? `<div class="c-offer-text">${escapeHtml(langData.offer)}: Rs. ${Number(discountValue).toLocaleString("en-IN")} ${escapeHtml(langData.off)}</div>`
-          : `<div class="c-offer-text">${escapeHtml(langData.offer)}: ${discountValue}% ${escapeHtml(langData.off)}${maxDiscount > 0 ? ` (${langData.upTo} ${maxDLbl})` : ""}</div>`
-        }
-        ${validUntilStr ? `<div class="c-valid">${escapeHtml(langData.validUntil)}: ${escapeHtml(validUntilStr)}</div>` : ""}
-        ${minPurchase > 0 ? `<div class="c-min-purchase">${escapeHtml(langData.minPurchase)}: ${minPLbl}</div>` : ""}
-      </div>
+      ${validUntilStr ? `<div class="c-valid">${escapeHtml(langData.validUntil)}: ${escapeHtml(validUntilStr)}</div>` : ""}
+      ${minPurchase > 0 ? `<div class="c-min-purchase">${escapeHtml(langData.minPurchase)}: ${minPLbl}</div>` : ""}
+      ${websiteUrl ? `<div class="c-website">${escapeHtml(websiteUrl)}</div>` : ""}
     `;
 
     const buildBack = () => `
-      <div class="c-back-header">${escapeHtml(dLabel)} ${escapeHtml(langData.off)}</div>
-      <div class="c-back-title">${escapeHtml(langData.exclusive)}</div>
-      <div class="c-back-divider"></div>
       <div class="c-back-terms">
         ${langData.terms.map((t) => `<div class="c-term-line">• ${escapeHtml(t)}</div>`).join("")}
       </div>
-      <div class="c-back-footer">${escapeHtml(shopName)} | ${escapeHtml(phone)}</div>
+      ${websiteUrl ? `<div class="c-website">${escapeHtml(websiteUrl)}</div>` : ""}
     `;
 
     // Build pages: fronts then backs
@@ -199,85 +198,76 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
         <title>Coupon - ${escapeHtml(code)}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          @page {
-            size: A4;
-            margin: 5mm;
-          }
+          @page { size: A4; margin: 4mm; }
           body { font-family: Arial, Helvetica, sans-serif; background: #fff; }
           .a4-page {
             width: 210mm;
             height: 297mm;
-            padding: 3mm;
+            padding: 2.5mm;
             page-break-after: always;
             page-break-inside: avoid;
           }
           .card-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 2.5mm;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1.8mm;
             height: 100%;
             align-content: start;
           }
           .c-card {
-            width: 90mm;
-            height: 54mm;
-            border: 0.3mm solid #ddd;
-            border-radius: 1mm;
+            width: 100%;
+            height: 56mm;
+            border: 0.3mm solid #e0e0e0;
+            border-radius: 0.8mm;
             display: flex;
             flex-direction: column;
-            padding: 1.5mm 2mm;
+            padding: 1mm 1.5mm;
             overflow: hidden;
             page-break-inside: avoid;
+            position: relative;
           }
-          .c-front { background: #fff; }
-          .c-back { background: #fafafa; }
+          .c-front { background: linear-gradient(135deg, #fff 0%, #fef9ef 100%); }
+          .c-back { background: #f8f8f8; }
 
           /* Front layout */
-          .c-front-table { width: 100%; border-collapse: collapse; }
-          .c-logo-cell { width: 28mm; vertical-align: middle; text-align: left; }
-          .c-logo { max-width: 26mm; max-height: 12mm; object-fit: contain; }
+          .c-front-table { width: 100%; border-collapse: collapse; margin-bottom: 0.3mm; }
+          .c-logo-cell { width: 20mm; vertical-align: middle; text-align: left; }
+          .c-logo { max-width: 18mm; max-height: 8mm; object-fit: contain; }
           .c-info-cell { vertical-align: middle; text-align: right; }
-          .c-name { font-size: 9px; font-weight: 700; color: #222; line-height: 1.2; }
-          .c-addr { font-size: 6px; color: #666; line-height: 1.2; }
-          .c-phone { font-size: 6px; color: #666; line-height: 1.2; }
+          .c-name { font-size: 7px; font-weight: 700; color: #1a1a2e; line-height: 1.15; }
+          .c-addr { font-size: 5px; color: #666; line-height: 1.15; }
+          .c-phone { font-size: 5px; color: #666; line-height: 1.15; }
 
-          .c-code-section {
-            margin: 1mm 0 0.5mm;
-            text-align: center;
-          }
-          .c-code-lbl { font-size: 5.5px; color: #888; font-weight: 500; }
+          .c-hero { text-align: center; margin: 0.5mm 0 0.2mm; padding: 0.4mm 1mm; background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); border-radius: 0.6mm; }
+          .c-hero-val { font-weight: 900; color: #fff; font-size: 9px; letter-spacing: 0.5px; }
+          .c-hero-sub { font-weight: 500; color: #ffcdd2; font-size: 5px; }
+
+          .c-exclusive { text-align: center; font-weight: 700; color: #c62828; font-size: 5.5px; letter-spacing: 1px; text-transform: uppercase; margin: 0.15mm 0; }
+
+          .c-code-section { text-align: center; margin: 0.2mm 0; }
+          .c-code-lbl { font-size: 4.5px; color: #999; font-weight: 500; }
           .c-code {
-            font-size: 16px;
             font-weight: 900;
-            letter-spacing: 3px;
+            letter-spacing: 2.5px;
             color: #d32f2f;
-            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
-            padding: 0.6mm 2mm;
-            border-radius: 1.5mm;
+            background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+            padding: 0.4mm 1.5mm;
+            border-radius: 1mm;
             display: inline-block;
-            border: 1.2px dashed #d32f2f;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+            border: 1px dashed #d32f2f;
+            font-size: 11px;
           }
-
-          .c-offer-section { margin-top: 0.3mm; text-align: center; }
-          .c-offer-text { font-size: 6.5px; font-weight: 600; color: #d32f2f; }
-          .c-valid { font-size: 5.5px; color: #888; margin-top: 0.2mm; }
-          .c-min-purchase { font-size: 5.5px; color: #888; }
+          .c-valid { font-size: 4.5px; color: #888; margin-top: 0.1mm; text-align: center; }
+          .c-min-purchase { font-size: 4.5px; color: #888; text-align: center; }
 
           /* Back layout */
-          .c-back-header {
-            font-size: 7px; font-weight: 800; color: #fff;
-            background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
-            text-align: center; padding: 0.8mm 2mm; border-radius: 1mm;
-          }
-          .c-back-title { font-size: 6px; font-weight: 600; color: #555; text-align: center; margin: 0.3mm 0; }
-          .c-back-divider { height: 0.3px; background: #ddd; margin: 0.3mm 0; }
-          .c-back-terms { flex: 1; padding: 0 0.5mm; display: flex; flex-direction: column; justify-content: center; }
-          .c-term-line { font-size: 5px; color: #555; line-height: 1.35; padding: 0.15mm 0; }
-          .c-back-footer { font-size: 5px; color: #999; text-align: center; margin-top: 0.3mm; }
+          .c-back-terms { flex: 1; padding: 0.5mm 0.3mm; display: flex; flex-direction: column; justify-content: center; }
+          .c-term-line { font-size: 5.5px; color: #555; line-height: 1.3; padding: 0.1mm 0; }
+
+          .c-website { position: absolute; bottom: 0.6mm; left: 0; right: 0; text-align: center; font-size: 4px; color: #aaa; }
 
           @media print {
-            @page { size: A4; margin: 5mm; }
+            @page { size: A4; margin: 4mm; }
             body { background: #fff; }
             .c-card { border-color: #ccc; }
           }
@@ -389,7 +379,7 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
             <strong>Printing Tips:</strong><br />
             • Will print <strong>{Math.max(1, quantity)}</strong> visiting cards on A4 sheet{quantity > CARDS_PER_PAGE ? `s (${Math.ceil(Math.max(1, quantity) / CARDS_PER_PAGE)} sheets)` : ""}.<br />
             • Select <strong>Two-sided (Duplex)</strong> → <strong>Flip on Short Edge</strong> for proper front/back alignment.<br />
-            • Front: Logo + Shop Details + Coupon Code &bull; Back: Terms &amp; Conditions.
+            • Prints up to 15 cards per sheet (3×5 grid). Front: Discount + Coupon Code &bull; Back: Terms &amp; Conditions.
           </div>
 
           <Button onClick={handleGenerate} disabled={generating || !quantity || !discountValue || !validUntil} variant="accent" className="w-full">

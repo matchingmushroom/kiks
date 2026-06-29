@@ -167,16 +167,16 @@ function PnLSection() {
             <TotalLine label="Gross Profit" value={pnl.grossProfit} />
 
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-4 mb-2">Operating Expenses</h3>
-            {Object.keys(pnl.expenseByHead).length === 0 ? (
+            {Object.keys(pnl.expenseByHead || {}).length === 0 ? (
               <p className="text-xs text-gray-400 italic ml-6">No expenses recorded</p>
             ) : (
-              Object.entries(pnl.expenseByHead)
+              Object.entries(pnl.expenseByHead || {})
                 .sort(([, a], [, b]) => b - a)
                 .map(([head, amt]) => (
                   <Line key={head} label={head} value={-amt} indent negative />
                 ))
             )}
-            <TotalLine label={`Total Expenses (${Object.keys(pnl.expenseByHead).length} heads)`} value={-pnl.totalExpenses} />
+            <TotalLine label={`Total Expenses (${Object.keys(pnl.expenseByHead || {}).length} heads)`} value={-pnl.totalExpenses} />
 
             <div className="mt-3 pt-2 border-t-4 border-gray-900">
               <div className="flex justify-between items-center py-1">
@@ -226,7 +226,7 @@ function BalanceSheetSection() {
     setBsLoading(true);
     setBsError("");
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 60000);
     fetch(gasUrl, {
       method: "POST",
       body: JSON.stringify({ action: "computeBalanceSheet", asOf: bsDate }),
@@ -235,6 +235,7 @@ function BalanceSheetSection() {
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((result) => {
         if (result.status === "error") throw new Error(result.message || "GAS error");
+        if (!result.cashBalance && result.cashBalance !== 0) throw new Error("Unexpected response format — GAS may need redeployment");
         setBsData(result as BalanceSheetResult);
       })
       .catch((err) => { setBsError(err.message || "Failed to load"); setBsData(null); })

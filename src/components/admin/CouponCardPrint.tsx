@@ -66,7 +66,7 @@ const FRONT_LABELS: Record<FrontElement, string> = {
   validUntil: "Valid Until",
 };
 
-const CARDS_PER_PAGE = 10;
+const CARDS_PER_PAGE = 15;
 
 export default function CouponCardPrint({ coupons, onClose }: CouponCardPrintProps) {
   const { settings } = useShopSettings();
@@ -113,55 +113,60 @@ export default function CouponCardPrint({ coupons, onClose }: CouponCardPrintPro
 
     const visible = elementOrder.filter((el) => !hiddenElements.has(el));
     const scale = fontSizeMap[fontSize];
-    let html = `<table class="cf-tbl" style="font-size:${6 * scale}px">`;
 
+    const dLabel = c.discountType === "fixed"
+      ? `Rs. ${Number(c.discountValue).toLocaleString("en-IN")}`
+      : `${c.discountValue}%`;
+    const maxPart = c.maxDiscount > 0 ? ` (${langData.upTo} Rs. ${Number(c.maxDiscount).toLocaleString("en-IN")})` : "";
+    const websiteUrl = settings.website || "";
+
+    // Header: logo + shop info
+    let html = `<table class="cf-tbl" style="font-size:${5 * scale}px">`;
     if (visible.includes("logo") || visible.includes("shopName") || visible.includes("address") || visible.includes("phone")) {
       html += "<tr><td class=\"cf-lc\">";
       if (visible.includes("logo") && logoUrl) {
-        html += `<img src="${escapeHtml(logoUrl)}" class="cf-logo" style="max-height:${12 * scale}mm" />`;
+        html += `<img src="${escapeHtml(logoUrl)}" class="cf-logo" />`;
       }
       html += `</td><td class="cf-ic">`;
-      if (visible.includes("shopName")) html += `<div class="cf-n" style="font-size:${9 * scale}px">${escapeHtml(shopName)}</div>`;
-      if (visible.includes("address") && address) html += `<div class="cf-a" style="font-size:${6 * scale}px">${escapeHtml(address)}</div>`;
-      if (visible.includes("phone") && phone) html += `<div class="cf-p" style="font-size:${6 * scale}px">${escapeHtml(phone)}</div>`;
+      if (visible.includes("shopName")) html += `<div class="cf-n" style="font-size:${7 * scale}px">${escapeHtml(shopName)}</div>`;
+      if (visible.includes("address") && address) html += `<div class="cf-a" style="font-size:${5 * scale}px">${escapeHtml(address)}</div>`;
+      if (visible.includes("phone") && phone) html += `<div class="cf-p" style="font-size:${5 * scale}px">${escapeHtml(phone)}</div>`;
       html += "</td></tr>";
     }
-
     html += "</table>";
 
-    if (visible.includes("couponCode")) {
-      html += `<div class="cf-cs"><div class="cf-cl" style="font-size:${5.5 * scale}px">${escapeHtml(langData.codeLabel)}</div><div class="cf-cd" style="font-size:${16 * scale}px">${escapeHtml(code)}</div></div>`;
+    // Discount hero
+    if (visible.includes("discount")) {
+      html += `<div class="cf-hero"><div class="cf-hero-val">${escapeHtml(dLabel)} ${escapeHtml(langData.off)}</div>${maxPart ? `<div class="cf-hero-sub">${escapeHtml(maxPart)}</div>` : ""}</div>`;
     }
 
-    if (visible.includes("discount") || visible.includes("validUntil")) {
-      html += `<div class="cf-os">`;
-      if (visible.includes("discount")) {
-        const dLabel = c.discountType === "fixed"
-          ? `Rs. ${Number(c.discountValue).toLocaleString("en-IN")}`
-          : `${c.discountValue}%`;
-        const maxPart = c.maxDiscount > 0 ? ` (${langData.upTo} Rs. ${Number(c.maxDiscount).toLocaleString("en-IN")})` : "";
-        html += `<div class="cf-d" style="font-size:${6.5 * scale}px">${escapeHtml(langData.offer)}: ${escapeHtml(dLabel)} ${escapeHtml(langData.off)}${maxPart}</div>`;
-      }
-      if (visible.includes("validUntil") && validUntilStr) {
-        html += `<div class="cf-v" style="font-size:${5.5 * scale}px">${escapeHtml(langData.validUntil)}: ${escapeHtml(validUntilStr)}</div>`;
-      }
-      html += "</div>";
+    // Exclusive coupon badge
+    html += `<div class="cf-exclusive">${escapeHtml(langData.exclusive)}</div>`;
+
+    // Coupon code
+    if (visible.includes("couponCode")) {
+      html += `<div class="cf-code-wrap"><div class="cf-code-lbl">${escapeHtml(langData.codeLabel)}</div><div class="cf-code">${escapeHtml(code)}</div></div>`;
+    }
+
+    // Valid until
+    if (visible.includes("validUntil") && validUntilStr) {
+      html += `<div class="cf-valid">${escapeHtml(langData.validUntil)}: ${escapeHtml(validUntilStr)}</div>`;
+    }
+
+    // Website footer
+    if (websiteUrl) {
+      html += `<div class="cf-website">${escapeHtml(websiteUrl)}</div>`;
     }
 
     return html;
   };
 
-  const buildBack = (c: Coupon) => {
+  const buildBack = (_c: Coupon) => {
     const scale = fontSizeMap[fontSize];
-    const dLabel = c.discountType === "fixed"
-      ? `Rs. ${Number(c.discountValue).toLocaleString("en-IN")}`
-      : `${c.discountValue}%`;
+    const websiteUrl = settings.website || "";
     return `
-      <div class="cb-h" style="font-size:${7 * scale}px">${escapeHtml(dLabel)} ${escapeHtml(langData.off)}</div>
-      <div class="cb-t" style="font-size:${6 * scale}px">${escapeHtml(langData.exclusive)}</div>
-      <div class="cb-div"></div>
-      <div class="cb-terms">${langData.terms.map((t) => `<div class="cb-tl" style="font-size:${5 * scale}px">• ${escapeHtml(t)}</div>`).join("")}</div>
-      <div class="cb-f" style="font-size:${5 * scale}px">${escapeHtml(shopName)} | ${escapeHtml(phone)}</div>
+      <div class="cb-terms">${langData.terms.map((t) => `<div class="cb-tl" style="font-size:${5.5 * scale}px">• ${escapeHtml(t)}</div>`).join("")}</div>
+      ${websiteUrl ? `<div class="cb-website">${escapeHtml(websiteUrl)}</div>` : ""}
     `;
   };
 
@@ -199,32 +204,32 @@ export default function CouponCardPrint({ coupons, onClose }: CouponCardPrintPro
         <title>Coupon Cards</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          @page { size: A4; margin: 5mm; }
+          @page { size: A4; margin: 4mm; }
           body { font-family: Arial, Helvetica, sans-serif; background: #fff; }
-          .a4p { width: 210mm; min-height: 297mm; padding: 3mm; page-break-after: always; }
-          .cg { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm; }
-          .cc { width: 90mm; height: 54mm; border: 0.3mm solid #ddd; border-radius: 1mm; display: flex; flex-direction: column; padding: 1.5mm 2mm; overflow: hidden; page-break-inside: avoid; }
-          .cf { background: #fff; }
-          .cb { background: #fafafa; }
-          .cf-tbl { width: 100%; border-collapse: collapse; }
-          .cf-lc { width: 28mm; vertical-align: middle; text-align: left; }
-          .cf-logo { max-width: 26mm; object-fit: contain; }
+          .a4p { width: 210mm; min-height: 297mm; padding: 2.5mm; page-break-after: always; }
+          .cg { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.8mm; }
+          .cc { width: 100%; height: 56mm; border: 0.3mm solid #e0e0e0; border-radius: 0.8mm; display: flex; flex-direction: column; padding: 1mm 1.5mm; overflow: hidden; page-break-inside: avoid; position: relative; }
+          .cf { background: linear-gradient(135deg, #fff 0%, #fef9ef 100%); }
+          .cb { background: #f8f8f8; }
+          .cf-tbl { width: 100%; border-collapse: collapse; margin-bottom: 0.3mm; }
+          .cf-lc { width: 20mm; vertical-align: middle; text-align: left; }
+          .cf-logo { max-width: 18mm; max-height: 8mm; object-fit: contain; }
           .cf-ic { vertical-align: middle; text-align: right; }
-          .cf-n { font-weight: 700; color: #222; line-height: 1.2; }
-          .cf-a, .cf-p { color: #666; line-height: 1.2; }
-          .cf-cs { margin: 0.8mm 0 0.4mm; text-align: center; }
-          .cf-cl { color: #888; font-weight: 500; }
-          .cf-cd { font-weight: 900; letter-spacing: 3px; color: #d32f2f; background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); padding: 0.6mm 2mm; border-radius: 1.5mm; display: inline-block; border: 1.2px dashed #d32f2f; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
-          .cf-os { text-align: center; margin-top: 0.2mm; }
-          .cf-d { font-weight: 600; color: #d32f2f; }
-          .cf-v { color: #888; }
-          .cb-h { font-weight: 800; color: #fff; background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); text-align: center; padding: 0.8mm 2mm; border-radius: 1mm; }
-          .cb-t { font-weight: 600; color: #555; text-align: center; margin: 0.3mm 0; }
-          .cb-div { height: 0.3px; background: #ddd; margin: 0.3mm 0; }
-          .cb-terms { flex: 1; padding: 0 0.5mm; display: flex; flex-direction: column; justify-content: center; }
-          .cb-tl { color: #555; line-height: 1.35; padding: 0.15mm 0; }
-          .cb-f { color: #999; text-align: center; margin-top: 0.3mm; }
-          @media print { @page { size: A4; margin: 5mm; } body { background: #fff; } .cc { border-color: #ccc; } }
+          .cf-n { font-weight: 700; color: #1a1a2e; line-height: 1.15; }
+          .cf-a, .cf-p { color: #666; line-height: 1.15; }
+          .cf-hero { text-align: center; margin: 0.5mm 0 0.2mm; padding: 0.4mm 1mm; background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); border-radius: 0.6mm; }
+          .cf-hero-val { font-weight: 900; color: #fff; font-size: 9px; letter-spacing: 0.5px; }
+          .cf-hero-sub { font-weight: 500; color: #ffcdd2; font-size: 5px; }
+          .cf-exclusive { text-align: center; font-weight: 700; color: #c62828; font-size: 5.5px; letter-spacing: 1px; text-transform: uppercase; margin: 0.15mm 0; }
+          .cf-code-wrap { text-align: center; margin: 0.2mm 0; }
+          .cf-code-lbl { font-size: 4.5px; color: #999; font-weight: 500; }
+          .cf-code { font-weight: 900; letter-spacing: 2.5px; color: #d32f2f; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); padding: 0.4mm 1.5mm; border-radius: 1mm; display: inline-block; border: 1px dashed #d32f2f; font-size: 11px; }
+          .cf-valid { text-align: center; font-size: 4.5px; color: #888; margin-top: 0.1mm; }
+          .cf-website { position: absolute; bottom: 0.6mm; left: 0; right: 0; text-align: center; font-size: 4px; color: #aaa; }
+          .cb-terms { flex: 1; padding: 0.5mm 0.3mm; display: flex; flex-direction: column; justify-content: center; }
+          .cb-tl { color: #555; line-height: 1.3; padding: 0.1mm 0; }
+          .cb-website { text-align: center; font-size: 4px; color: #aaa; margin-top: 0.2mm; }
+          @media print { @page { size: A4; margin: 4mm; } body { background: #fff; } .cc { border-color: #ccc; } }
         </style>
       </head>
       <body>
@@ -307,7 +312,7 @@ export default function CouponCardPrint({ coupons, onClose }: CouponCardPrintPro
           <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-lg text-xs leading-relaxed">
             <strong>Printing Tips:</strong><br />
             • Select <strong>Two-sided (Duplex)</strong> → <strong>Flip on Short Edge</strong>.<br />
-            • Prints on A4 with up to 10 cards per sheet (2×5 grid).<br />
+            • Prints on A4 with up to 15 cards per sheet (3×5 grid).<br />
             • Total: {coupons.length * copies} cards on {Math.ceil(coupons.length * copies / CARDS_PER_PAGE)} sheet(s).
           </div>
 
