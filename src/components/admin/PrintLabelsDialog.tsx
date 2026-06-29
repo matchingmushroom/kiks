@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 
 interface LabelItem {
   productName: string;
@@ -17,6 +18,9 @@ interface PrintLabelsDialogProps {
 }
 
 export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogProps) {
+  const { settings } = useShopSettings();
+  const shopName = settings.shopName || "Panchakanya Collections";
+  const website = settings.website || "";
   const [checked, setChecked] = useState<boolean[]>(() => items.map(() => true));
   const [quantities, setQuantities] = useState<number[]>(() => items.map((it) => it.quantity));
 
@@ -46,10 +50,12 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
       for (let j = 0; j < qty; j++) {
         rows.push(`
           <div class="label-cell">
+            <div class="pl-shop-name">${escapeHtml(shopName)}</div>
             <div class="pl-name">${escapeHtml(item.productName)}</div>
             <svg class="pl-barcode" data-sku="${escapeHtml(item.sku)}"></svg>
             <div class="pl-sku">${escapeHtml(item.sku)}</div>
             <div class="pl-mrp">MRP: Rs. ${item.price.toLocaleString("en-IN")}</div>
+            ${website ? `<div class="pl-website">${escapeHtml(website)}</div>` : ""}
           </div>
         `);
       }
@@ -81,7 +87,7 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
             height: 25.4mm;
             border: 0.5px solid #ccc;
             border-radius: 2px;
-            padding: 2mm 1.5mm;
+            padding: 1.5mm 1.5mm;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -89,6 +95,13 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
             font-family: Arial, Helvetica, sans-serif;
             break-inside: avoid;
             page-break-inside: avoid;
+          }
+          .pl-shop-name {
+            font-size: 5px;
+            font-weight: 600;
+            text-align: center;
+            color: #888;
+            line-height: 1;
           }
           .pl-name {
             font-size: 8px;
@@ -117,6 +130,13 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
             font-weight: 700;
             text-align: center;
             margin-top: 0;
+          }
+          .pl-website {
+            font-size: 5px;
+            font-weight: 400;
+            text-align: center;
+            color: #888;
+            line-height: 1;
           }
           @media print {
             @page { margin: 5mm; }

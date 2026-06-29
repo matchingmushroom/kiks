@@ -404,6 +404,7 @@ export interface ShopSettings {
   address: string;
   whatsappNumber: string;
   currency: string;
+  website?: string;
   gasWebhookUrl?: string;
   emailTo?: string;
   driveFolderId?: string;
