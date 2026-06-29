@@ -400,6 +400,7 @@ export interface ShopSettings {
   shopName: string;
   tagline: string;
   logoUrl: string;
+  footerLogoUrl?: string;
   phone: string;
   address: string;
   whatsappNumber: string;

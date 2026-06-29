@@ -13,6 +13,7 @@ interface Settings {
   shopName: string;
   tagline: string;
   logoUrl: string;
+  footerLogoUrl: string;
   phone: string;
   address: string;
   whatsappNumber: string;
@@ -47,6 +48,7 @@ const defaults: Settings = {
   shopName: "KIKS Collections",
   tagline: "Exquisite Jewellery Since 2020",
   logoUrl: "/logo.svg",
+  footerLogoUrl: "",
   phone: "+977-XXXXXXXXX",
   address: "Kathmandu, Nepal",
   whatsappNumber: "977XXXXXXXXX",
@@ -246,6 +248,23 @@ export default function SettingsPage() {
                   placeholder="/logo.svg"
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 <p className="text-xs text-muted-foreground mt-1">Upload PNG to <code>/public/</code> or use external URL</p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 pb-6 border-b border-border">
+              <div className="w-20 h-20 bg-secondary rounded-xl overflow-hidden flex-shrink-0 border border-border flex items-center justify-center">
+                {form.footerLogoUrl ? (
+                  <img src={form.footerLogoUrl} alt="Footer Logo" className="w-full h-full object-contain" />
+                ) : (
+                  <span className="text-xs text-muted-foreground">No img</span>
+                )}
+              </div>
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Footer Logo URL (white variant)</label>
+                <input type="text" value={form.footerLogoUrl}
+                  onChange={(e) => setForm({ ...form, footerLogoUrl: e.target.value })}
+                  placeholder="/footer-logo.png"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <p className="text-xs text-muted-foreground mt-1">Light/white logo for dark footer background</p>
               </div>
             </div>
 

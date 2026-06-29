@@ -25,7 +25,7 @@ export default function ShopFooter() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
-            <img src={settings.logoUrl || "/logo.svg"} alt={settings.shopName} className="h-10 mb-4" />
+            <img src={settings.footerLogoUrl || settings.logoUrl || "/logo.svg"} alt={settings.shopName} className="h-10 mb-4" />
             <p className="text-sm text-secondary-foreground/70 mb-4">{settings.tagline}</p>
             {socialLinks.length > 0 && (
               <div className="flex items-center gap-3">
