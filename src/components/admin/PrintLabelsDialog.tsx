@@ -179,6 +179,10 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
           </button>
         </div>
         <div className="p-4 space-y-3">
+          <div className="flex items-center gap-3 px-1">
+            <button onClick={() => setChecked(Array(items.length).fill(true))} className="text-xs text-primary hover:underline font-medium">Select All</button>
+            <button onClick={() => setChecked(Array(items.length).fill(false))} className="text-xs text-muted-foreground hover:underline">Deselect All</button>
+          </div>
           {items.map((item, idx) => (
             <div key={idx} className="flex items-center gap-3 p-3 border border-border rounded-lg hover:bg-muted/50">
               <input type="checkbox" checked={checked[idx]} onChange={() => toggle(idx)} className="accent-primary h-4 w-4 shrink-0" />
