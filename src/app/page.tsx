@@ -5,6 +5,8 @@ import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { HomeSection, Product as ProductType, Category } from "@/types";
 import { useFirestore, where } from "@/hooks/useFirestore";
 import ProductCard from "@/components/shop/ProductCard";
+import { formatNumber } from "@/lib/utils";
+import { ShoppingBag } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -160,6 +162,14 @@ function ComboSection() {
   const combos = products.filter((p) => p.comboItems?.length);
   if (combos.length === 0) return null;
 
+  function computeOriginalTotal(combo: ProductType): number {
+    if (!combo.comboItems?.length) return combo.price;
+    return combo.comboItems.reduce((sum, id) => {
+      const item = products.find((p) => p.id === id);
+      return sum + (item?.price || 0);
+    }, 0);
+  }
+
   return (
     <section className="py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -169,7 +179,29 @@ function ComboSection() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {combos.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <div key={product.id} className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all">
+              <div className="aspect-square bg-muted relative overflow-hidden flex items-center justify-center">
+                <span className="text-muted-foreground text-sm">No Image</span>
+                <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs px-2 py-1 rounded font-medium">
+                  Combo
+                </div>
+              </div>
+              <div className="p-4">
+                <h3 className="font-semibold text-secondary group-hover:text-primary transition-colors truncate">
+                  {product.name}
+                </h3>
+                <div className="flex items-center justify-between mt-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground line-through">
+                      Rs. {formatNumber(computeOriginalTotal(product))}
+                    </p>
+                    <p className="text-primary font-bold text-lg">
+                      Rs. {formatNumber(product.comboPrice || product.price)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>
