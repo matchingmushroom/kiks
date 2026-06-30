@@ -118,10 +118,10 @@ export default function ReconciliationPage() {
             <p className="text-sm text-muted-foreground">Verify physical stock against system records</p>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">System: <strong className="text-secondary">{formatCurrency(totalSystem)}</strong></span>
-            <span className="text-muted-foreground">Counted: <strong className="text-secondary">{formatCurrency(totalPhysical)}</strong></span>
+            <span className="text-muted-foreground">System: <strong className="text-secondary">{totalSystem}</strong></span>
+            <span className="text-muted-foreground">Counted: <strong className="text-secondary">{totalPhysical}</strong></span>
             <span className={`font-medium ${totalPhysical !== totalSystem ? "text-red-600" : "text-green-600"}`}>
-              Diff: {formatCurrency(totalPhysical - totalSystem)}
+              Diff: {totalPhysical - totalSystem}
             </span>
           </div>
         </div>
