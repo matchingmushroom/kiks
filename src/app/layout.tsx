@@ -16,11 +16,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteName = process.env.NEXT_PUBLIC_SHOP_NAME || "KIKS Collections";
+const siteName = process.env.NEXT_PUBLIC_SHOP_NAME || "Jewellery Shop";
 
 export const metadata: Metadata = {
   title: {
-    default: `${siteName} - Exquisite Jewellery`,
+    default: `${siteName} - Premium Jewellery`,
     template: `%s - ${siteName}`,
   },
   description: "Premium jewellery shop in Nepal — Rings, Necklaces, Earrings, Bracelets and more. Handcrafted gold and silver jewellery with purity certification.",
