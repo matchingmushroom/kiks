@@ -42,37 +42,37 @@ function HeroSection() {
   }));
 
   const slidesContent = slides.map((slide, i) => (
-    <section key={i} className={`relative w-full min-h-[50vh] sm:min-h-[70vh] flex items-center overflow-hidden ${slide.bg}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-20 w-full">
+    <section key={i} className={`relative w-full min-h-[45vh] sm:min-h-[70vh] flex items-center overflow-hidden ${slide.bg}`}>
+      <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8 py-10 sm:py-20 pb-16 sm:pb-20 w-full">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 bg-accent/10 text-accent text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
+          <div className="inline-flex items-center gap-2 bg-accent/10 text-accent text-xs font-semibold px-3 py-1.5 rounded-full mb-3 sm:mb-4">
             <Sparkles className="h-3.5 w-3.5" />
             New Collection
           </div>
-          <h1 className="text-3xl sm:text-4xl lg:text-6xl font-bold text-secondary mb-4 sm:mb-6 leading-tight">
+          <h1 className="text-2xl sm:text-4xl lg:text-6xl font-bold text-secondary mb-3 sm:mb-6 leading-tight">
             {slide.title}
           </h1>
-          <p className="text-base sm:text-lg text-muted-foreground mb-6 sm:mb-8 max-w-lg">
+          <p className="text-sm sm:text-lg text-muted-foreground mb-5 sm:mb-8 max-w-lg">
             {slide.subtitle}
           </p>
-          <div className="flex flex-wrap gap-3 sm:gap-4">
+          <div className="flex flex-wrap gap-3">
             <Link
               href="/products"
-              className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 bg-accent text-secondary font-semibold rounded-full hover:bg-accent/90 transition-all text-sm sm:text-base"
+              className="inline-flex items-center gap-2 px-5 sm:px-6 py-3 sm:py-3 bg-accent text-secondary font-semibold rounded-full hover:bg-accent/90 transition-all text-sm sm:text-base"
             >
               Shop Now
               <ArrowRight className="h-4 w-4" />
             </Link>
             <Link
               href="/products"
-              className="inline-flex items-center gap-2 px-5 sm:px-6 py-2.5 sm:py-3 border-2 border-accent text-accent font-semibold rounded-full hover:bg-accent/10 transition-all text-sm sm:text-base"
+              className="inline-flex items-center gap-2 px-5 sm:px-6 py-3 sm:py-3 border-2 border-accent text-accent font-semibold rounded-full hover:bg-accent/10 transition-all text-sm sm:text-base"
             >
               View Collection
             </Link>
           </div>
         </div>
       </div>
-      <div className="absolute right-0 top-0 h-full w-1/3 opacity-5 pointer-events-none">
+      <div className="hidden sm:block absolute right-0 top-0 h-full w-1/3 opacity-5 pointer-events-none">
         <div className="w-full h-full bg-[radial-gradient(circle_at_center,_var(--accent)_0%,_transparent_70%)]" />
       </div>
     </section>

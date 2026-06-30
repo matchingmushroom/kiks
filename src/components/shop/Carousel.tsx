@@ -128,13 +128,13 @@ export default function Carousel({
       )}
 
       {showDots && total > 1 && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-1.5">
           {items.map((_, i) => (
             <button
               key={i}
               onClick={() => scrollTo(i)}
               className={`w-2 h-2 rounded-full transition-all ${
-                i === current ? "bg-white w-4" : "bg-white/50 hover:bg-white/80"
+                i === current ? "w-5 bg-white" : "bg-white/50 hover:bg-white/80"
               }`}
             />
           ))}
