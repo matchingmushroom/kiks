@@ -50,7 +50,7 @@ export default function BarcodeScannerDialog({ onScan, onClose }: BarcodeScanner
           (decodedText) => {
             if (cancelled || done) return;
             setDone(true);
-            scanner.stop().catch(() => {});
+            try { scanner.stop(); } catch (_) {}
             onScan(decodedText.trim());
             onClose();
           },
@@ -77,7 +77,7 @@ export default function BarcodeScannerDialog({ onScan, onClose }: BarcodeScanner
     return () => {
       cancelled = true;
       if (html5QrCodeRef.current) {
-        html5QrCodeRef.current.stop().catch(() => {});
+        try { html5QrCodeRef.current.stop(); } catch (_) {}
       }
     };
   }, []);
