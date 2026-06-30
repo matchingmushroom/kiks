@@ -102,7 +102,6 @@ export default function CouponCardPrint({ coupons, onClose }: CouponCardPrintPro
             ${phone ? `<div class="cp-phone">${escapeHtml(phone)}</div>` : ""}
           </td>
         </tr></table>
-        <div class="cp-divider"></div>
         <div class="cp-exclusive">${escapeHtml(langData.exclusive)}</div>
         <div class="cp-offer-label">${escapeHtml(langData.offer)}</div>
         <div class="cp-hero">${escapeHtml(dLabel)} ${escapeHtml(langData.off)}</div>
@@ -179,48 +178,66 @@ export default function CouponCardPrint({ coupons, onClose }: CouponCardPrintPro
             width: ${LABEL_W}mm;
             height: ${LABEL_H}mm;
             box-sizing: border-box;
-            padding: 1.2mm 1.5mm;
+            padding: 1mm 1.5mm 1mm 3mm;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            background: linear-gradient(135deg, #fff 0%, #fef9ef 100%);
+            background: #fff;
             overflow: hidden;
+            position: relative;
+            border-radius: 0.5mm;
+          }
+          .coupon::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 1.8mm;
+            background: linear-gradient(180deg, #7a1a1a 0%, #c62828 40%, #e53935 100%);
           }
           .coupon.empty { visibility: hidden; }
+          .coupon.empty::before { display: none; }
 
           .cp-header { width: 100%; border-collapse: collapse; flex-shrink: 0; }
-          .cp-logo-cell { width: 18mm; vertical-align: middle; }
-          .cp-logo { max-width: 16mm; max-height: 7mm; object-fit: contain; display: block; }
+          .cp-logo-cell { width: 14mm; vertical-align: middle; }
+          .cp-logo { max-width: 13mm; max-height: 6mm; object-fit: contain; display: block; }
           .cp-info-cell { vertical-align: middle; }
-          .cp-name { font-size: 7px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
-          .cp-addr, .cp-phone { font-size: 4.5px; color: #666; line-height: 1.2; }
+          .cp-name { font-size: 6.5px; font-weight: 800; color: #1a1a2e; line-height: 1.2; }
+          .cp-addr, .cp-phone { font-size: 4px; color: #888; line-height: 1.2; }
 
-          .cp-divider { height: 0.3mm; background: linear-gradient(90deg, transparent, #d32f2f, transparent); flex-shrink: 0; }
-
-          .cp-exclusive { text-align: center; font-size: 5px; font-weight: 700; color: #c62828; letter-spacing: 0.8px; text-transform: uppercase; line-height: 1.2; flex-shrink: 0; }
-          .cp-offer-label { text-align: center; font-size: 4.5px; color: #888; line-height: 1.2; flex-shrink: 0; }
-          .cp-hero { text-align: center; font-size: 11px; font-weight: 900; color: #d32f2f; line-height: 1.2; letter-spacing: 0.3px; flex-shrink: 0; }
-          .cp-hero-sub { text-align: center; font-size: 4.5px; color: #b71c1c; line-height: 1.2; flex-shrink: 0; }
+          .cp-exclusive {
+            text-align: center; font-size: 4.5px; font-weight: 800; color: #fff;
+            letter-spacing: 1px; text-transform: uppercase; line-height: 1.3;
+            background: linear-gradient(135deg, #c62828, #e53935);
+            padding: 0.2mm 0; margin: 0 -1.5mm; width: calc(100% + 3mm);
+            flex-shrink: 0;
+          }
+          .cp-offer-label { text-align: center; font-size: 4px; color: #999; line-height: 1.2; flex-shrink: 0; }
+          .cp-hero {
+            text-align: center; font-size: 12px; font-weight: 900; color: #c62828;
+            line-height: 1.15; letter-spacing: 0.5px; flex-shrink: 0;
+          }
+          .cp-hero-sub { text-align: center; font-size: 4px; color: #b71c1c; line-height: 1.2; flex-shrink: 0; }
 
           .cp-code-wrap { text-align: center; flex-shrink: 0; }
-          .cp-code-lbl { font-size: 4.5px; color: #999; } 
+          .cp-code-lbl { font-size: 4px; color: #aaa; }
           .cp-code {
-            font-size: 9px; font-weight: 900; letter-spacing: 2px;
-            color: #d32f2f; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
-            padding: 0.3mm 1.5mm; border-radius: 0.8mm; display: inline-block;
-            border: 0.5px dashed #d32f2f; line-height: 1.3;
+            font-size: 10px; font-weight: 900; letter-spacing: 3px;
+            color: #1a1a2e; background: #fff;
+            padding: 0.3mm 2mm; display: inline-block;
+            border: 0.5px dashed #bbb; border-radius: 0.5mm; line-height: 1.4;
+            font-family: 'Courier New', monospace;
           }
 
-          .cp-meta { display: flex; justify-content: center; gap: 1.5mm; font-size: 4.5px; color: #888; line-height: 1.3; flex-shrink: 0; }
+          .cp-meta { display: flex; justify-content: center; gap: 2mm; font-size: 4px; color: #999; line-height: 1.3; flex-shrink: 0; }
 
-          .cp-terms { flex-shrink: 0; }
-          .cp-term { font-size: 4px; color: #777; line-height: 1.2; }
+          .cp-terms { flex-shrink: 0; border-top: 0.3px dashed #e0e0e0; padding-top: 0.3mm; }
+          .cp-term { font-size: 3.5px; color: #aaa; line-height: 1.3; }
 
           .cp-footer { text-align: center; flex-shrink: 0; }
-          .cp-social { display: flex; align-items: center; justify-content: center; gap: 0.8mm; }
-          .smi { width: 2.5mm; height: 2.5mm; color: #999; flex-shrink: 0; }
-          .cp-social-user { font-size: 3.2px; color: #aaa; }
-          .cp-website { font-size: 3.2px; color: #bbb; line-height: 1.2; text-align: center; }
+          .cp-social { display: flex; align-items: center; justify-content: center; gap: 0.6mm; }
+          .smi { width: 2.2mm; height: 2.2mm; color: #bbb; flex-shrink: 0; }
+          .cp-social-user { font-size: 3px; color: #bbb; }
+          .cp-website { font-size: 3px; color: #ccc; line-height: 1.2; text-align: center; }
 
           @media print {
             @page { size: A4 portrait; margin: 0; }
