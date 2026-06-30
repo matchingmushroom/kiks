@@ -20,7 +20,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateDummyProducts } from "@/lib/dummyProducts";
-import { generateSku, generateModelNo } from "@/lib/sku-generator";
+import { generateBarcodeId, generateSku, generateModelNo } from "@/lib/sku-generator";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import PrintLabelsDialog from "@/components/admin/PrintLabelsDialog";
@@ -118,8 +118,13 @@ export default function AdminProductsPage() {
         await updateDoc(doc(db, "products", editingId), data);
       } else {
         const prodId = await generateId("PROD");
+        const cat = categories.find((c) => c.id === form.categoryId);
+        const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
+        const sku = generateSku(barcodeId, form.costPrice || 0, "XX", form.quantityInStock || 1);
+        const modelNo = generateModelNo(cat?.shortCode || "XX", form.costPrice || 0, form.quantityInStock || 1);
         await setDoc(doc(db, "products", prodId), {
           ...data,
+          sku, barcodeId, modelNo,
           createdAt: Timestamp.fromDate(new Date()),
         });
       }
