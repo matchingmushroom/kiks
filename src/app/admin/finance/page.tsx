@@ -5,6 +5,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import {
   Account, AccountTransaction, Transfer, JournalEntry,
+  Sale, Expense, Product, Debtor, Creditor,
 } from "@/types";
 import { formatCurrency, formatDate, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
@@ -18,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import {
   Download, Plus, X, Save, ArrowUpRight, ArrowDownRight,
 } from "lucide-react";
+import { computePnl, computeBalanceSheet } from "@/lib/finance";
 
 function ReportHeader({ title, period }: { title: string; period: string }) {
   const { settings } = useShopSettings();
@@ -56,30 +58,6 @@ function TotalLine({ label, value, negative }: { label: string; value: number; n
   );
 }
 
-interface PnlResult {
-  grossRevenue: number;
-  cogs: number;
-  grossProfit: number;
-  totalExpenses: number;
-  expenseByHead: Record<string, number>;
-  netProfit: number;
-  saleCount: number;
-}
-
-interface BalanceSheetResult {
-  cashBalance: number;
-  bankBalance: number;
-  closingStock: number;
-  productCount: number;
-  sundryDebtors: number;
-  sundryCreditors: number;
-  openingCapital: number;
-  retainedEarnings: number;
-  totalAssets: number;
-  totalLiabilities: number;
-  totalEquity: number;
-}
-
 const EXPENSE_HEADS = [
   "Rent", "Salary", "Electricity", "Water", "Internet",
   "Marketing", "Travel", "Maintenance", "Packaging",
@@ -91,40 +69,35 @@ const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 const startOfYear = new Date(today.getFullYear(), 0, 1);
 
 function PnLSection() {
-  const [gasUrl, setGasUrl] = useState("");
-  const [pnlData, setPnlData] = useState<PnlResult | null>(null);
-  const [pnlLoading, setPnlLoading] = useState(false);
+  const { data: sales } = useFirestore<Sale>("sales", {
+    constraints: [orderBy("saleDate", "desc"), limit(2000)],
+    realtime: true, cache: false,
+  });
+  const { data: expenses } = useFirestore<Expense>("expenses", {
+    constraints: [orderBy("date", "desc"), limit(1000)],
+    realtime: true, cache: false,
+  });
   const [pnlRange, setPnlRange] = useState<"mtd" | "ytd" | "fytd" | "custom">("mtd");
   const [customStart, setCustomStart] = useState(startOfMonth.toISOString().slice(0, 10));
   const [customEnd, setCustomEnd] = useState(today.toISOString().slice(0, 10));
 
-  useEffect(() => {
-    getDoc(doc(db, "shop_settings", "emailBackupConfig")).then((snap) => {
-      if (snap.exists()) setGasUrl(snap.data().gasWebhookUrl || "");
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    if (!gasUrl) return;
-    let start: string, end: string;
-    if (pnlRange === "mtd") { start = startOfMonth.toISOString().slice(0, 10); end = today.toISOString().slice(0, 10); }
-    else if (pnlRange === "ytd") {
-      start = getUseBsCalendar() ? new Date(getFiscalYearStartEpoch()).toISOString().slice(0, 10) : startOfYear.toISOString().slice(0, 10);
-      end = today.toISOString().slice(0, 10);
+  const pnlData = useMemo(() => {
+    let startMs: number, endMs: number;
+    const endOfDay = new Date(today.toISOString().slice(0, 10));
+    endOfDay.setDate(endOfDay.getDate() + 1);
+    endMs = endOfDay.getTime();
+    if (pnlRange === "mtd") {
+      startMs = startOfMonth.getTime();
+    } else if (pnlRange === "ytd") {
+      startMs = getUseBsCalendar() ? getFiscalYearStartEpoch() : startOfYear.getTime();
+    } else if (pnlRange === "fytd") {
+      startMs = getFiscalYearStartEpoch();
+    } else {
+      startMs = new Date(customStart).getTime();
+      endMs = new Date(customEnd).getTime() + 86400000;
     }
-    else if (pnlRange === "fytd") { start = new Date(getFiscalYearStartEpoch()).toISOString().slice(0, 10); end = today.toISOString().slice(0, 10); }
-    else { start = customStart; end = customEnd; }
-
-    setPnlLoading(true);
-    fetch(gasUrl, {
-      method: "POST",
-      body: JSON.stringify({ action: "computePnl", start, end }),
-    })
-      .then((r) => r.json())
-      .then((result) => setPnlData(result as PnlResult))
-      .catch((err) => console.error("PnL fetch failed", err))
-      .finally(() => setPnlLoading(false));
-  }, [pnlRange, customStart, customEnd, gasUrl]);
+    return computePnl(sales, expenses, startMs, endMs);
+  }, [sales, expenses, pnlRange, customStart, customEnd]);
 
   const pnl = pnlData;
   const periodLabel = pnlRange === "mtd"
@@ -151,9 +124,12 @@ function PnLSection() {
         )}
       </div>
 
-      {!pnl && pnlLoading && <p className="text-sm text-muted-foreground py-8 text-center">Loading P&amp;L...</p>}
-      {!pnl && !pnlLoading && <p className="text-sm text-muted-foreground py-8 text-center">No data. Configure GAS webhook URL in Settings.</p>}
-      {pnl && (
+      {!sales || !expenses ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">Loading data...</p>
+      ) : sales.length === 0 ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">No sales recorded in this period.</p>
+      ) : (
+
         <div className="max-w-2xl mx-auto bg-white border border-gray-300 rounded-sm shadow-lg p-10 print:p-6 print:shadow-none">
           <ReportHeader title="Profit & Loss Statement" period={periodLabel} />
 
@@ -200,57 +176,57 @@ function PnLSection() {
 
 function BalanceSheetSection() {
   const { settings } = useShopSettings();
-  const [gasUrl, setGasUrl] = useState("");
-  const [bsData, setBsData] = useState<BalanceSheetResult | null>(null);
-  const [bsLoading, setBsLoading] = useState(false);
-  const [bsError, setBsError] = useState("");
   const [bsDate, setBsDate] = useState(today.toISOString().slice(0, 10));
   const [partners, setPartners] = useState<{ id: string; name: string; amount: number }[]>([]);
 
   useEffect(() => {
-    getDoc(doc(db, "shop_settings", "emailBackupConfig")).then((snap) => {
-      if (snap.exists()) setGasUrl(snap.data().gasWebhookUrl || "");
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const load = async () => {
-      const snap = await getDocs(collection(db, "partnerCapitals"));
+    getDocs(collection(db, "partnerCapitals")).then((snap) => {
       setPartners(snap.docs.map((d) => ({ id: d.id, ...d.data() } as any)).sort((a, b) => b.addedAt - a.addedAt));
-    };
-    load();
+    });
   }, []);
 
-  useEffect(() => {
-    if (!gasUrl) { setBsLoading(false); return; }
-    setBsLoading(true);
-    setBsError("");
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60000);
-    fetch(gasUrl, {
-      method: "POST",
-      body: JSON.stringify({ action: "computeBalanceSheet", asOf: bsDate }),
-      signal: controller.signal,
-    })
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((result) => {
-        if (result.status === "error") throw new Error(result.message || "GAS error");
-        if (!result.cashBalance && result.cashBalance !== 0) throw new Error("Unexpected response format — GAS may need redeployment");
-        setBsData(result as BalanceSheetResult);
-      })
-      .catch((err) => { setBsError(err.message || "Failed to load"); setBsData(null); })
-      .finally(() => { clearTimeout(timeout); setBsLoading(false); });
-    return () => { clearTimeout(timeout); controller.abort(); };
-  }, [bsDate, gasUrl]);
+  const { data: sales } = useFirestore<Sale>("sales", {
+    constraints: [orderBy("saleDate", "desc"), limit(2000)],
+    realtime: true, cache: false,
+  });
+  const { data: expenses } = useFirestore<Expense>("expenses", {
+    constraints: [orderBy("date", "desc"), limit(2000)],
+    realtime: true, cache: false,
+  });
+  const { data: products } = useFirestore<Product>("products", {
+    constraints: [orderBy("name", "asc"), limit(2000)],
+    realtime: true,
+  });
+  const { data: debtors } = useFirestore<Debtor>("debtors", {
+    constraints: [limit(500)],
+    realtime: true,
+  });
+  const { data: creditors } = useFirestore<Creditor>("creditors", {
+    constraints: [limit(500)],
+    realtime: true,
+  });
+  const { data: accounts } = useFirestore<Account>("accounts", { realtime: true });
+  const { data: transactions } = useFirestore<AccountTransaction>("accountTransactions", {
+    constraints: [orderBy("date", "desc"), limit(3000)],
+    realtime: true, cache: false,
+  });
 
-  const bs = bsData;
+  const asOfMs = useMemo(() => {
+    const d = new Date(bsDate);
+    d.setDate(d.getDate() + 1);
+    return d.getTime();
+  }, [bsDate]);
+
+  const bs = useMemo(() => {
+    if (!sales || !expenses || !products || !debtors || !creditors || !accounts || !transactions) return null;
+    const totalCapital = partners.reduce((s, p) => s + p.amount, 0);
+    return computeBalanceSheet(sales, expenses, products, debtors, creditors, accounts, transactions, totalCapital, asOfMs);
+  }, [sales, expenses, products, debtors, creditors, accounts, transactions, partners, asOfMs]);
+
   const totalCapital = partners.reduce((s, p) => s + p.amount, 0);
   const asOfLabel = `As at ${new Date(bsDate).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`;
 
-  if (!gasUrl) return <p className="text-sm text-muted-foreground py-8 text-center">Please configure GAS Webhook URL in Settings → Backup tab.</p>;
-  if (bsError) return <p className="text-sm text-red-500 py-8 text-center">Error: {bsError}. Check GAS webhook configuration.</p>;
-  if (bsLoading && !bs) return <p className="text-sm text-muted-foreground py-8 text-center">Loading balance sheet...</p>;
-  if (!bs) return <p className="text-sm text-muted-foreground py-8 text-center">No data returned. Check GAS configuration.</p>;
+  const loading = !bs;
 
   return (
     <div>
@@ -259,7 +235,10 @@ function BalanceSheetSection() {
         <input type="date" value={bsDate} onChange={(e) => setBsDate(e.target.value)} className="px-3 py-1.5 border border-border rounded-lg text-sm" />
       </div>
 
-      <div className={`max-w-3xl mx-auto bg-white border border-gray-300 rounded-sm shadow-lg p-10 print:p-6 print:shadow-none ${bsLoading && bs ? "opacity-50 transition-opacity duration-300" : ""}`}>
+      {loading ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">Loading balance sheet...</p>
+      ) : (
+      <div className="max-w-3xl mx-auto bg-white border border-gray-300 rounded-sm shadow-lg p-10 print:p-6 print:shadow-none">
         <ReportHeader title="Balance Sheet" period={asOfLabel} />
 
         <div className="grid grid-cols-2 gap-8">
@@ -320,6 +299,7 @@ function BalanceSheetSection() {
           <p className="text-[10px] text-gray-400">This statement was generated on {new Date().toLocaleString()}. Values in {settings?.currency || "NPR"}.</p>
         </div>
       </div>
+      )}
     </div>
   );
 }

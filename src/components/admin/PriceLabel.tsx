@@ -28,7 +28,7 @@ export default function PriceLabel({ productName, sku, price, shopName = "Pancha
   }, [sku]);
 
   return (
-    <div className="price-label" style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "1mm 1.5mm", fontFamily: "Arial, Helvetica, sans-serif", width: "66mm", height: "25.4mm", border: "0.3px solid #ddd", overflow: "hidden" }}>
+    <div className="price-label" style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "1mm 1.5mm", fontFamily: "Arial, Helvetica, sans-serif", width: "66mm", height: "25.4mm", boxSizing: "border-box", border: "0.3px solid #ddd", overflow: "hidden" }}>
       <div style={{ fontSize: "5px", fontWeight: 600, color: "#888", textAlign: "center", lineHeight: 1 }}>{shopName}</div>
       <div className="pl-name" style={{ fontSize: "7px", fontWeight: 700, textAlign: "center", lineHeight: 1.15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "100%", maxHeight: "14px" }}>{productName}</div>
       <svg ref={svgRef} className="pl-barcode" style={{ maxWidth: "60mm", height: "9mm", margin: 0 }} />

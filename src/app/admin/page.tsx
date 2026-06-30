@@ -12,7 +12,8 @@ import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Link from "next/link";
-import { Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart, BarChart3, ShoppingCart, Clock, RefreshCw, X, DollarSign, Landmark, CreditCard, FileDown, Search, Sparkles } from "lucide-react";
+import { Users, Package, Wallet, AlertTriangle, TrendingUp, PieChart, BarChart3, ShoppingCart, Clock, RefreshCw, X, DollarSign, Landmark, CreditCard, FileDown, Search, Sparkles, ScanLine } from "lucide-react";
+import BarcodeScannerDialog from "@/components/admin/BarcodeScannerDialog";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -81,6 +82,7 @@ export default function AdminDashboardPage() {
   const [skuResult, setSkuResult] = useState<{
     product: Product; purchase: Purchase | null;
   } | null>(null);
+  const [showScanner, setShowScanner] = useState(false);
 
   const handleSkuSearch = () => {
     const p = products.find((x) => x.sku === skuSearch.trim());
@@ -283,6 +285,11 @@ export default function AdminDashboardPage() {
               onChange={(e) => setSkuSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSkuSearch()}
               className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <button onClick={() => setShowScanner(true)}
+              className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:text-primary hover:border-primary transition-colors"
+              title="Scan barcode">
+              <ScanLine className="h-4 w-4" />
+            </button>
             <button onClick={handleSkuSearch}
               className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">Search</button>
           </div>
@@ -829,6 +836,19 @@ export default function AdminDashboardPage() {
           <PaymentDetailContent transaction={detailPayment} />
         )}
       </RowDetailModal>
+
+      {showScanner && (
+        <BarcodeScannerDialog
+          onScan={(value) => {
+            setSkuSearch(value);
+            const p = products.find((x) => x.sku === value.trim());
+            if (!p) { setSkuResult(null); return; }
+            const pc = purchases.find((x) => x.items.some((i) => i.productId === p.id));
+            setSkuResult({ product: p, purchase: pc || null });
+          }}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </AdminLayout>
   );
 }

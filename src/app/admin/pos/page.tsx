@@ -114,50 +114,48 @@ export default function POSPage() {
 
   const addItem = (product: Product) => {
     if (product.comboItems?.length) {
-      let totalMrp = 0;
-      const newItems = [...items];
       const comboProducts = activeProducts.filter((p) => product.comboItems!.includes(p.id));
-      for (const cp of comboProducts) {
-        const existing = newItems.findIndex((i) => i.productId === cp.id);
-        if (existing >= 0) {
-          const stock = cp.quantityInStock ?? 0;
-          const newQty = Math.min(newItems[existing].quantity + 1, stock);
-          newItems[existing] = { ...newItems[existing], quantity: newQty, subtotal: newQty * newItems[existing].unitPrice };
-        } else {
-          newItems.push({
-            productId: cp.id,
-            productName: cp.name,
-            quantity: 1,
-            unitPrice: cp.price,
-            subtotal: cp.price,
-          });
+      let totalMrp = 0;
+      for (const cp of comboProducts) totalMrp += cp.price;
+      const comboItemsToAdd = comboProducts.map((cp) => ({
+        productId: cp.id, productName: cp.name,
+        quantity: 1, unitPrice: cp.price, subtotal: cp.price,
+      }));
+      setItems((prev) => {
+        const next = [...prev];
+        for (const ci of comboItemsToAdd) {
+          const idx = next.findIndex((i) => i.productId === ci.productId);
+          if (idx >= 0) {
+            const cp = comboProducts.find((p) => p.id === ci.productId)!;
+            const newQty = Math.min(next[idx].quantity + 1, cp?.quantityInStock ?? 0);
+            next[idx] = { ...next[idx], quantity: newQty, subtotal: newQty * next[idx].unitPrice };
+          } else {
+            next.push(ci);
+          }
         }
-        totalMrp += cp.price;
-      }
-      setItems(newItems);
+        return next;
+      });
       setComboDiscount(totalMrp - (product.comboPrice || product.price));
       setProductSearch("");
       return;
     }
     const stock = product.quantityInStock ?? 0;
     if (stock <= 0) return;
-    const existing = items.find((i) => i.productId === product.id);
-    if (existing) {
-      const newQty = Math.min(existing.quantity + 1, stock);
-      setItems(items.map((i) =>
-        i.productId === product.id
-          ? { ...i, quantity: newQty, subtotal: newQty * i.unitPrice }
-          : i
-      ));
-      return;
-    }
-    setItems([...items, {
-      productId: product.id,
-      productName: product.name,
-      quantity: 1,
-      unitPrice: product.price,
-      subtotal: product.price,
-    }]);
+    setItems((prev) => {
+      const existing = prev.find((i) => i.productId === product.id);
+      if (existing) {
+        const newQty = Math.min(existing.quantity + 1, stock);
+        return prev.map((i) =>
+          i.productId === product.id
+            ? { ...i, quantity: newQty, subtotal: newQty * i.unitPrice }
+            : i
+        );
+      }
+      return [...prev, {
+        productId: product.id, productName: product.name,
+        quantity: 1, unitPrice: product.price, subtotal: product.price,
+      }];
+    });
     setProductSearch("");
   };
 
@@ -779,7 +777,11 @@ export default function POSPage() {
       )}
       {showScanner && (
         <BarcodeScannerDialog
-          onScan={(value) => { setProductSearch(value); }}
+          onScan={(value) => {
+            const found = activeProducts.find((p) => p.sku === value.trim());
+            if (found) addItem(found);
+            else setProductSearch(value.trim());
+          }}
           onClose={() => setShowScanner(false)}
         />
       )}
