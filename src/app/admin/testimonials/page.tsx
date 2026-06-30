@@ -56,7 +56,7 @@ export default function AdminTestimonialsPage() {
     if (!form.customerName.trim() || !form.text.trim()) return;
     setSaving(true);
     try {
-      const id = editingId || generateId();
+      const id = editingId || await generateId("TEST");
       const data: Record<string, any> = {
         ...form,
         customerName: form.customerName.trim(),
