@@ -221,43 +221,44 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
             width: ${LABEL_W}mm;
             height: ${LABEL_H}mm;
             box-sizing: border-box;
-            padding: 1mm 1.5mm;
+            padding: 1.2mm 1.5mm;
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
             background: linear-gradient(135deg, #fff 0%, #fef9ef 100%);
             overflow: hidden;
           }
           .coupon.empty { visibility: hidden; }
 
-          .cp-header { width: 100%; border-collapse: collapse; }
+          .cp-header { width: 100%; border-collapse: collapse; flex-shrink: 0; }
           .cp-logo-cell { width: 18mm; vertical-align: middle; }
           .cp-logo { max-width: 16mm; max-height: 7mm; object-fit: contain; display: block; }
           .cp-info-cell { vertical-align: middle; }
           .cp-name { font-size: 7px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
           .cp-addr, .cp-phone { font-size: 4.5px; color: #666; line-height: 1.2; }
 
-          .cp-divider { height: 0.3mm; background: linear-gradient(90deg, transparent, #d32f2f, transparent); margin: 0.4mm 0; }
+          .cp-divider { height: 0.3mm; background: linear-gradient(90deg, transparent, #d32f2f, transparent); flex-shrink: 0; }
 
-          .cp-exclusive { text-align: center; font-size: 4.5px; font-weight: 700; color: #c62828; letter-spacing: 0.8px; text-transform: uppercase; line-height: 1.2; }
-          .cp-offer-label { text-align: center; font-size: 4px; color: #888; line-height: 1.2; }
-          .cp-hero { text-align: center; font-size: 10px; font-weight: 900; color: #d32f2f; line-height: 1.2; letter-spacing: 0.3px; }
-          .cp-hero-sub { text-align: center; font-size: 4px; color: #b71c1c; line-height: 1.2; }
+          .cp-exclusive { text-align: center; font-size: 5px; font-weight: 700; color: #c62828; letter-spacing: 0.8px; text-transform: uppercase; line-height: 1.2; flex-shrink: 0; }
+          .cp-offer-label { text-align: center; font-size: 4.5px; color: #888; line-height: 1.2; flex-shrink: 0; }
+          .cp-hero { text-align: center; font-size: 11px; font-weight: 900; color: #d32f2f; line-height: 1.2; letter-spacing: 0.3px; flex-shrink: 0; }
+          .cp-hero-sub { text-align: center; font-size: 4.5px; color: #b71c1c; line-height: 1.2; flex-shrink: 0; }
 
-          .cp-code-wrap { text-align: center; margin: 0.2mm 0; }
-          .cp-code-lbl { font-size: 4px; color: #999; }
+          .cp-code-wrap { text-align: center; flex-shrink: 0; }
+          .cp-code-lbl { font-size: 4.5px; color: #999; }
           .cp-code {
-            font-size: 8px; font-weight: 900; letter-spacing: 2px;
+            font-size: 9px; font-weight: 900; letter-spacing: 2px;
             color: #d32f2f; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
-            padding: 0.3mm 1.2mm; border-radius: 0.8mm; display: inline-block;
+            padding: 0.3mm 1.5mm; border-radius: 0.8mm; display: inline-block;
             border: 0.5px dashed #d32f2f; line-height: 1.3;
           }
 
-          .cp-meta { display: flex; justify-content: center; gap: 1.5mm; font-size: 4px; color: #888; line-height: 1.3; }
+          .cp-meta { display: flex; justify-content: center; gap: 1.5mm; font-size: 4.5px; color: #888; line-height: 1.3; flex-shrink: 0; }
 
-          .cp-terms { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 0.2mm; margin: 0.2mm 0; }
-          .cp-term { font-size: 3.5px; color: #777; line-height: 1.2; }
+          .cp-terms { flex-shrink: 0; }
+          .cp-term { font-size: 4px; color: #777; line-height: 1.2; }
 
-          .cp-footer { margin-top: auto; text-align: center; }
+          .cp-footer { text-align: center; flex-shrink: 0; }
           .cp-social { display: flex; align-items: center; justify-content: center; gap: 0.8mm; }
           .smi { width: 2.5mm; height: 2.5mm; color: #999; flex-shrink: 0; }
           .cp-social-user { font-size: 3.2px; color: #aaa; }
