@@ -27,7 +27,7 @@ const LANG_LABELS: Record<PrintLang, { codeLabel: string; offer: string; off: st
     terms: [
       "Coupon valid for both online and in-store purchases.",
       "Cannot be combined with any other offer or discount.",
-      "Valid only on products specified at the time of issuance.",
+      "Valid only on products specified at time of issuance.",
       "Non-transferable and non-refundable.",
       "Management reserves the right to cancel or modify anytime.",
       "Valid only until the mentioned expiry date.",
@@ -53,7 +53,19 @@ const LANG_LABELS: Record<PrintLang, { codeLabel: string; offer: string; off: st
   },
 };
 
-const CARDS_PER_PAGE = 15; // 3 cols x 5 rows on A4
+const SOCIAL_ICONS = `<svg class="smi" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg><svg class="smi" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg><svg class="smi" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.13-.17-2.04.24-4.19 1.48-5.94.96-1.35 2.53-2.32 4.2-2.32 1.66 0 3.24.97 4.2 2.32 1.24 1.75 1.65 3.9 1.48 5.94-.87-.36-2.03-.45-3.02-.13.04-1.48-.02-2.96-.04-4.44v-4.23Zm-6.66 18.67c-1.52.17-3.09-.37-4.23-1.27-1.84 1.27-3.92 2.28-6.07 2.85 1.26 2.38 3.26 4.36 5.74 5.54 1.53-2.08 3.49-3.7 5.73-4.22-.42-1.02-.87-1.99-1.17-3.07v.18Z"/></svg>`;
+
+const SOCIAL_USERNAME = "panchakanya.collections";
+
+// ST-10A4100 constants
+const COLS = 2;
+const ROWS = 5;
+const LABEL_W = 99.1;
+const LABEL_H = 57.0;
+const TOP_M = 6.0;
+const BOTTOM_M = 6.0;
+const COL_GAP = 2.5;
+const LABELS_PER_SHEET = COLS * ROWS;
 
 export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDialogProps) {
   const { user } = useAuth();
@@ -69,10 +81,11 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
-  const shopName = settings.shopName || "KIKS Collections";
+  const shopName = settings.shopName || "Panchakanya Collections";
   const address = settings.address || "";
   const phone = settings.phone || "";
   const logoUrl = settings.logoUrl || "";
+  const websiteUrl = settings.website || "";
 
   const generateCode = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -111,7 +124,6 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
         createdAt: Timestamp.fromDate(new Date()),
         updatedAt: Timestamp.fromDate(new Date()),
       });
-      // Auto-print after creation
       handleA4Print(code);
       if (onComplete) onComplete();
     } catch (e) {
@@ -133,67 +145,56 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
     const dLabel = discountType === "fixed"
       ? `Rs. ${Number(discountValue).toLocaleString("en-IN")}`
       : `${discountValue}%`;
-    const maxDLbl = maxDiscount > 0
-      ? `Rs. ${Number(maxDiscount).toLocaleString("en-IN")}`
-      : "";
-    const minPLbl = minPurchase > 0
-      ? `Rs. ${Number(minPurchase).toLocaleString("en-IN")}`
-      : "";
+    const maxPart = maxDiscount > 0 ? ` (${langData.upTo} Rs. ${Number(maxDiscount).toLocaleString("en-IN")})` : "";
+    const minPLbl = minPurchase > 0 ? `${langData.minPurchase}: Rs. ${Number(minPurchase).toLocaleString("en-IN")}` : "";
+    const shortTerms = langData.terms.slice(0, 3);
 
-    const websiteUrl = settings.website || "";
-
-    const SOCIAL_ICONS = `<svg class="smi" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg><svg class="smi" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg><svg class="smi" viewBox="0 0 24 24" fill="currentColor"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>`;
-    const SOCIAL_USERNAME = "panchakanya.collections";
-
-    const buildFront = () => `
-      <table class="c-front-table">
-        <tr>
-          <td class="c-logo-cell">
-            ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" class="c-logo" />` : ""}
+    const buildCard = () => `
+      <div class="coupon">
+        <table class="cp-header"><tr>
+          <td class="cp-logo-cell">${logoUrl ? `<img src="${escapeHtml(logoUrl)}" class="cp-logo" />` : ""}</td>
+          <td class="cp-info-cell">
+            <div class="cp-name">${escapeHtml(shopName)}</div>
+            ${address ? `<div class="cp-addr">${escapeHtml(address)}</div>` : ""}
+            ${phone ? `<div class="cp-phone">${escapeHtml(phone)}</div>` : ""}
           </td>
-          <td class="c-info-cell">
-            <div class="c-name">${escapeHtml(shopName)}</div>
-            ${address ? `<div class="c-addr">${escapeHtml(address)}</div>` : ""}
-            ${phone ? `<div class="c-phone">${escapeHtml(phone)}</div>` : ""}
-          </td>
-        </tr>
-      </table>
-      <div class="c-hero">
-        <div class="c-hero-val">${escapeHtml(dLabel)} ${escapeHtml(langData.off)}</div>
-        ${maxDLbl ? `<div class="c-hero-sub">${escapeHtml(langData.upTo)} ${escapeHtml(maxDLbl)}</div>` : ""}
-      </div>
-      <div class="c-exclusive">${escapeHtml(langData.exclusive)}</div>
-      <div class="c-code-section">
-        <div class="c-code-lbl">${escapeHtml(langData.codeLabel)}</div>
-        <div class="c-code">${escapeHtml(code)}</div>
-      </div>
-      ${validUntilStr ? `<div class="c-valid">${escapeHtml(langData.validUntil)}: ${escapeHtml(validUntilStr)}</div>` : ""}
-      ${minPurchase > 0 ? `<div class="c-min-purchase">${escapeHtml(langData.minPurchase)}: ${minPLbl}</div>` : ""}
-      <div class="c-footer"><div class="c-social">${SOCIAL_ICONS}<span class="c-social-user">${escapeHtml(SOCIAL_USERNAME)}</span></div>${websiteUrl ? `<div class="c-website">${escapeHtml(websiteUrl)}</div>` : ""}</div>
-    `;
-
-    const buildBack = () => `
-      <div class="c-back-inner">
-        <div class="c-back-title">Terms &amp; Conditions</div>
-        <div class="c-back-terms">${langData.terms.map((t) => `<div class="c-back-term">${escapeHtml(t)}</div>`).join("")}</div>
-        ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" class="c-back-logo" />` : ""}
-        <div class="c-back-name">${escapeHtml(shopName)}</div>
+        </tr></table>
+        <div class="cp-divider"></div>
+        <div class="cp-exclusive">${escapeHtml(langData.exclusive)}</div>
+        <div class="cp-offer-label">${escapeHtml(langData.offer)}</div>
+        <div class="cp-hero">${escapeHtml(dLabel)} ${escapeHtml(langData.off)}</div>
+        ${maxPart ? `<div class="cp-hero-sub">${escapeHtml(maxPart)}</div>` : ""}
+        <div class="cp-code-wrap">
+          <div class="cp-code-lbl">${escapeHtml(langData.codeLabel)}</div>
+          <div class="cp-code">${escapeHtml(code)}</div>
+        </div>
+        <div class="cp-meta">
+          ${validUntilStr ? `<span class="cp-valid">${escapeHtml(langData.validUntil)}: ${escapeHtml(validUntilStr)}</span>` : ""}
+          ${minPLbl ? `<span class="cp-min-p">${escapeHtml(minPLbl)}</span>` : ""}
+        </div>
+        <div class="cp-terms">${shortTerms.map((t) => `<div class="cp-term">${escapeHtml(t)}</div>`).join("")}</div>
+        <div class="cp-footer">
+          <div class="cp-social">${SOCIAL_ICONS}<span class="cp-social-user">${escapeHtml(SOCIAL_USERNAME)}</span></div>
+          ${websiteUrl ? `<div class="cp-website">${escapeHtml(websiteUrl)}</div>` : ""}
+        </div>
       </div>
     `;
 
-    // Build pages: fronts then backs
-    let frontPages = "";
-    let backPages = "";
-    for (let start = 0; start < numCards; start += CARDS_PER_PAGE) {
-      const count = Math.min(CARDS_PER_PAGE, numCards - start);
-      let frontGrid = "";
-      let backGrid = "";
+    let pages = "";
+    for (let start = 0; start < numCards; start += LABELS_PER_SHEET) {
+      const count = Math.min(LABELS_PER_SHEET, numCards - start);
+      let grid = "";
       for (let i = 0; i < count; i++) {
-        frontGrid += `<div class="c-card c-front">${buildFront()}</div>`;
-        backGrid += `<div class="c-card c-back">${buildBack()}</div>`;
+        grid += buildCard();
       }
-      frontPages += `<div class="a4-page front-page"><div class="card-grid">${frontGrid}</div></div>`;
-      backPages += `<div class="a4-page back-page"><div class="card-grid">${backGrid}</div></div>`;
+      for (let i = count; i < LABELS_PER_SHEET; i++) {
+        grid += `<div class="coupon empty"></div>`;
+      }
+      pages += `<div class="a4-page"><div class="label-grid">${grid}</div></div>`;
+    }
+
+    if (pages === "") {
+      pages = `<div class="a4-page"><div class="label-grid">${Array.from({ length: LABELS_PER_SHEET }, () => `<div class="coupon empty"></div>`).join("")}</div></div>`;
     }
 
     printWin.document.write(`
@@ -203,98 +204,74 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
         <title>Coupon - ${escapeHtml(code)}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          @page { size: A4; margin: 4mm; }
-          body { font-family: Arial, Helvetica, sans-serif; background: #fff; }
-          .a4-page {
-            width: 210mm;
-            height: 297mm;
-            padding: 2.5mm;
-            page-break-after: always;
-            page-break-inside: avoid;
-          }
-          .card-grid {
+          @page { size: A4 portrait; margin: 0; }
+          body { width: 210mm; margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; }
+          .a4-page { width: 210mm; height: 297mm; page-break-after: always; overflow: hidden; }
+          .label-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 1.8mm;
-            height: 100%;
+            gap: 0 ${COL_GAP}mm;
+            grid-template-columns: repeat(${COLS}, ${LABEL_W}mm);
+            grid-template-rows: repeat(${ROWS}, ${LABEL_H}mm);
+            width: 210mm;
+            justify-content: center;
             align-content: start;
+            padding: ${TOP_M}mm 0 ${BOTTOM_M}mm 0;
           }
-          .c-card {
-            width: 100%;
-            height: 56mm;
-            border: 0.3mm solid #e0e0e0;
-            border-radius: 0.8mm;
+          .coupon {
+            width: ${LABEL_W}mm;
+            height: ${LABEL_H}mm;
+            box-sizing: border-box;
+            padding: 1mm 1.5mm;
             display: flex;
             flex-direction: column;
-            padding: 1mm 1.5mm;
+            background: linear-gradient(135deg, #fff 0%, #fef9ef 100%);
             overflow: hidden;
-            page-break-inside: avoid;
-            position: relative;
           }
-          .c-front { background: linear-gradient(135deg, #fff 0%, #fef9ef 100%); }
-          .c-back { background: #f8f8f8; }
+          .coupon.empty { visibility: hidden; }
 
-          /* Front layout */
-          .c-front-table { width: 100%; border-collapse: collapse; margin-bottom: 0.3mm; }
-          .c-logo-cell { width: 20mm; vertical-align: middle; text-align: left; }
-          .c-logo { max-width: 18mm; max-height: 8mm; object-fit: contain; }
-          .c-info-cell { vertical-align: middle; text-align: right; }
-          .c-name { font-size: 7px; font-weight: 700; color: #1a1a2e; line-height: 1.15; }
-          .c-addr { font-size: 5px; color: #666; line-height: 1.15; }
-          .c-phone { font-size: 5px; color: #666; line-height: 1.15; }
+          .cp-header { width: 100%; border-collapse: collapse; }
+          .cp-logo-cell { width: 18mm; vertical-align: middle; }
+          .cp-logo { max-width: 16mm; max-height: 7mm; object-fit: contain; display: block; }
+          .cp-info-cell { vertical-align: middle; }
+          .cp-name { font-size: 7px; font-weight: 700; color: #1a1a2e; line-height: 1.2; }
+          .cp-addr, .cp-phone { font-size: 4.5px; color: #666; line-height: 1.2; }
 
-          .c-hero { text-align: center; margin: 0.5mm 0 0.2mm; padding: 0.4mm 1mm; background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%); border-radius: 0.6mm; }
-          .c-hero-val { font-weight: 900; color: #fff; font-size: 9px; letter-spacing: 0.5px; }
-          .c-hero-sub { font-weight: 500; color: #ffcdd2; font-size: 5px; }
+          .cp-divider { height: 0.3mm; background: linear-gradient(90deg, transparent, #d32f2f, transparent); margin: 0.4mm 0; }
 
-          .c-exclusive { text-align: center; font-weight: 700; color: #c62828; font-size: 5.5px; letter-spacing: 1px; text-transform: uppercase; margin: 0.15mm 0; }
+          .cp-exclusive { text-align: center; font-size: 4.5px; font-weight: 700; color: #c62828; letter-spacing: 0.8px; text-transform: uppercase; line-height: 1.2; }
+          .cp-offer-label { text-align: center; font-size: 4px; color: #888; line-height: 1.2; }
+          .cp-hero { text-align: center; font-size: 10px; font-weight: 900; color: #d32f2f; line-height: 1.2; letter-spacing: 0.3px; }
+          .cp-hero-sub { text-align: center; font-size: 4px; color: #b71c1c; line-height: 1.2; }
 
-          .c-code-section { text-align: center; margin: 0.2mm 0; }
-          .c-code-lbl { font-size: 4.5px; color: #999; font-weight: 500; }
-          .c-code {
-            font-weight: 900;
-            letter-spacing: 2.5px;
-            color: #d32f2f;
-            background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
-            padding: 0.4mm 1.5mm;
-            border-radius: 1mm;
-            display: inline-block;
-            border: 1px dashed #d32f2f;
-            font-size: 11px;
+          .cp-code-wrap { text-align: center; margin: 0.2mm 0; }
+          .cp-code-lbl { font-size: 4px; color: #999; }
+          .cp-code {
+            font-size: 8px; font-weight: 900; letter-spacing: 2px;
+            color: #d32f2f; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+            padding: 0.3mm 1.2mm; border-radius: 0.8mm; display: inline-block;
+            border: 0.5px dashed #d32f2f; line-height: 1.3;
           }
-          .c-valid { font-size: 4.5px; color: #888; margin-top: 0.1mm; text-align: center; }
-          .c-min-purchase { font-size: 4.5px; color: #888; text-align: center; }
 
-          .c-footer { position: absolute; bottom: 0.5mm; left: 0; right: 0; }
-          .c-social { display: flex; align-items: center; justify-content: center; gap: 1.2mm; }
-          .c-social .smi { width: 3.5mm; height: 3.5mm; color: #888; }
-          .c-social-user { font-size: 3.8px; color: #999; }
-          .c-website { text-align: center; font-size: 3.5px; color: #bbb; line-height: 1; }
+          .cp-meta { display: flex; justify-content: center; gap: 1.5mm; font-size: 4px; color: #888; line-height: 1.3; }
 
-          /* Back - Terms */
-          .c-back-inner {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            height: 100%; padding: 1mm; background: linear-gradient(135deg, #fef9ef 0%, #fff 100%);
-          }
-          .c-back-title { font-size: 5px; font-weight: 800; color: #d32f2f; text-align: center; margin-bottom: 0.5mm; letter-spacing: 0.5px; }
-          .c-back-terms { display: flex; flex-direction: column; gap: 0.3mm; margin-bottom: 0.5mm; }
-          .c-back-term { font-size: 3.5px; color: #666; line-height: 1.3; text-align: center; }
-          .c-back-logo { max-width: 14mm; max-height: 6mm; object-fit: contain; margin-top: 0.5mm; }
-          .c-back-name { font-size: 4px; font-weight: 600; color: #888; text-align: center; }
+          .cp-terms { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 0.2mm; margin: 0.2mm 0; }
+          .cp-term { font-size: 3.5px; color: #777; line-height: 1.2; }
+
+          .cp-footer { margin-top: auto; text-align: center; }
+          .cp-social { display: flex; align-items: center; justify-content: center; gap: 0.8mm; }
+          .smi { width: 2.5mm; height: 2.5mm; color: #999; flex-shrink: 0; }
+          .cp-social-user { font-size: 3.2px; color: #aaa; }
+          .cp-website { font-size: 3.2px; color: #bbb; line-height: 1.2; text-align: center; }
 
           @media print {
-            @page { size: A4; margin: 4mm; }
+            @page { size: A4 portrait; margin: 0; }
             body { background: #fff; }
-            .c-card { border-color: #ccc; }
           }
         </style>
       </head>
       <body>
-        ${frontPages}
-        ${backPages}
-        <script>
-          setTimeout(function() { window.print(); }, 800);
-        <\/script>
+        ${pages}
+        <script>setTimeout(function(){window.print()},800)<\/script>
       </body>
       </html>
     `);
@@ -312,7 +289,6 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
         <div className="p-4 space-y-4">
           {error && <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>}
 
-          {/* Language toggle */}
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1.5">Print Language</label>
             <div className="flex gap-2">
@@ -392,10 +368,11 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
           </div>
 
           <div className="bg-blue-50 text-blue-700 px-4 py-3 rounded-lg text-xs leading-relaxed">
-            <strong>Printing Tips:</strong><br />
-            • Will print <strong>{Math.max(1, quantity)}</strong> visiting cards on A4 sheet{quantity > CARDS_PER_PAGE ? `s (${Math.ceil(Math.max(1, quantity) / CARDS_PER_PAGE)} sheets)` : ""}.<br />
-            • Select <strong>Two-sided (Duplex)</strong> → <strong>Flip on Short Edge</strong> for proper front/back alignment.<br />
-            • Prints up to 15 cards per sheet (3×5 grid). Front: Discount + Coupon Code &bull; Back: Terms &amp; Conditions.
+            <strong>Printing Notes:</strong><br />
+            • Prints on <strong>Oddy ST-10A4100</strong> sheets (10 labels/sheet, 2×5 grid).<br />
+            • All content — logo, code, discount, terms &amp; conditions — fits on <strong>one label</strong>.<br />
+            • Total: <strong>{Math.max(1, quantity)}</strong> card{Math.max(1, quantity) !== 1 ? "s" : ""} on <strong>{Math.ceil(Math.max(1, quantity) / LABELS_PER_SHEET)}</strong> sheet(s).<br />
+            • Set printer: A4, Portrait, Margins: None, Scale: 100%.
           </div>
 
           <Button onClick={handleGenerate} disabled={generating || !quantity || !discountValue || !validUntil} variant="accent" className="w-full">
