@@ -49,10 +49,10 @@ function HeroSection() {
             <Sparkles className="h-3.5 w-3.5" />
             New Collection
           </div>
-          <h1 className="text-2xl sm:text-4xl lg:text-6xl font-bold text-secondary mb-3 sm:mb-6 leading-tight">
+          <h1 className="text-2xl sm:text-4xl lg:text-6xl font-bold text-secondary mb-3 sm:mb-6 leading-tight break-words">
             {slide.title}
           </h1>
-          <p className="text-sm sm:text-lg text-muted-foreground mb-5 sm:mb-8 max-w-lg">
+          <p className="text-sm sm:text-lg text-muted-foreground mb-5 sm:mb-8 max-w-lg break-words">
             {slide.subtitle}
           </p>
           <div className="flex flex-wrap gap-3">
