@@ -89,7 +89,7 @@ export default function Carousel({
   if (total === 0) return null;
 
   return (
-    <div className={`relative group ${className}`}>
+    <div className={`relative group w-full max-w-full overflow-hidden ${className}`}>
       <div
         ref={containerRef}
         onScroll={handleScroll}

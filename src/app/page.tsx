@@ -42,8 +42,8 @@ function HeroSection() {
   }));
 
   const slidesContent = slides.map((slide, i) => (
-    <section key={i} className={`relative min-h-[60vh] sm:min-h-[70vh] flex items-center ${slide.bg}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 w-full">
+    <section key={i} className={`relative w-full min-h-[50vh] sm:min-h-[70vh] flex items-center overflow-hidden ${slide.bg}`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-20 w-full">
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-accent/10 text-accent text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
             <Sparkles className="h-3.5 w-3.5" />
