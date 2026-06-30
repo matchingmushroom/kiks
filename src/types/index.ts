@@ -210,6 +210,17 @@ export interface Debtor {
   updatedAt: number;
 }
 
+export interface FifoLayer {
+  id: string;
+  productId: string;
+  purchaseId: string;
+  purchaseDate: number;
+  quantity: number;
+  remainingQty: number;
+  unitCost: number;
+  createdAt: number;
+}
+
 export interface InventoryLog {
   id: string;
   productId: string;

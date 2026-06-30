@@ -12,6 +12,7 @@ import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { ACCOUNTS } from "@/lib/accounts";
 import { createJournalEntry, buildTransferJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
+import { getStockValue } from "@/lib/fifo";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { getDoc, getDocs, doc, setDoc, Timestamp, addDoc, collection } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -217,11 +218,19 @@ function BalanceSheetSection() {
     return d.getTime();
   }, [bsDate]);
 
+  const [fifoStockValue, setFifoStockValue] = useState<number | null>(null);
+  useEffect(() => {
+    if (!products) return;
+    const activeProducts = products.filter((p) => p.isActive && !p.comboItems?.length);
+    Promise.all(activeProducts.map((p) => getStockValue(p.id).catch(() => (p.quantityInStock || 0) * (p.costPrice || 0))))
+      .then((values) => setFifoStockValue(values.reduce((s, v) => s + v, 0)));
+  }, [products]);
+
   const bs = useMemo(() => {
     if (!sales || !expenses || !products || !debtors || !creditors || !accounts || !transactions) return null;
     const totalCapital = partners.reduce((s, p) => s + p.amount, 0);
-    return computeBalanceSheet(sales, expenses, products, debtors, creditors, accounts, transactions, totalCapital, asOfMs);
-  }, [sales, expenses, products, debtors, creditors, accounts, transactions, partners, asOfMs]);
+    return computeBalanceSheet(sales, expenses, products, debtors, creditors, accounts, transactions, totalCapital, asOfMs, fifoStockValue ?? undefined);
+  }, [sales, expenses, products, debtors, creditors, accounts, transactions, partners, asOfMs, fifoStockValue]);
 
   const totalCapital = partners.reduce((s, p) => s + p.amount, 0);
   const asOfLabel = `As at ${new Date(bsDate).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })}`;

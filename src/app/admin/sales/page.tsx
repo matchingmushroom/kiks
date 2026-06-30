@@ -9,7 +9,9 @@ import { formatCurrency, formatDate, formatDateTime, generateCouponCode, toDate,
 import { toBS, getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount, ACCOUNTS } from "@/lib/accounts";
-import { createJournalEntry, buildSalesReturnJournal } from "@/lib/journal";
+import { createJournalEntry, buildSaleCogsJournal, buildSalesReturnJournal } from "@/lib/journal";
+import { consumeFifo, restoreFifo } from "@/lib/fifo";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Button } from "@/components/ui/button";
@@ -318,10 +320,15 @@ function SalesContent() {
           throw new Error(`Insufficient stock for ${item.productName}. Available: ${stock}, requested: ${item.quantity}`);
         }
       }
-      const itemsWithCost = form.items.map((item) => {
-        const product = products.find((p) => p.id === item.productId);
-        return { ...item, costPriceAtSale: product?.costPrice || 0 };
-      });
+      const fifoCosts: Record<string, { avgCost: number; totalCost: number }> = {};
+      for (const item of form.items) {
+        const totalCost = await consumeFifo(item.productId, item.quantity);
+        fifoCosts[item.productId] = { avgCost: totalCost / item.quantity, totalCost };
+      }
+      const totalCogs = Object.values(fifoCosts).reduce((s, c) => s + c.totalCost, 0);
+      const itemsWithCost = form.items.map((item) => ({
+        ...item, costPriceAtSale: fifoCosts[item.productId]?.avgCost || 0,
+      }));
       const saleId = await generateId("SALE");
       await setDoc(doc(db, "sales", saleId), {
         orderId: orderId || "",
@@ -399,6 +406,22 @@ function SalesContent() {
           });
         } catch (e) { console.error("Stock update failed for item", item.productId, e); }
       }
+
+      try {
+        const saleData: Sale = {
+          id: saleId, orderId: orderId || "", saleType: form.balanceDue > 0 ? (form.receivedAmount > 0 ? "partial" : "credit") : "cash",
+          customer: { name: form.customerName, phone: form.customerPhone, address: form.customerAddress, email: "" },
+          items: itemsWithCost, totalAmount: form.totalAmount,
+          discountAmount: form.discountAmount, finalAmount: form.finalAmount,
+          payment: { method: form.paymentMethod, receivedAmount: form.receivedAmount, balanceDue: form.balanceDue },
+          warranty: { period: form.warrantyPeriod, terms: form.warrantyTerms, startDate: Date.now(), endDate: Date.now() },
+          couponIssued: null, notes: form.notes, saleDate: Date.now(),
+          recordedBy: user?.uid || "", recordedByName: profile?.displayName || "",
+          createdAt: Date.now(), updatedAt: Date.now(),
+        };
+        const cogsJe = buildSaleCogsJournal(saleData, totalCogs, profile?.displayName || "");
+        await createJournalEntry(cogsJe);
+      } catch (e) { console.error("COGS journal entry failed", e); }
 
       try {
         if (form.receivedAmount > 0 && form.paymentMethod !== "credit") {
@@ -493,6 +516,7 @@ function SalesContent() {
           const currentStock = prodSnap.data().quantityInStock || 0;
           await updateDoc(prodRef, { quantityInStock: currentStock + item.quantity });
         }
+        await restoreFifo(item.productId, item.quantity, item.costPriceAtSale || 0);
         await addDoc(collection(db, "inventoryLogs"), {
           productId: item.productId,
           changeType: "sale",
@@ -568,6 +592,7 @@ function SalesContent() {
             updatedAt: Timestamp.fromDate(new Date()),
           });
         }
+        await restoreFifo(item.productId, qty, item.costPriceAtSale || 0);
         await addDoc(collection(db, "inventoryLogs"), {
           productId: item.productId,
           changeType: "sales_return",

@@ -8,6 +8,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { addDoc, collection, updateDoc, doc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { syncLayersToPhysical } from "@/lib/fifo";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import BarcodeScannerDialog from "@/components/admin/BarcodeScannerDialog";
@@ -99,6 +100,8 @@ export default function ReconciliationPage() {
           quantityInStock: physical,
           updatedAt: Timestamp.fromDate(new Date()),
         });
+
+        await syncLayersToPhysical(p.id, physical);
 
         await addDoc(collection(db, "inventoryLogs"), {
           productId: p.id,

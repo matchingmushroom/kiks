@@ -8,7 +8,8 @@ import { formatCurrency, formatNumber, generateCouponCode } from "@/lib/utils";
 import { toBS } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
 import { resolveAccount } from "@/lib/accounts";
-import { createJournalEntry, buildSaleJournal } from "@/lib/journal";
+import { createJournalEntry, buildSaleJournal, buildSaleCogsJournal } from "@/lib/journal";
+import { consumeFifo } from "@/lib/fifo";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -233,6 +234,14 @@ export default function POSPage() {
       const saleType = balanceDue > 0 ? (receivedAmount > 0 ? "partial" : "credit") : "cash";
       const effectiveReceived = paymentMode === "cash" || paymentMode === "qr" ? finalAmount : receivedAmount;
 
+      // FIFO: consume layers and compute actual costs
+      const fifoCosts: Record<string, { avgCost: number; totalCost: number }> = {};
+      for (const item of items) {
+        const totalCost = await consumeFifo(item.productId, item.quantity);
+        fifoCosts[item.productId] = { avgCost: totalCost / item.quantity, totalCost };
+      }
+      const totalCogs = Object.values(fifoCosts).reduce((s, c) => s + c.totalCost, 0);
+
       const saleId = await generateId("SALE");
       await setDoc(doc(db, "sales", saleId), {
         orderId: "",
@@ -244,7 +253,7 @@ export default function POSPage() {
             productId: item.productId, productName: item.productName, sku: product?.sku || "",
             quantity: item.quantity, unitPrice: item.unitPrice, weight: product?.weight || 0,
             purity: product?.purity || "", makingCharge: product?.makingCharge || 0,
-            subtotal: item.subtotal, costPriceAtSale: product?.costPrice || 0,
+            subtotal: item.subtotal, costPriceAtSale: fifoCosts[item.productId]?.avgCost || 0,
           };
         }),
         totalAmount,
@@ -339,7 +348,7 @@ export default function POSPage() {
               productId: item.productId, productName: item.productName, sku: product?.sku || "",
               quantity: item.quantity, unitPrice: item.unitPrice, weight: product?.weight || 0,
               purity: product?.purity || "", makingCharge: product?.makingCharge || 0,
-              subtotal: item.subtotal, costPriceAtSale: product?.costPrice || 0,
+              subtotal: item.subtotal, costPriceAtSale: fifoCosts[item.productId]?.avgCost || 0,
             };
           }),
           totalAmount, discountAmount: discount, finalAmount,
@@ -351,6 +360,8 @@ export default function POSPage() {
         };
         const je = buildSaleJournal(saleData, profile?.displayName || "");
         await createJournalEntry(je);
+        const cogsJe = buildSaleCogsJournal(saleData, totalCogs, profile?.displayName || "");
+        await createJournalEntry(cogsJe);
       } catch (e) { console.error("Journal entry failed", e); }
 
       try {

@@ -84,7 +84,8 @@ export function computeBalanceSheet(
   accounts: Account[],
   transactions: AccountTransaction[],
   partnersCapital: number,
-  asOfMs: number
+  asOfMs: number,
+  closingStockOverride?: number,
 ): BalanceSheetResult {
   const txFilter = (t: AccountTransaction) => safeMs(t.date) <= asOfMs;
   const relevantTx = transactions.filter(txFilter);
@@ -101,7 +102,7 @@ export function computeBalanceSheet(
   const bankBalance = (bankAccount?.openingBalance || 0) + bankCredits - bankDebits;
 
   const activeProducts = products.filter((p) => p.isActive && !p.comboItems?.length);
-  const closingStock = activeProducts.reduce((sum, p) => sum + (p.quantityInStock || 0) * (p.costPrice || 0), 0);
+  const closingStock = closingStockOverride ?? activeProducts.reduce((sum, p) => sum + (p.quantityInStock || 0) * (p.costPrice || 0), 0);
   const productCount = activeProducts.reduce((sum, p) => sum + (p.quantityInStock || 0), 0);
 
   const sundryDebtors = debtors.filter((d) => d.status === "active").reduce((sum, d) => sum + d.balanceDue, 0);

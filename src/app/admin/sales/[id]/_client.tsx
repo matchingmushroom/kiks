@@ -8,6 +8,7 @@ import { formatCurrency, formatDateTime } from "@/lib/utils";
 import { doc, onSnapshot, getDoc, addDoc, collection, updateDoc, Timestamp, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/contexts/AuthContext";
+import { restoreFifo } from "@/lib/fifo";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import { Button } from "@/components/ui/button";
@@ -114,6 +115,7 @@ export default function SaleDetailPage() {
           });
         }
 
+        await restoreFifo(item.productId, qty, item.costPriceAtSale || 0);
         await addDoc(collection(db, "inventoryLogs"), {
           productId: item.productId,
           changeType: "sales_return",

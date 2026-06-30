@@ -28,6 +28,7 @@ const collections = {
   coupons: "coupons",
   debtors: "debtors",
   inventoryLogs: "inventory_logs",
+  fifoLayers: "fifo_layers",
   settings: "shop_settings",
   counters: "counters",
   purchases: "purchases",

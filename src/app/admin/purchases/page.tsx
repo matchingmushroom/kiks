@@ -11,6 +11,7 @@ import { generateId } from "@/lib/id-generator";
 import { generateBarcodeId, generateSku, generateModelNo } from "@/lib/sku-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { createJournalEntry, buildPurchaseJournal, buildAdvanceSettlementJournal } from "@/lib/journal";
+import { createLayer, consumeFifo } from "@/lib/fifo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import {
@@ -196,6 +197,7 @@ function PurchasesContent() {
     if (!csvSupplier || csvRows.length === 0 || csvRows.some((r) => !r.match && !r.categoryId)) return;
     setCsvImporting(true);
     try {
+      const csvPurchaseId = await generateId("PURC");
       const items: PurchaseItemType[] = [];
       for (const r of csvRows) {
         let prodId = r.match?.id || "";
@@ -227,15 +229,12 @@ function PurchasesContent() {
         if (prodSnap.exists()) {
           const p = prodSnap.data() as Product;
           const oldStock = p.quantityInStock || 0;
-          const oldCost = p.costPrice || 0;
           const newStock = oldStock + r.quantity;
-          const newCost = newStock > 0
-            ? Math.round(((oldCost * oldStock + r.unitCost * r.quantity) / newStock) * 100) / 100
-            : r.unitCost;
-          const updateData: Record<string, unknown> = { quantityInStock: newStock, costPrice: newCost, price: r.salesPrice };
+          const updateData: Record<string, unknown> = { quantityInStock: newStock, price: r.salesPrice };
           if (r.categoryId) updateData.categoryId = r.categoryId;
           await updateDoc(prodRef, updateData);
         }
+        await createLayer(prodId, csvPurchaseId, Date.now(), r.quantity, r.unitCost);
         await addDoc(collection(db, "inventoryLogs"), {
           productId: prodId, changeType: "purchase", quantityChange: r.quantity,
           reason: `CSV import - ${csvSupplier}`, performedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
@@ -248,7 +247,7 @@ function PurchasesContent() {
       }
       const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
       const paid = csvPaymentStatus === "paid" ? totalAmount : csvPaymentStatus === "partially_paid" ? csvPaidAmount : 0;
-      const purchaseId = await generateId("PURC");
+      const purchaseId = csvPurchaseId;
       await setDoc(doc(db, "purchases", purchaseId), {
         supplierName: csvSupplier,
         supplierPhone: csvSupplierPhone,
@@ -574,17 +573,13 @@ function PurchasesContent() {
           if (prodSnap.exists()) {
             const p = prodSnap.data() as Product;
             const oldStock = p.quantityInStock || 0;
-            const oldCost = p.costPrice || 0;
             const newStock = oldStock + item.quantity;
-            const newCost = newStock > 0
-              ? Math.round(((oldCost * oldStock + item.unitCost * item.quantity) / newStock) * 100) / 100
-              : item.unitCost;
             await updateDoc(prodRef, {
               quantityInStock: newStock,
-              costPrice: newCost,
               price: item.salesPrice,
             });
           }
+          await createLayer(item.productId, purchaseId, Date.now(), item.quantity, item.unitCost);
           await addDoc(collection(db, "inventoryLogs"), {
             productId: item.productId,
             changeType: "purchase",
@@ -722,6 +717,7 @@ function PurchasesContent() {
           const currentStock = prodSnap.data().quantityInStock || 0;
           await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - ri.qty) });
         }
+        await consumeFifo(item.productId, ri.qty);
         await addDoc(collection(db, "inventoryLogs"), {
           productId: item.productId,
           changeType: "purchase_return",
@@ -787,6 +783,7 @@ function PurchasesContent() {
         const currentStock = prodSnap.data().quantityInStock || 0;
         await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - item.quantity) });
       }
+      await consumeFifo(item.productId, item.quantity);
       await addDoc(collection(db, "inventoryLogs"), {
         productId: item.productId,
         changeType: "purchase",
