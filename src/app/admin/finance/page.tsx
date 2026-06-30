@@ -241,22 +241,10 @@ function BalanceSheetSection() {
       <div className="max-w-3xl mx-auto bg-white border border-gray-300 rounded-sm shadow-lg p-10 print:p-6 print:shadow-none">
         <ReportHeader title="Balance Sheet" period={asOfLabel} />
 
-        <div className="grid grid-cols-2 gap-8">
-          {/* Left column: Assets */}
-          <div>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 pb-1 border-b border-gray-300">Assets</h3>
-            <div className="space-y-1">
-              <Line label="Cash in Hand" value={bs.cashBalance} />
-              <Line label="Bank Account" value={bs.bankBalance} />
-              <Line label="Closing Stock" value={bs.closingStock} />
-              <div className="flex justify-between items-center py-0.5"><span className="text-sm text-gray-700">Closing Stock (Qty)</span><span className="text-sm font-mono tabular-nums text-gray-600">{bs.productCount} units</span></div>
-              <Line label="Sundry Debtors" value={bs.sundryDebtors} />
-              <TotalLine label="Total Assets" value={bs.totalAssets} />
-            </div>
-          </div>
-
-          {/* Right column: Liabilities & Equity */}
-          <div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Mobile order: Liabilities first, Assets second */}
+          {/* Desktop order: Assets (left), Liabilities (right) */}
+          <div className="lg:order-2">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 pb-1 border-b border-gray-300">Liabilities</h3>
             <div className="space-y-1">
               <Line label="Sundry Creditors" value={bs.sundryCreditors} />
@@ -291,6 +279,19 @@ function BalanceSheetSection() {
                 <span className="text-xs font-medium">Balance Check</span>
                 <span className="text-xs font-mono">{Math.abs(bs.totalAssets - (bs.totalLiabilities + bs.totalEquity)) < 1 ? "✓ In Balance" : "⚠ Out of Balance"}</span>
               </div>
+            </div>
+          </div>
+
+          {/* Assets column — shown below on mobile, left on desktop */}
+          <div className="lg:order-1">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 pb-1 border-b border-gray-300">Assets</h3>
+            <div className="space-y-1">
+              <Line label="Cash in Hand" value={bs.cashBalance} />
+              <Line label="Bank Account" value={bs.bankBalance} />
+              <Line label="Closing Stock" value={bs.closingStock} />
+              <div className="flex justify-between items-center py-0.5"><span className="text-sm text-gray-700">Closing Stock (Qty)</span><span className="text-sm font-mono tabular-nums text-gray-600">{bs.productCount} units</span></div>
+              <Line label="Sundry Debtors" value={bs.sundryDebtors} />
+              <TotalLine label="Total Assets" value={bs.totalAssets} />
             </div>
           </div>
         </div>
