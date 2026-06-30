@@ -1,12 +1,12 @@
 "use client";
 
-import { Truck, RotateCcw, ShieldCheck, Headphones } from "lucide-react";
+import { Sparkles, Feather, Heart, Gem } from "lucide-react";
 
 const features = [
-  { icon: Truck, label: "Free Shipping", desc: "On orders above Rs. 5000" },
-  { icon: RotateCcw, label: "Easy Returns", desc: "7-day return policy" },
-  { icon: ShieldCheck, label: "Secure Payment", desc: "100% secure checkout" },
-  { icon: Headphones, label: "24/7 Support", desc: "Dedicated support team" },
+  { icon: Sparkles, label: "Trendy Designs", desc: "Latest fashion collections" },
+  { icon: Feather, label: "Lightweight", desc: "Comfortable all-day wear" },
+  { icon: Heart, label: "Hypoallergenic", desc: "Safe for sensitive skin" },
+  { icon: Gem, label: "Affordable Luxury", desc: "Premium look, great value" },
 ];
 
 export default function TrustBar() {
