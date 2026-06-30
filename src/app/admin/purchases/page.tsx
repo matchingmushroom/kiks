@@ -8,7 +8,7 @@ import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier
 import { formatCurrency, formatDate, formatNumber, toDate, compressImageUnder200KB, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
-import { generateSku, generateModelNo } from "@/lib/sku-generator";
+import { generateBarcodeId, generateSku, generateModelNo } from "@/lib/sku-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { createJournalEntry, buildPurchaseJournal, buildAdvanceSettlementJournal } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -92,9 +92,9 @@ function PurchasesContent() {
   const [saving, setSaving] = useState(false);
   const [purchaseSaved, setPurchaseSaved] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
-  const [printLabelsData, setPrintLabelsData] = useState<{ items: { productName: string; sku: string; price: number; quantity: number }[] } | null>(null);
+  const [printLabelsData, setPrintLabelsData] = useState<{ items: { productName: string; sku: string; barcodeId?: string; price: number; quantity: number }[] } | null>(null);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
-  const [printLabelsPurchase, setPrintLabelsPurchase] = useState<{ items: { productName: string; sku: string; price: number; quantity: number }[] } | null>(null);
+  const [printLabelsPurchase, setPrintLabelsPurchase] = useState<{ items: { productName: string; sku: string; barcodeId?: string; price: number; quantity: number }[] } | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [returnModal, setReturnModal] = useState<Purchase | null>(null);
   const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
@@ -207,13 +207,14 @@ function PurchasesContent() {
           const supCode = supplier?.shortCode || "XX";
           const cp = r.unitCost || 0;
           const qty = r.quantity || 1;
-          const newSku = generateSku(cat?.shortCode || "XX", cp, supCode, qty);
+          const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
+          const newSku = generateSku(barcodeId, cp, supCode, qty);
           const newModelNo = generateModelNo(cat?.shortCode || "XX", cp, qty);
           await setDoc(doc(db, "products", prodId_), {
             name: r.productName, description: "", design: "", categoryId: r.categoryId,
             images: [], videoUrl: "", price: r.salesPrice, costPrice: r.unitCost,
             weight: 0, metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0,
-            warranty: "", sku: newSku, quantityInStock: 0, isActive: true, isFeatured: false,
+            warranty: "", sku: newSku, barcodeId, quantityInStock: 0, isActive: true, isFeatured: false,
             badge: "", originalPrice: 0, brand: "", modelNo: newModelNo,
             baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], netQuantity: 1,
             occasion: [], createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
@@ -290,7 +291,7 @@ function PurchasesContent() {
       setCsvBillImageUrl("");
       setCsvManualSupplier(false);
       setPurchaseSaved(true);
-      setPrintLabelsData({ items: items.map((i) => ({ productName: i.productName, sku: i.sku, price: i.salesPrice, quantity: i.quantity })) });
+      setPrintLabelsData({ items: items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((p) => p.id === i.productId)?.barcodeId, price: i.salesPrice, quantity: i.quantity })) });
       setTimeout(() => setPurchaseSaved(false), 6000);
     } catch (e: any) {
       setPurchaseError(e?.message || "CSV import failed.");
@@ -434,15 +435,22 @@ function PurchasesContent() {
   const handleCreateProduct = async () => {
     if (!newProductForm.name || !newProductForm.categoryId) return;
     const f = newProductForm;
+    const cat = categories.find((c) => c.id === f.categoryId);
+    const supplier = allSuppliers.find((s) => s.name === form.supplierName);
+    const supCode = supplier?.shortCode || "XX";
+    const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
+    const newSku = generateSku(barcodeId, f.costPrice || 0, supCode, 1);
+    const newModelNo = generateModelNo(cat?.shortCode || "XX", f.costPrice || 0, 1);
     const prodData = {
       name: f.name, description: "", design: "", categoryId: f.categoryId,
       images: [""], videoUrl: "",
       price: f.salesPrice || f.costPrice, costPrice: f.costPrice,
       weight: f.weight, purity: f.purity, metalType: f.metalType,
       stoneType: f.stoneType, stoneWeight: f.stoneWeight,
-      makingCharge: f.makingCharge, warranty: f.warranty, sku: f.sku,
+      makingCharge: f.makingCharge, warranty: f.warranty, sku: newSku,
+      barcodeId, modelNo: newModelNo,
       quantityInStock: 0, isActive: true, isFeatured: false,
-      badge: "", brand: f.brand, modelNo: f.modelNo, baseMaterial: f.baseMaterial,
+      badge: "", brand: f.brand, baseMaterial: f.baseMaterial,
       plating: f.plating, color: f.color, productType: f.productType,
       idealFor: f.idealFor, netQuantity: f.netQuantity, occasion: f.occasion,
       createdAt: Timestamp.fromDate(new Date()),
@@ -460,7 +468,7 @@ function PurchasesContent() {
     addItem(newProduct);
     setProductSearch("");
     setShowNewProduct(false);
-    setNewProductForm({ name: "", categoryId: "", sku: "", brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], occasion: [], netQuantity: 1, costPrice: 0, salesPrice: 0, weight: 0, purity: "", metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "" });
+    setNewProductForm({ ...newProductForm, name: "", categoryId: "", sku: "", brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], occasion: [], netQuantity: 1, costPrice: 0, salesPrice: 0, weight: 0, purity: "", metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "" });
   };
 
   const upsertCreditor = async (supplierName: string, supplierPhone: string | undefined, balanceChange: number, purchaseId?: string) => {
@@ -624,7 +632,7 @@ function PurchasesContent() {
       setEditingId(null);
       setShowForm(false);
       setPurchaseSaved(true);
-      setPrintLabelsData({ items: form.items.map((i) => ({ productName: i.productName, sku: i.sku, price: i.salesPrice, quantity: i.quantity })) });
+      setPrintLabelsData({ items: form.items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((p) => p.id === i.productId)?.barcodeId, price: i.salesPrice, quantity: i.quantity })) });
       setTimeout(() => setPurchaseSaved(false), 6000);
     } catch (e: any) {
       setPurchaseError(e?.message || "Purchase failed. Please try again.");
@@ -1176,7 +1184,8 @@ function PurchasesContent() {
                                   const supCode = supplier?.shortCode || "XX";
                                   const cp = newProductForm.costPrice || 0;
                                   if (cat?.shortCode) {
-                                    setNewProductForm({ ...newProductForm, categoryId: catId, sku: generateSku(cat.shortCode, cp, supCode, 1), modelNo: generateModelNo(cat.shortCode, cp, 1) });
+                                    const previewBarcodeId = `${cat.shortCode}-TEMP`;
+                                    setNewProductForm({ ...newProductForm, categoryId: catId, sku: generateSku(previewBarcodeId, cp, supCode, 1), modelNo: generateModelNo(cat.shortCode, cp, 1) });
                                   } else {
                                     setNewProductForm({ ...newProductForm, categoryId: catId });
                                   }
@@ -1396,7 +1405,8 @@ function PurchasesContent() {
                               const supplier = allSuppliers.find((s) => s.name === form.supplierName);
                               const supCode = supplier?.shortCode || "XX";
                               if (cat?.shortCode) {
-                                setNewProductForm({ ...newProductForm, costPrice: cp, sku: generateSku(cat.shortCode, cp, supCode, 1), modelNo: generateModelNo(cat.shortCode, cp, 1) });
+                                const previewBarcodeId = `${cat.shortCode}-TEMP`;
+                                setNewProductForm({ ...newProductForm, costPrice: cp, sku: generateSku(previewBarcodeId, cp, supCode, 1), modelNo: generateModelNo(cat.shortCode, cp, 1) });
                               } else {
                                 setNewProductForm({ ...newProductForm, costPrice: cp });
                               }
@@ -1639,7 +1649,7 @@ function PurchasesContent() {
                       className={"inline-flex items-center gap-1 text-xs " + (p.returned ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:text-primary")}>
                       <RotateCcw className="h-3 w-3" /> {p.returned ? "Returned" : "Return"}
                     </button>
-                    <button onClick={() => setPrintLabelsPurchase({ items: p.items.map((i) => ({ productName: i.productName, sku: i.sku, price: i.salesPrice, quantity: i.quantity })) })}
+                    <button onClick={() => setPrintLabelsPurchase({ items: p.items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((prod) => prod.id === i.productId)?.barcodeId, price: i.salesPrice, quantity: i.quantity })) })}
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                       <Printer className="h-3 w-3" />
                     </button>
@@ -1696,7 +1706,7 @@ function PurchasesContent() {
                         <Button onClick={() => openReturn(p)} disabled={p.returned} size="sm" variant="outline" className={"text-xs px-2 py-1 " + (p.returned ? "opacity-40 cursor-not-allowed" : "")} title={p.returned ? "Already returned" : "Return"}>
                           <Undo2 className="h-3 w-3" />
                         </Button>
-                        <Button onClick={() => setPrintLabelsPurchase({ items: p.items.map((i) => ({ productName: i.productName, sku: i.sku, price: i.salesPrice, quantity: i.quantity })) })} size="sm" variant="outline" className="text-xs px-2 py-1" title="Print Labels">
+                        <Button onClick={() => setPrintLabelsPurchase({ items: p.items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((prod) => prod.id === i.productId)?.barcodeId, price: i.salesPrice, quantity: i.quantity })) })} size="sm" variant="outline" className="text-xs px-2 py-1" title="Print Labels">
                           <Printer className="h-3 w-3" />
                         </Button>
                         <Button onClick={() => handleDelete(p.id)} size="sm" variant="outline" className="text-xs px-2 py-1 text-red-500">

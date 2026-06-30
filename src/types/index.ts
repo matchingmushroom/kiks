@@ -57,6 +57,7 @@ export interface Product {
   idealFor: string[];
   netQuantity: number;
   occasion: string[];
+  barcodeId?: string;
   comboItems?: string[];
   comboPrice?: number;
   createdAt: number;

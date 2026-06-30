@@ -57,7 +57,7 @@ export default function AdminProductsPage() {
 
   const [deletingAll, setDeletingAll] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
-  const [printLabelProduct, setPrintLabelProduct] = useState<{ productName: string; sku: string; price: number } | null>(null);
+  const [printLabelProduct, setPrintLabelProduct] = useState<{ productName: string; sku: string; barcodeId?: string; price: number } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -859,7 +859,7 @@ export default function AdminProductsPage() {
               <Row label="Created" value={formatDate(detailProduct.createdAt)} />
             </div>
             <div className="mt-4 pt-4 border-t border-border flex justify-end">
-              <Button onClick={() => setPrintLabelProduct({ productName: detailProduct.name, sku: detailProduct.sku || "", price: detailProduct.price })} variant="accent" size="sm">
+              <Button onClick={() => setPrintLabelProduct({ productName: detailProduct.name, sku: detailProduct.sku || "", barcodeId: detailProduct.barcodeId, price: detailProduct.price })} variant="accent" size="sm">
                 <Printer className="h-4 w-4" /> Print Label
               </Button>
             </div>

@@ -6,17 +6,19 @@ import JsBarcode from "jsbarcode";
 interface PriceLabelProps {
   productName: string;
   sku: string;
+  barcodeId?: string;
   price: number;
   shopName?: string;
   website?: string;
 }
 
-export default function PriceLabel({ productName, sku, price, shopName = "Panchakanya Collections", website = "" }: PriceLabelProps) {
+export default function PriceLabel({ productName, sku, barcodeId, price, shopName = "Panchakanya Collections", website = "" }: PriceLabelProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const barcodeValue = barcodeId || sku;
 
   useEffect(() => {
     if (svgRef.current) {
-      JsBarcode(svgRef.current, sku, {
+      JsBarcode(svgRef.current, barcodeValue, {
         format: "CODE128",
         width: 1,
         height: 24,

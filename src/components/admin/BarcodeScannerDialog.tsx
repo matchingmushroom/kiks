@@ -6,9 +6,10 @@ import { X, Camera, CameraOff } from "lucide-react";
 interface BarcodeScannerDialogProps {
   onScan: (value: string) => void;
   onClose: () => void;
+  keepOpen?: boolean;
 }
 
-export default function BarcodeScannerDialog({ onScan, onClose }: BarcodeScannerDialogProps) {
+export default function BarcodeScannerDialog({ onScan, onClose, keepOpen }: BarcodeScannerDialogProps) {
   const scannerRef = useRef<HTMLDivElement>(null);
   const html5QrCodeRef = useRef<any>(null);
   const [error, setError] = useState("");
@@ -49,10 +50,14 @@ export default function BarcodeScannerDialog({ onScan, onClose }: BarcodeScanner
           },
           (decodedText) => {
             if (cancelled || done) return;
-            setDone(true);
-            try { scanner.stop(); } catch (_) {}
-            onScan(decodedText.trim());
-            onClose();
+            if (keepOpen) {
+              onScan(decodedText.trim());
+            } else {
+              setDone(true);
+              try { scanner.stop(); } catch (_) {}
+              onScan(decodedText.trim());
+              onClose();
+            }
           },
           () => {}
         );
@@ -83,13 +88,15 @@ export default function BarcodeScannerDialog({ onScan, onClose }: BarcodeScanner
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={keepOpen ? undefined : onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-3 border-b border-border">
           <h2 className="text-sm font-bold text-secondary flex items-center gap-2">
             <Camera className="h-4 w-4" /> Scan Barcode
           </h2>
-          <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg"><X className="h-4 w-4" /></button>
+          <button onClick={onClose} className="p-1 hover:bg-muted rounded-lg">
+            {keepOpen ? <span className="text-xs font-medium text-primary">Stop</span> : <X className="h-4 w-4" />}
+          </button>
         </div>
 
         <div className="relative bg-black">

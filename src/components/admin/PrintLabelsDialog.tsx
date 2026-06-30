@@ -8,6 +8,7 @@ import { useShopSettings } from "@/contexts/ShopSettingsContext";
 interface LabelItem {
   productName: string;
   sku: string;
+  barcodeId?: string;
   price: number;
   quantity: number;
 }
@@ -96,7 +97,7 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
             <div class="label-cell">
               <div class="pl-shop-name">${escapeHtml(shopName)}</div>
               <div class="pl-name">${escapeHtml(item.productName)}</div>
-              <svg class="pl-barcode" data-sku="${escapeHtml(item.sku)}"></svg>
+              <svg class="pl-barcode" data-barcode="${escapeHtml(item.barcodeId || item.sku)}"></svg>
               <div class="pl-sku">${escapeHtml(item.sku)}</div>
               <div class="pl-mrp">MRP: Rs. ${item.price.toLocaleString("en-IN")}</div>
               ${website ? `<div class="pl-website">${escapeHtml(website)}</div>` : ""}
@@ -143,7 +144,7 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
         <script>
           document.querySelectorAll('.pl-barcode').forEach(function(el) {
             try {
-              JsBarcode(el, el.getAttribute('data-sku'), { format: "CODE128", width: 1, height: 24, displayValue: false, margin: 0, background: "#ffffff" });
+              JsBarcode(el, el.getAttribute('data-barcode'), { format: "CODE128", width: 1, height: 24, displayValue: false, margin: 0, background: "#ffffff" });
             } catch(e) { console.warn(e); }
           });
           setTimeout(function() { window.print(); }, 500);
