@@ -220,7 +220,7 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
             width: ${LABEL_W}mm;
             height: ${LABEL_H}mm;
             box-sizing: border-box;
-            padding: 1mm 1.5mm 1mm 3mm;
+            padding: 1mm 1.5mm 0.8mm 3mm;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
@@ -240,46 +240,46 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
           .coupon.empty::before { display: none; }
 
           .cp-header { width: 100%; border-collapse: collapse; flex-shrink: 0; }
-          .cp-logo-cell { width: 14mm; vertical-align: middle; }
-          .cp-logo { max-width: 13mm; max-height: 6mm; object-fit: contain; display: block; }
+          .cp-logo-cell { width: 16mm; vertical-align: middle; }
+          .cp-logo { max-width: 15mm; max-height: 9mm; object-fit: contain; display: block; }
           .cp-info-cell { vertical-align: middle; }
-          .cp-name { font-size: 6.5px; font-weight: 800; color: #1a1a2e; line-height: 1.2; }
-          .cp-addr, .cp-phone { font-size: 4px; color: #888; line-height: 1.2; }
+          .cp-name { font-size: 16px; font-weight: 800; color: #1a1a2e; line-height: 1.15; }
+          .cp-addr, .cp-phone { font-size: 10px; color: #888; line-height: 1.2; }
 
           .cp-exclusive {
-            text-align: center; font-size: 4.5px; font-weight: 800; color: #fff;
+            text-align: center; font-size: 12px; font-weight: 800; color: #fff;
             letter-spacing: 1px; text-transform: uppercase; line-height: 1.3;
             background: linear-gradient(135deg, #c62828, #e53935);
-            padding: 0.2mm 0; margin: 0 -1.5mm; width: calc(100% + 3mm);
+            padding: 0.3mm 0; margin: 0 -1.5mm; width: calc(100% + 3mm);
             flex-shrink: 0;
           }
-          .cp-offer-label { text-align: center; font-size: 4px; color: #999; line-height: 1.2; flex-shrink: 0; }
+          .cp-offer-label { text-align: center; font-size: 9px; color: #999; line-height: 1.2; flex-shrink: 0; }
           .cp-hero {
-            text-align: center; font-size: 12px; font-weight: 900; color: #c62828;
-            line-height: 1.15; letter-spacing: 0.5px; flex-shrink: 0;
+            text-align: center; font-size: 30px; font-weight: 900; color: #c62828;
+            line-height: 1.1; letter-spacing: 0.5px; flex-shrink: 0;
           }
-          .cp-hero-sub { text-align: center; font-size: 4px; color: #b71c1c; line-height: 1.2; flex-shrink: 0; }
+          .cp-hero-sub { text-align: center; font-size: 9px; color: #b71c1c; line-height: 1.2; flex-shrink: 0; }
 
           .cp-code-wrap { text-align: center; flex-shrink: 0; }
-          .cp-code-lbl { font-size: 4px; color: #aaa; }
+          .cp-code-lbl { font-size: 9px; color: #aaa; }
           .cp-code {
-            font-size: 10px; font-weight: 900; letter-spacing: 3px;
+            font-size: 22px; font-weight: 900; letter-spacing: 2px;
             color: #1a1a2e; background: #fff;
             padding: 0.3mm 2mm; display: inline-block;
-            border: 0.5px dashed #bbb; border-radius: 0.5mm; line-height: 1.4;
+            border: 0.5px dashed #bbb; border-radius: 0.5mm; line-height: 1.3;
             font-family: 'Courier New', monospace;
           }
 
-          .cp-meta { display: flex; justify-content: center; gap: 2mm; font-size: 4px; color: #999; line-height: 1.3; flex-shrink: 0; }
+          .cp-meta { display: flex; justify-content: center; gap: 2mm; font-size: 9px; color: #999; line-height: 1.3; flex-shrink: 0; }
 
           .cp-terms { flex-shrink: 0; border-top: 0.3px dashed #e0e0e0; padding-top: 0.3mm; }
-          .cp-term { font-size: 3.5px; color: #aaa; line-height: 1.3; }
+          .cp-term { font-size: 8px; color: #aaa; line-height: 1.25; }
 
           .cp-footer { text-align: center; flex-shrink: 0; }
-          .cp-social { display: flex; align-items: center; justify-content: center; gap: 0.6mm; }
-          .smi { width: 2.2mm; height: 2.2mm; color: #bbb; flex-shrink: 0; }
-          .cp-social-user { font-size: 3px; color: #bbb; }
-          .cp-website { font-size: 3px; color: #ccc; line-height: 1.2; text-align: center; }
+          .cp-social { display: flex; align-items: center; justify-content: center; gap: 0.8mm; }
+          .smi { width: 4mm; height: 4mm; color: #bbb; flex-shrink: 0; }
+          .cp-social-user { font-size: 8px; color: #bbb; }
+          .cp-website { font-size: 7px; color: #ccc; line-height: 1.2; text-align: center; }
 
           @media print {
             @page { size: A4 portrait; margin: 0; }
