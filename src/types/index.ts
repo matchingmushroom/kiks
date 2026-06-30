@@ -457,6 +457,19 @@ export interface Offer {
   updatedAt: number;
 }
 
+export interface Testimonial {
+  id: string;
+  customerName: string;
+  customerPhoto?: string;
+  rating: number;
+  text: string;
+  productId?: string;
+  productName?: string;
+  isActive: boolean;
+  order: number;
+  createdAt: number;
+}
+
 export interface AccountHead {
   id: string;
   code: string;
