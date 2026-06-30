@@ -2,7 +2,7 @@
 
 import { useState, useEffect, type ReactNode } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { doc, getDoc, setDoc, addDoc, collection, getDocs, deleteDoc, query, where } from "firebase/firestore";
+import { doc, getDoc, setDoc, addDoc, collection, getDocs, deleteDoc, query, where, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -636,6 +636,13 @@ function PartnershipSection() {
           recordedBy: user?.uid || "",
           recordedByName: profile?.displayName || "System",
         });
+        await addDoc(collection(db, "accountTransactions"), {
+          accountId: "bank_account", type: "credit", amount,
+          description: `Capital contribution - ${name.trim()}`,
+          date: Timestamp.fromDate(new Date()),
+          referenceType: "capital", referenceId: docRef.id,
+          recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
+        });
       }
       setName(""); setAmount(0);
       await load();
@@ -654,6 +661,8 @@ function PartnershipSection() {
     await deleteDoc(doc(db, "partnerCapitals", id));
     const jeSnap = await getDocs(query(collection(db, "journalEntries"), where("referenceType", "==", "capital"), where("referenceId", "==", id)));
     for (const je of jeSnap.docs) await deleteDoc(doc(db, "journalEntries", je.id));
+    const atSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "capital"), where("referenceId", "==", id)));
+    for (const at of atSnap.docs) await deleteDoc(doc(db, "accountTransactions", at.id));
     await load();
   };
 

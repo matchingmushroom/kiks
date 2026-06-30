@@ -318,7 +318,7 @@ export interface AccountTransaction {
   amount: number;
   description: string;
   date: number;
-  referenceType: "sale" | "expense" | "purchase" | "purchase_return" | "manual" | "transfer" | "debtor_payment" | "creditor_payment" | "sales_return";
+  referenceType: "sale" | "expense" | "purchase" | "purchase_return" | "manual" | "transfer" | "debtor_payment" | "creditor_payment" | "sales_return" | "capital";
   referenceId?: string;
   recordedBy: string;
   createdAt: number;
