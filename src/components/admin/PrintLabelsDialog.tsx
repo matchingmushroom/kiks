@@ -126,9 +126,9 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
           @page { size: A4 portrait; margin: 0; }
           body { width: 210mm; margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; }
           .a4-page { width: 210mm; height: 297mm; page-break-after: always; overflow: hidden; }
-           .label-grid { display: grid; grid-template-columns: repeat(${COLS}, 66mm); grid-template-rows: repeat(${ROWS}, 25.4mm); width: 210mm; justify-content: center; align-content: start; padding: 6mm 0; }
-          .label-cell { width: 66mm; height: 25.4mm; box-sizing: border-box; border: 0.3px solid #ddd; padding: 1mm 1.5mm; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
-          .label-cell.empty { border: none; visibility: hidden; }
+           .label-grid { display: grid; gap: 0; grid-template-columns: repeat(${COLS}, 66mm); grid-template-rows: repeat(${ROWS}, 25.4mm); width: 210mm; justify-content: center; align-content: start; padding: 9.65mm 0 7.95mm 0; }
+          .label-cell { width: 66mm; height: 25.4mm; box-sizing: border-box; padding: 1mm 1.5mm; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+          .label-cell.empty { visibility: hidden; }
           .pl-shop-name { font-size: 5px; font-weight: 600; text-align: center; color: #888; line-height: 1; }
           .pl-name { font-size: 7px; font-weight: 700; text-align: center; line-height: 1.15; max-height: 14px; overflow: hidden; width: 100%; white-space: nowrap; text-overflow: ellipsis; }
           .pl-barcode { max-width: 60mm; height: 9mm; margin: 0; }
