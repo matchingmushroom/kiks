@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { Product } from "@/types";
 import { formatNumber } from "@/lib/utils";
-import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, RefreshCw, Truck } from "lucide-react";
+import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, Gift, Truck } from "lucide-react";
 
 function extractGoogleDriveId(url: string): string | null {
   const m = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^/?#&]+)/);
@@ -21,7 +21,7 @@ function imgUrl(url: string): string {
 
 const usps = [
   { icon: Truck, label: "Free Shipping", desc: "On orders above Rs. 5000" },
-  { icon: RefreshCw, label: "Easy Returns", desc: "7-day return policy" },
+  { icon: Gift, label: "Gift Ready", desc: "Free premium packaging" },
   { icon: ShieldCheck, label: "Authentic", desc: "100% genuine products" },
 ];
 
@@ -238,10 +238,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               ))}
             </div>
 
-            <div className="flex items-center gap-4 justify-center mt-6 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Secure Checkout</span>
-              <span className="flex items-center gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Easy Returns</span>
-            </div>
           </div>
         </div>
       </main>
