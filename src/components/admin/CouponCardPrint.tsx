@@ -157,9 +157,6 @@ export default function CouponCardPrint({ coupons, onClose }: CouponCardPrintPro
       html += `<div class="cf-valid">${escapeHtml(langData.validUntil)}: ${escapeHtml(validUntilStr)}</div>`;
     }
 
-    // Terms & conditions
-    html += `<div class="cf-terms">${langData.terms.map((t) => `<span class="cf-tl">${escapeHtml(t)}</span>`).join("")}</div>`;
-
     // Footer: social icons + website
     html += `<div class="cf-footer"><div class="cf-social">${SOCIAL_ICONS}<span class="cf-social-user">${escapeHtml(SOCIAL_USERNAME)}</span></div>${websiteUrl ? `<div class="cf-website">${escapeHtml(websiteUrl)}</div>` : ""}</div>`;
 
@@ -169,12 +166,11 @@ export default function CouponCardPrint({ coupons, onClose }: CouponCardPrintPro
   const buildBack = (_c: Coupon) => {
     const scale = fontSizeMap[fontSize];
     return `
-      <div class="cb-brand">
+      <div class="cb-inner">
+        <div class="cb-title">Terms &amp; Conditions</div>
+        <div class="cb-terms">${langData.terms.map((t) => `<div class="cb-term">${escapeHtml(t)}</div>`).join("")}</div>
         ${logoUrl ? `<img src="${escapeHtml(logoUrl)}" class="cb-logo" />` : ""}
-        <div class="cb-name" style="font-size:${8 * scale}px">${escapeHtml(shopName)}</div>
-        ${address ? `<div class="cb-addr" style="font-size:${5 * scale}px">${escapeHtml(address)}</div>` : ""}
-        ${phone ? `<div class="cb-phone" style="font-size:${5 * scale}px">${escapeHtml(phone)}</div>` : ""}
-        <div class="cb-social">${SOCIAL_ICONS}<span class="cf-social-user">${escapeHtml(SOCIAL_USERNAME)}</span></div>
+        <div class="cb-name">${escapeHtml(shopName)}</div>
       </div>
     `;
   };
@@ -234,20 +230,19 @@ export default function CouponCardPrint({ coupons, onClose }: CouponCardPrintPro
           .cf-code-lbl { font-size: 4.5px; color: #999; font-weight: 500; }
           .cf-code { font-weight: 900; letter-spacing: 2.5px; color: #d32f2f; background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%); padding: 0.4mm 1.5mm; border-radius: 1mm; display: inline-block; border: 1px dashed #d32f2f; font-size: 11px; }
           .cf-valid { text-align: center; font-size: 4.5px; color: #888; margin-top: 0.1mm; }
-          .cf-terms { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.2mm 0.5mm; margin: 0.2mm 0.3mm 2mm; }
-          .cf-tl { font-size: 3.2px; color: #999; line-height: 1.2; position: relative; }
-          .cf-tl + .cf-tl::before { content: "|"; color: #ddd; margin-right: 0.5mm; }
           .cf-footer { position: absolute; bottom: 0.5mm; left: 0; right: 0; }
           .cf-social { display: flex; align-items: center; justify-content: center; gap: 1.2mm; }
           .smi { width: 3.5mm; height: 3.5mm; color: #888; }
           .cf-social-user { font-size: 3.8px; color: #999; }
           .cf-website { text-align: center; font-size: 3.5px; color: #bbb; line-height: 1; }
-          .cb-brand { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 0.5mm; background: linear-gradient(135deg, #fef9ef 0%, #fff 100%); }
-          .cb-logo { max-width: 18mm; max-height: 10mm; object-fit: contain; margin-bottom: 0.3mm; }
-          .cb-name { font-weight: 800; color: #1a1a2e; text-align: center; }
-          .cb-addr, .cb-phone { color: #888; text-align: center; }
-          .cb-social { display: flex; align-items: center; justify-content: center; gap: 1.2mm; margin-top: 0.5mm; }
-          .cb-social .smi { width: 3mm; height: 3mm; color: #aaa; }
+
+          /* Back - Terms */
+          .cb-inner { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 1mm; background: linear-gradient(135deg, #fef9ef 0%, #fff 100%); }
+          .cb-title { font-size: 5px; font-weight: 800; color: #d32f2f; text-align: center; margin-bottom: 0.5mm; letter-spacing: 0.5px; }
+          .cb-terms { display: flex; flex-direction: column; gap: 0.3mm; margin-bottom: 0.5mm; }
+          .cb-term { font-size: 3.5px; color: #666; line-height: 1.3; text-align: center; }
+          .cb-logo { max-width: 14mm; max-height: 6mm; object-fit: contain; margin-top: 0.5mm; }
+          .cb-name { font-size: 4px; font-weight: 600; color: #888; text-align: center; }
           @media print { @page { size: A4; margin: 4mm; } body { background: #fff; } .cc { border-color: #ccc; } }
         </style>
       </head>
