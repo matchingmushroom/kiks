@@ -69,32 +69,37 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
         <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.12.3/dist/JsBarcode.all.min.js"><\/script>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
           body {
             width: 210mm;
-            margin: 0 auto;
-            padding: 10mm 0;
+            min-height: 297mm;
+            margin: 0;
+            padding: 0;
             background: #fff;
+            font-family: Arial, Helvetica, sans-serif;
           }
           .label-grid {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 3mm;
-            padding: 0 5mm;
+            display: grid;
+            grid-template-columns: repeat(3, 66mm);
+            grid-template-rows: repeat(11, 25.4mm);
+            grid-auto-rows: 25.4mm;
+            width: 210mm;
           }
           .label-cell {
-            width: 50.8mm;
+            width: 66mm;
             height: 25.4mm;
-            border: 0.5px solid #ccc;
-            border-radius: 2px;
-            padding: 1.5mm 1.5mm;
+            border: 0.3px solid #ddd;
+            padding: 1mm 1.5mm;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            font-family: Arial, Helvetica, sans-serif;
-            break-inside: avoid;
             page-break-inside: avoid;
+            break-inside: avoid;
+            overflow: hidden;
           }
           .pl-shop-name {
             font-size: 5px;
@@ -104,42 +109,42 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
             line-height: 1;
           }
           .pl-name {
-            font-size: 8px;
+            font-size: 7px;
             font-weight: 700;
             text-align: center;
-            line-height: 1.2;
-            max-height: 16px;
+            line-height: 1.15;
+            max-height: 14px;
             overflow: hidden;
             width: 100%;
             white-space: nowrap;
             text-overflow: ellipsis;
           }
           .pl-barcode {
-            max-width: 46mm;
-            height: 10mm;
+            max-width: 60mm;
+            height: 9mm;
             margin: 0;
           }
           .pl-sku {
-            font-size: 6px;
+            font-size: 5px;
             color: #555;
             text-align: center;
             letter-spacing: 0.3px;
           }
           .pl-mrp {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
             text-align: center;
             margin-top: 0;
           }
           .pl-website {
-            font-size: 5px;
+            font-size: 4.5px;
             font-weight: 400;
             text-align: center;
             color: #888;
             line-height: 1;
           }
           @media print {
-            @page { margin: 5mm; }
+            @page { size: A4 portrait; margin: 0; }
             body { background: #fff; }
           }
         </style>
@@ -153,8 +158,8 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
             try {
               JsBarcode(el, el.getAttribute('data-sku'), {
                 format: "CODE128",
-                width: 1.2,
-                height: 28,
+                width: 1,
+                height: 24,
                 displayValue: false,
                 margin: 0,
                 background: "#ffffff",
