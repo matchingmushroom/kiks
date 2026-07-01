@@ -162,7 +162,7 @@ function PurchasesContent() {
       }
       const match = products.find((p) =>
         (name && (p.name.toLowerCase() === name.toLowerCase() || p.name.toLowerCase().includes(name.toLowerCase()))) ||
-        (sku && p.sku?.toLowerCase() === sku.toLowerCase())
+        (sku && (p.sku?.toLowerCase() === sku.toLowerCase() || p.shortCode?.toLowerCase() === sku.toLowerCase()))
       );
       if (!match) {
         const errMsg = catId ? "New product (will be created)" : "Product not found — add category column to create new";

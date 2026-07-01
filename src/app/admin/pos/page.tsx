@@ -80,7 +80,7 @@ export default function POSPage() {
     if (!productSearch) return [];
     const q = productSearch.toLowerCase();
     return activeProducts.filter((p) =>
-      p.name.toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q)
+      p.name.toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q)
     ).slice(0, 10);
   }, [activeProducts, productSearch]);
 
@@ -789,7 +789,7 @@ export default function POSPage() {
       {showScanner && (
         <BarcodeScannerDialog
           onScan={(value) => {
-            const found = activeProducts.find((p) => p.sku === value.trim());
+            const found = activeProducts.find((p) => p.sku === value.trim() || p.shortCode === value.trim());
             if (found) addItem(found);
             else setProductSearch(value.trim());
           }}

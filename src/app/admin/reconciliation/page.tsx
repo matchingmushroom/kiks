@@ -50,7 +50,7 @@ export default function ReconciliationPage() {
     let result = categoryProducts;
     if (search) {
       const q = search.toLowerCase();
-      result = result.filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q));
+      result = result.filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.shortCode?.toLowerCase().includes(q));
     }
     return result;
   }, [categoryProducts, search]);
@@ -62,7 +62,7 @@ export default function ReconciliationPage() {
   const handleScan = useCallback((barcodeValue: string) => {
     const trimmed = barcodeValue.trim();
     const product = activeProducts.find(
-      (p) => p.barcodeId === trimmed || p.sku === trimmed
+      (p) => p.barcodeId === trimmed || p.sku === trimmed || p.shortCode === trimmed
     );
     if (product) {
       if (!catFilter || product.categoryId === catFilter) {

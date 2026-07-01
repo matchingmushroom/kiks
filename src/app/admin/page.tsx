@@ -86,7 +86,8 @@ export default function AdminDashboardPage() {
 
   const handleSkuSearch = () => {
     try {
-      const p = products.find((x) => x.sku === skuSearch.trim());
+      const q = skuSearch.trim();
+      const p = products.find((x) => x.sku === q || x.shortCode === q);
       if (!p) { setSkuResult(null); return; }
       const pc = purchases.find((x) => x.items?.some((i) => i.productId === p.id));
       setSkuResult({ product: p, purchase: pc || null });
@@ -844,7 +845,7 @@ export default function AdminDashboardPage() {
           onScan={(value) => {
             setSkuSearch(value);
             try {
-              const p = products.find((x) => x.sku === value.trim());
+              const p = products.find((x) => x.sku === value.trim() || x.shortCode === value.trim());
               if (!p) { setSkuResult(null); return; }
               const pc = purchases.find((x) => x.items?.some((i) => i.productId === p.id));
               setSkuResult({ product: p, purchase: pc || null });

@@ -236,7 +236,7 @@ function SalesContent() {
 
   const filteredProducts = products.filter((p) => {
     const q = productSearch.toLowerCase();
-    return p.isActive && (p.name.toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q));
+    return p.isActive && (p.name.toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q));
   });
 
   const recalc = (items: LineItem[], discount: number, received: number) => {
