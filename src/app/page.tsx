@@ -480,7 +480,6 @@ function HomeContent() {
       <AnnouncementBar />
       <HeroSection />
       <TrustBar />
-      <CategoryGridSection products={products} categories={sortedCategories} />
       <PromoCardSection products={products} />
       <TestimonialsSection />
       <AffordableCategorySection products={products} categories={sortedCategories} />
