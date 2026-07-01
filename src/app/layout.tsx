@@ -5,6 +5,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { ShopSettingsProvider } from "@/contexts/ShopSettingsContext";
 import DynamicTitle from "@/components/DynamicTitle";
+import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,6 +36,7 @@ export const metadata: Metadata = {
     icon: "/logo.svg",
     apple: "/logo.svg",
   },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -52,6 +54,7 @@ export default function RootLayout({
           <CartProvider>
             <ShopSettingsProvider>
               <DynamicTitle />
+              <ServiceWorkerRegister />
               {children}
             </ShopSettingsProvider>
           </CartProvider>
