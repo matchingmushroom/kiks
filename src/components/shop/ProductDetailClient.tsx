@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Product, Testimonial } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, Gift, Truck, Star, MessageSquare } from "lucide-react";
