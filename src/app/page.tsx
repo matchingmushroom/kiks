@@ -223,14 +223,15 @@ function PromoCardSection({ products }: { products: ProductType[] }) {
 
 function TestimonialsSection() {
   const { data: testimonials, loading, error } = useFirestore<Testimonial>("testimonials", {
-    constraints: [where("isActive", "==", true), orderBy("order", "asc")],
+    constraints: [where("isActive", "==", true)],
     realtime: false,
   });
 
   if (loading) return null;
   if (error || testimonials.length === 0) return null;
 
-  const slides = testimonials.map((t, i) => (
+  const sorted = [...testimonials].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+  const slides = sorted.map((t, i) => (
     <div key={t.id} className="px-4 py-8 sm:py-12 text-center max-w-2xl mx-auto">
       <div className="flex justify-center gap-1 mb-4">
         {Array.from({ length: 5 }, (_, j) => (
@@ -454,7 +455,7 @@ function SectionRenderer({ section }: { section: HomeSection }) {
 
 function HomeContent() {
   const { data: products, loading: productsLoading } = useFirestore<ProductType>("products", {
-    constraints: [where("isActive", "==", true), orderBy("createdAt", "desc")],
+    constraints: [where("isActive", "==", true)],
     realtime: false,
   });
 
@@ -472,6 +473,7 @@ function HomeContent() {
     return <LoadingSpinner />;
   }
 
+  const sortedProducts = [...products].sort((a, b) => ((b.createdAt as number) ?? 0) - ((a.createdAt as number) ?? 0));
   const sortedCategories = [...categories].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
   const topCategories = sortedCategories.filter((c) => c.showOnHomepage !== false).slice(0, 4);
 
@@ -480,13 +482,13 @@ function HomeContent() {
       <AnnouncementBar />
       <HeroSection />
       <TrustBar />
-      <PromoCardSection products={products} />
+      <PromoCardSection products={sortedProducts} />
       <TestimonialsSection />
-      <AffordableCategorySection products={products} categories={sortedCategories} />
+      <AffordableCategorySection products={sortedProducts} categories={sortedCategories} />
       {topCategories.map((cat) => (
-        <CategoryProductSection key={cat.id} category={cat} products={products} />
+        <CategoryProductSection key={cat.id} category={cat} products={sortedProducts} />
       ))}
-      <ComboSection products={products} />
+      <ComboSection products={sortedProducts} />
       <StayConnectedSection />
       {sections.length > 0 && (
         <div className="max-w-7xl mx-auto px-4">
