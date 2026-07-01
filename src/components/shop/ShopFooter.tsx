@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Facebook, Instagram, Youtube, Twitter, Music2 } from "lucide-react";
+import { Facebook, Instagram, Youtube, Twitter, Music2, Mail, MapPin, Phone } from "lucide-react";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
+import { useFirestore, where, orderBy } from "@/hooks/useFirestore";
+import { Category } from "@/types";
 
 const socialChannels = [
   { key: "facebook" as const, icon: Facebook, label: "Facebook" },
@@ -15,20 +17,26 @@ const socialChannels = [
 export default function ShopFooter() {
   const { settings } = useShopSettings();
   const hidden = settings.hiddenSocialLinks || [];
+  const { data: categories } = useFirestore<Category>("categories", {
+    constraints: [where("isActive", "==", true), orderBy("order", "asc")],
+    realtime: false,
+  });
 
   const socialLinks = socialChannels.filter(
     (ch) => settings[ch.key] && !hidden.includes(ch.key)
   );
 
+  const footerCategories = categories.filter((c) => c.showOnHomepage !== false).slice(0, 6);
+
   return (
-    <footer className="bg-secondary text-secondary-foreground py-12">
+    <footer className="bg-secondary text-secondary-foreground pt-14 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
           <div>
-            <img src={settings.footerLogoUrl || settings.logoUrl || "/logo.svg"} alt={settings.shopName} className="h-10 mb-4" />
-            <p className="text-sm text-secondary-foreground/70 mb-4">{settings.tagline}</p>
+            <img src={settings.footerLogoUrl || settings.logoUrl || "/logo.svg"} alt={settings.shopName} className="h-12 sm:h-16 mb-4" />
+            <p className="text-sm text-secondary-foreground/70 mb-4 leading-relaxed">{settings.tagline}</p>
             {socialLinks.length > 0 && (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 {socialLinks.map((ch) => (
                   <a
                     key={ch.key}
@@ -45,22 +53,49 @@ export default function ShopFooter() {
             )}
           </div>
           <div>
-            <h3 className="font-semibold mb-3">Quick Links</h3>
-            <div className="space-y-2 text-sm text-secondary-foreground/70">
-              <Link href="/products" className="block hover:text-accent">Products</Link>
-              <Link href="/cart" className="block hover:text-accent">Cart</Link>
+            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Quick Links</h3>
+            <div className="space-y-2.5 text-sm text-secondary-foreground/70">
+              <Link href="/" className="block hover:text-accent transition-colors">Home</Link>
+              <Link href="/products" className="block hover:text-accent transition-colors">All Products</Link>
+              <Link href="/cart" className="block hover:text-accent transition-colors">Cart</Link>
             </div>
           </div>
           <div>
-            <h3 className="font-semibold mb-3">Contact</h3>
-            <div className="space-y-2 text-sm text-secondary-foreground/70">
-              <p>{settings.address}</p>
-              <p>{settings.phone}</p>
+            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Categories</h3>
+            <div className="space-y-2.5 text-sm text-secondary-foreground/70">
+              {footerCategories.map((cat) => (
+                <Link key={cat.id} href={`/products/${cat.id}`} className="block hover:text-accent transition-colors">
+                  {cat.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Contact</h3>
+            <div className="space-y-3 text-sm text-secondary-foreground/70">
+              {settings.address && (
+                <div className="flex items-start gap-2.5">
+                  <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-secondary-foreground/40" />
+                  <span className="whitespace-pre-line">{settings.address}</span>
+                </div>
+              )}
+              {settings.phone && (
+                <div className="flex items-center gap-2.5">
+                  <Phone className="h-4 w-4 shrink-0 text-secondary-foreground/40" />
+                  <span>{settings.phone}</span>
+                </div>
+              )}
+              {settings.emailTo && (
+                <div className="flex items-center gap-2.5">
+                  <Mail className="h-4 w-4 shrink-0 text-secondary-foreground/40" />
+                  <span>{settings.emailTo}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
-        <div className="border-t border-secondary-foreground/20 mt-8 pt-8 text-center text-sm text-secondary-foreground/50">
-          &copy; {new Date().getFullYear()} {settings.shopName}. All rights reserved.
+        <div className="border-t border-secondary-foreground/20 mt-10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-secondary-foreground/50">
+          <p>&copy; {new Date().getFullYear()} {settings.shopName}. All rights reserved.</p>
         </div>
       </div>
     </footer>
