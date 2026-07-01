@@ -11,6 +11,7 @@ interface LabelItem {
   barcodeId?: string;
   price: number;
   quantity: number;
+  shortCode?: string;
 }
 
 interface PrintLabelsDialogProps {
@@ -18,14 +19,17 @@ interface PrintLabelsDialogProps {
   onClose: () => void;
 }
 
-const ROWS = 11;
-const COLS = 3;
+type TagFormat = "standard" | "small";
+
+const ROWS = 14;
+const COLS = 4;
 const TOTAL = ROWS * COLS;
 
 export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogProps) {
   const { settings } = useShopSettings();
   const shopName = settings.shopName || "Panchakanya Collections";
   const website = settings.website || "";
+  const [tagFormat, setTagFormat] = useState<TagFormat>("standard");
   const [checked, setChecked] = useState<boolean[]>(() => items.map(() => true));
   const [quantities, setQuantities] = useState<number[]>(() => items.map((it) => it.quantity));
   const [startRow, setStartRow] = useState(1);
@@ -62,14 +66,14 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
   }, [items, checked, quantities]);
 
   const cellContents = useMemo(() => {
-    const cells: { type: "empty" | "filled" | "unused"; label?: string; sku?: string; price?: number }[] = [];
+    const cells: { type: "empty" | "filled" | "unused"; label?: string; sku?: string; price?: number; shortCode?: string }[] = [];
     let labelIdx = 0;
     for (let pos = 1; pos <= TOTAL; pos++) {
       if (pos < startPos) {
         cells.push({ type: "empty" });
       } else if (labelIdx < flatLabels.length) {
         const { item } = flatLabels[labelIdx];
-        cells.push({ type: "filled", label: item.productName, sku: item.sku, price: item.price });
+        cells.push({ type: "filled", label: item.productName, sku: item.sku, price: item.price, shortCode: item.shortCode });
         labelIdx++;
       } else {
         cells.push({ type: "unused" });
@@ -93,16 +97,27 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
           cells.push(`<div class="label-cell empty"></div>`);
         } else if (labelIdx < flatLabels.length) {
           const { item } = flatLabels[labelIdx];
-          cells.push(`
-            <div class="label-cell">
-              <div class="pl-shop-name">${escapeHtml(shopName)}</div>
-              <div class="pl-name">${escapeHtml(item.productName)}</div>
-              <svg class="pl-barcode" data-barcode="${escapeHtml(item.barcodeId || item.sku)}"></svg>
-              <div class="pl-sku">${escapeHtml(item.sku)}</div>
-              <div class="pl-mrp">MRP: Rs. ${item.price.toLocaleString("en-IN")}</div>
-              ${website ? `<div class="pl-website">${escapeHtml(website)}</div>` : ""}
-            </div>
-          `);
+          if (tagFormat === "small") {
+            cells.push(`
+              <div class="label-cell small">
+                <div class="st-shortcode">${escapeHtml(item.shortCode || item.sku)}</div>
+                <div class="st-name">${escapeHtml(item.productName)}</div>
+                <div class="st-mrp">Rs. ${item.price.toLocaleString("en-IN")}</div>
+              </div>
+            `);
+          } else {
+            cells.push(`
+              <div class="label-cell">
+                <div class="pl-shop-name">${escapeHtml(shopName)}</div>
+                ${item.shortCode ? `<div class="pl-shortcode">${escapeHtml(item.shortCode)}</div>` : ""}
+                <div class="pl-name">${escapeHtml(item.productName)}</div>
+                <svg class="pl-barcode" data-barcode="${escapeHtml(item.barcodeId || item.sku)}"></svg>
+                <div class="pl-sku">${escapeHtml(item.sku)}</div>
+                <div class="pl-mrp">MRP: Rs. ${item.price.toLocaleString("en-IN")}</div>
+                ${website ? `<div class="pl-website">${escapeHtml(website)}</div>` : ""}
+              </div>
+            `);
+          }
           labelIdx++;
         } else {
           cells.push(`<div class="label-cell empty"></div>`);
@@ -116,6 +131,39 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
       pages.push(`<div class="a4-page"><div class="label-grid">${Array.from({ length: TOTAL }, () => `<div class="label-cell empty"></div>`).join("")}</div></div>`);
     }
 
+    const standardCss = `
+      .label-grid { display: grid; gap: 0; grid-template-columns: repeat(${COLS}, 50mm); grid-template-rows: repeat(${ROWS}, 20mm); width: 210mm; justify-content: center; align-content: start; padding: 8.5mm 5mm; }
+      .label-cell { width: 50mm; height: 20mm; box-sizing: border-box; padding: 0.5mm 1mm; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+      .pl-shop-name { font-size: 4px; font-weight: 600; text-align: center; color: #888; line-height: 1; }
+      .pl-shortcode { font-size: 6px; font-weight: 800; text-align: center; color: #222; letter-spacing: 0.5px; }
+      .pl-name { font-size: 6px; font-weight: 700; text-align: center; line-height: 1.1; max-height: 12px; overflow: hidden; width: 100%; white-space: nowrap; text-overflow: ellipsis; }
+      .pl-barcode { max-width: 46mm; height: 7mm; margin: 0; }
+      .pl-sku { font-size: 4px; color: #555; text-align: center; letter-spacing: 0.3px; }
+      .pl-mrp { font-size: 7px; font-weight: 700; text-align: center; }
+      .pl-website { font-size: 3.5px; font-weight: 400; text-align: center; color: #888; line-height: 1; }
+    `;
+
+    const smallCss = `
+      .label-grid { display: grid; gap: 0; grid-template-columns: repeat(${COLS}, 50mm); grid-template-rows: repeat(${ROWS}, 20mm); width: 210mm; justify-content: center; align-content: start; padding: 8.5mm 5mm; }
+      .label-cell { width: 50mm; height: 20mm; box-sizing: border-box; padding: 0.5mm 1mm; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+      .label-cell.small { gap: 1px; }
+      .st-shortcode { font-size: 18px; font-weight: 800; text-align: center; line-height: 1.1; letter-spacing: 0.5px; }
+      .st-name { font-size: 5px; font-weight: 600; text-align: center; color: #555; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 48mm; }
+      .st-mrp { font-size: 8px; font-weight: 700; text-align: center; }
+    `;
+
+    const labelCss = tagFormat === "small" ? smallCss : standardCss;
+    const barcodeScript = tagFormat === "small" ? "" : `
+      <script>
+        document.querySelectorAll('.pl-barcode').forEach(function(el) {
+          try {
+            JsBarcode(el, el.getAttribute('data-barcode'), { format: "CODE128", width: 0.8, height: 18, displayValue: false, margin: 0, background: "#ffffff" });
+          } catch(e) { console.warn(e); }
+        });
+        setTimeout(function() { window.print(); }, 500);
+      <\/script>
+    `;
+
     printWin.document.write(`
       <!DOCTYPE html>
       <html>
@@ -127,28 +175,14 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
           @page { size: A4 portrait; margin: 0; }
           body { width: 210mm; margin: 0; padding: 0; background: #fff; font-family: Arial, Helvetica, sans-serif; }
           .a4-page { width: 210mm; height: 297mm; page-break-after: always; overflow: hidden; }
-           .label-grid { display: grid; gap: 0; grid-template-columns: repeat(${COLS}, 66mm); grid-template-rows: repeat(${ROWS}, 25.4mm); width: 210mm; justify-content: center; align-content: start; padding: 9.65mm 0 7.95mm 0; }
-          .label-cell { width: 66mm; height: 25.4mm; box-sizing: border-box; padding: 1mm 1.5mm; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
           .label-cell.empty { visibility: hidden; }
-          .pl-shop-name { font-size: 5px; font-weight: 600; text-align: center; color: #888; line-height: 1; }
-          .pl-name { font-size: 7px; font-weight: 700; text-align: center; line-height: 1.15; max-height: 14px; overflow: hidden; width: 100%; white-space: nowrap; text-overflow: ellipsis; }
-          .pl-barcode { max-width: 60mm; height: 9mm; margin: 0; }
-          .pl-sku { font-size: 5px; color: #555; text-align: center; letter-spacing: 0.3px; }
-          .pl-mrp { font-size: 9px; font-weight: 700; text-align: center; margin-top: 0; }
-          .pl-website { font-size: 4.5px; font-weight: 400; text-align: center; color: #888; line-height: 1; }
           @media print { @page { size: A4 portrait; margin: 0; } body { background: #fff; } }
+          ${labelCss}
         </style>
       </head>
       <body>
         ${pages.join("")}
-        <script>
-          document.querySelectorAll('.pl-barcode').forEach(function(el) {
-            try {
-              JsBarcode(el, el.getAttribute('data-barcode'), { format: "CODE128", width: 1, height: 24, displayValue: false, margin: 0, background: "#ffffff" });
-            } catch(e) { console.warn(e); }
-          });
-          setTimeout(function() { window.print(); }, 500);
-        <\/script>
+        ${barcodeScript}
       </body>
       </html>
     `);
@@ -159,11 +193,24 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[95vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-white z-10">
-          <h2 className="text-base font-bold text-secondary">Print Price Labels</h2>
+          <h2 className="text-base font-bold text-secondary">Print Labels</h2>
           <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg"><X className="h-4 w-4" /></button>
         </div>
 
         <div className="p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="radio" name="tagFormat" value="standard" checked={tagFormat === "standard"}
+                onChange={() => setTagFormat("standard")} className="accent-primary" />
+              Standard (ST-56)
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="radio" name="tagFormat" value="small" checked={tagFormat === "small"}
+                onChange={() => setTagFormat("small")} className="accent-primary" />
+              Small Tag
+            </label>
+          </div>
+
           <div className="flex items-center gap-3 px-1">
             <button onClick={() => setChecked(Array(items.length).fill(true))} className="text-xs text-primary hover:underline font-medium">Select All</button>
             <button onClick={() => setChecked(Array(items.length).fill(false))} className="text-xs text-muted-foreground hover:underline">Deselect All</button>
@@ -174,7 +221,11 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
               <input type="checkbox" checked={checked[idx]} onChange={() => toggle(idx)} className="accent-primary h-4 w-4 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-secondary truncate">{item.productName}</p>
-                <p className="text-xs text-muted-foreground">SKU: {item.sku} &middot; MRP: Rs. {item.price.toLocaleString("en-IN")}</p>
+                <p className="text-xs text-muted-foreground">
+                  SKU: {item.sku}
+                  {item.shortCode ? ` · Short: ${item.shortCode}` : ""}
+                  {" · "}MRP: Rs. {item.price.toLocaleString("en-IN")}
+                </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <button onClick={() => setQty(idx, quantities[idx] - 1)} className="w-7 h-7 flex items-center justify-center rounded border border-border text-muted-foreground hover:bg-muted text-sm font-medium">−</button>
@@ -187,7 +238,6 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
           ))}
         </div>
 
-        {/* Start Position Selector + Grid Preview */}
         {totalLabels > 0 && (
           <div className="px-4 pb-4 space-y-3 border-t border-border pt-4">
             <div className="flex items-end gap-4">
@@ -208,8 +258,7 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
               </div>
             </div>
 
-            {/* Grid Preview */}
-            <div className="grid grid-cols-3 gap-[1px] bg-border rounded border border-border overflow-hidden" style={{ maxWidth: "330px" }}>
+            <div className="grid grid-cols-4 gap-[1px] bg-border rounded border border-border overflow-hidden" style={{ maxWidth: "330px" }}>
               {cellContents.map((cell, i) => {
                 const row = Math.floor(i / COLS) + 1;
                 const col = (i % COLS) + 1;
@@ -219,7 +268,7 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
                   <button key={i}
                     onClick={() => { setStartRow(row); setStartCol(col); }}
                     className={`
-                      aspect-[66/25.4] flex items-center justify-center text-[8px] font-mono transition-colors
+                      aspect-[50/20] flex items-center justify-center text-[7px] font-mono transition-colors
                       ${!isActive ? "bg-white text-transparent pointer-events-none" : ""}
                       ${cell.type === "filled" ? "bg-primary/10 text-primary font-bold" : ""}
                       ${cell.type === "unused" ? "bg-white text-muted-foreground/40 border border-dashed border-muted-foreground/20 m-[1px]" : ""}
@@ -228,7 +277,7 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
                     title={`Row ${row}, Col ${col} (Pos ${pos})`}
                   >
                     {isActive && cell.type === "unused" ? pos : ""}
-                    {cell.type === "filled" ? (cell.label && cell.label.length > 6 ? cell.label.substring(0, 6) + "…" : cell.label) : ""}
+                    {cell.type === "filled" ? (cell.label && cell.label.length > 5 ? cell.label.substring(0, 5) + "…" : cell.label) : ""}
                   </button>
                 );
               })}
@@ -238,6 +287,7 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
               <p>Starting at <strong className="text-secondary">position {startPos}</strong> — filling <strong className="text-secondary">{onFirstSheet}</strong> of <strong className="text-secondary">{firstPageSlots}</strong> slots on this sheet.</p>
               {unused > 0 && <p><strong className="text-amber-600">{unused}</strong> slot{unused !== 1 ? "s" : ""} will remain unused on this sheet.</p>}
               <p>Total: <strong className="text-secondary">{totalLabels}</strong> label{totalLabels !== 1 ? "s" : ""} on <strong className="text-secondary">{sheets}</strong> sheet{sheets !== 1 ? "s" : ""}.</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{tagFormat === "standard" ? "ST-56 template (50mm × 20mm, 56 per sheet)" : "Small tag format (short code focused, 56 per sheet)"}</p>
             </div>
           </div>
         )}

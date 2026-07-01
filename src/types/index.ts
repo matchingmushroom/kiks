@@ -58,6 +58,7 @@ export interface Product {
   netQuantity: number;
   occasion: string[];
   barcodeId?: string;
+  shortCode?: string;
   comboItems?: string[];
   comboPrice?: number;
   createdAt: number;

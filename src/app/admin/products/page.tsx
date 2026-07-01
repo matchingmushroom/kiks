@@ -20,7 +20,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateDummyProducts } from "@/lib/dummyProducts";
-import { generateBarcodeId, generateSku, generateModelNo } from "@/lib/sku-generator";
+import { generateBarcodeId, generateSku, generateModelNo, generateShortCode } from "@/lib/sku-generator";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import PrintLabelsDialog from "@/components/admin/PrintLabelsDialog";
@@ -52,12 +52,12 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
+  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[], shortCode: "" });
   const [saving, setSaving] = useState(false);
 
   const [deletingAll, setDeletingAll] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
-  const [printLabelProduct, setPrintLabelProduct] = useState<{ productName: string; sku: string; barcodeId?: string; price: number } | null>(null);
+  const [printLabelProduct, setPrintLabelProduct] = useState<{ productName: string; sku: string; barcodeId?: string; price: number; shortCode?: string } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -68,9 +68,12 @@ export default function AdminProductsPage() {
   const [selectedComboIds, setSelectedComboIds] = useState<string[]>([]);
   const [comboPrice, setComboPrice] = useState(0);
   const [savingCombo, setSavingCombo] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+  const [backfillDone, setBackfillDone] = useState(0);
 
   const filtered = products.filter((p) => {
-    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const matchSearch = !search || p.name.toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q);
     const matchCat = !catFilter || p.categoryId === catFilter;
     return matchSearch && matchCat;
   });
@@ -91,6 +94,7 @@ export default function AdminProductsPage() {
       idealFor: Array.isArray(p.idealFor) ? p.idealFor : (p.idealFor ? [p.idealFor] : []),
       netQuantity: p.netQuantity || 1,
       occasion: Array.isArray(p.occasion) ? p.occasion : (p.occasion ? [p.occasion] : []),
+      shortCode: p.shortCode || "",
     });
     setEditingId(p.id);
     setShowForm(true);
@@ -122,9 +126,18 @@ export default function AdminProductsPage() {
         const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
         const sku = generateSku(barcodeId, form.costPrice || 0, "XX", form.quantityInStock || 1);
         const modelNo = generateModelNo(cat?.shortCode || "XX", form.costPrice || 0, form.quantityInStock || 1);
+        let shortCode = form.shortCode;
+        if (!shortCode && cat?.shortCode) {
+          const subIdx = cat.subCategories.indexOf(form.productType) + 1;
+          if (subIdx > 0) {
+            shortCode = await generateShortCode(cat.shortCode, subIdx);
+          } else {
+            shortCode = await generateShortCode(cat.shortCode, 0);
+          }
+        }
         await setDoc(doc(db, "products", prodId), {
           ...data,
-          sku, barcodeId, modelNo,
+          sku, barcodeId, modelNo, shortCode,
           createdAt: Timestamp.fromDate(new Date()),
         });
       }
@@ -282,6 +295,47 @@ export default function AdminProductsPage() {
     setSavingCombo(false);
   };
 
+  const handleBackfillShortCodes = async () => {
+    const missing = products.filter((p) => !p.shortCode && !p.comboItems?.length);
+    if (missing.length === 0) { alert("All products already have short codes."); return; }
+    if (!confirm(`Generate short codes for ${missing.length} products?`)) return;
+    setBackfilling(true);
+    setBackfillDone(0);
+    try {
+      const groups: Record<string, { product: Product; cat: Category | undefined; subIdx: number }[]> = {};
+      for (const p of missing) {
+        const cat = categories.find((c) => c.id === p.categoryId);
+        const subIdx = cat ? cat.subCategories.indexOf(p.productType) + 1 : 0;
+        const key = `${cat?.shortCode || "XX"}_${subIdx}`;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ product: p, cat, subIdx });
+      }
+      let done = 0;
+      const total = missing.length;
+      for (const [key, group] of Object.entries(groups)) {
+        const [catCode, subIdxStr] = key.split("_");
+        const subIdx = Number(subIdxStr);
+        const counterKey = `shortCode_${catCode}_${subIdx}`;
+        const counterRef = doc(db, "counters", counterKey);
+        const snap = await getDoc(counterRef);
+        let next = (snap.exists() ? snap.data().lastNumber : 0);
+        for (const { product: p } of group) {
+          next++;
+          const shortCode = `${catCode}${subIdx}-${next}`;
+          await updateDoc(doc(db, "products", p.id), { shortCode });
+          done++;
+          setBackfillDone(done);
+        }
+        await setDoc(counterRef, { lastNumber: next }, { merge: true });
+      }
+      alert(`Backfilled ${done} products with short codes.`);
+    } catch (e) {
+      console.error("Backfill failed", e);
+      alert("Backfill failed: " + (e instanceof Error ? e.message : "Unknown error"));
+    }
+    setBackfilling(false);
+  };
+
   return (
     <AdminLayout>
       <div className="p-6">
@@ -295,6 +349,9 @@ export default function AdminProductsPage() {
               className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
               {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </button>
+            <Button onClick={handleBackfillShortCodes} disabled={backfilling} variant="outline" className="text-xs">
+              {backfilling ? `Backfilling ${backfillDone}...` : "Backfill Short Codes"}
+            </Button>
             <Button onClick={() => { setShowComboModal(true); setComboName(""); setComboProductSearch(""); setSelectedComboIds([]); setComboPrice(0); }} variant="outline">
               <Package className="h-4 w-4" /> Create Combo
             </Button>
@@ -588,6 +645,23 @@ export default function AdminProductsPage() {
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                   </div>
                   <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Short Code</label>
+                    <div className="flex gap-2">
+                      <input type="text" value={form.shortCode} onChange={(e) => setForm({ ...form, shortCode: e.target.value })}
+                        placeholder="Auto-generated"
+                        className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                      <button type="button" onClick={async () => {
+                        const cat = categories.find((c) => c.id === form.categoryId);
+                        if (!cat?.shortCode) { alert("Select a category with a short code first."); return; }
+                        const subIdx = cat.subCategories.indexOf(form.productType) + 1;
+                        const sc = await generateShortCode(cat.shortCode, subIdx > 0 ? subIdx : 0);
+                        setForm((prev) => ({ ...prev, shortCode: sc }));
+                      }} className="px-3 py-2 text-xs font-medium border border-border rounded-lg hover:bg-muted">
+                        Generate
+                      </button>
+                    </div>
+                  </div>
+                  <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Badge</label>
                     <select value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value as ProductBadge })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
@@ -739,6 +813,7 @@ export default function AdminProductsPage() {
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
                     <span className="font-semibold text-secondary">{formatCurrency(p.price)}</span>
+                    {p.shortCode && <span className="font-mono text-primary font-medium">{p.shortCode}</span>}
                     {p.baseMaterial && <span className="text-muted-foreground">{p.baseMaterial}</span>}
                     {p.plating && <span className="text-muted-foreground">{p.plating}</span>}
                     <span className={p.quantityInStock <= 3 ? "text-red-600 font-medium" : "text-muted-foreground"}>
@@ -765,6 +840,7 @@ export default function AdminProductsPage() {
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Name</th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Category</th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Brand</th>
+                  <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Short Code</th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Price</th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-right">Stock</th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium text-center">Badge</th>
@@ -779,6 +855,7 @@ export default function AdminProductsPage() {
                       <td className="px-4 py-2.5 text-sm font-medium text-secondary">{p.name}</td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">{catName}</td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.brand || "—"}</td>
+                      <td className="px-4 py-2.5 text-sm font-mono">{p.shortCode || "—"}</td>
                       <td className="px-4 py-2.5 text-sm text-right">{formatCurrency(p.price)}</td>
                       <td className={`px-4 py-2.5 text-sm text-right ${p.quantityInStock <= 3 ? "text-red-600 font-medium" : ""}`}>{p.quantityInStock}</td>
                       <td className="px-4 py-2.5 text-sm text-center">
@@ -822,6 +899,7 @@ export default function AdminProductsPage() {
               <Row label="Cost Price" value={detailProduct.costPrice ? `Rs. ${detailProduct.costPrice}` : "—"} />
               <Row label="Stock" value={String(detailProduct.quantityInStock)} />
               <Row label="SKU" value={detailProduct.sku || "—"} />
+              <Row label="Short Code" value={detailProduct.shortCode || "—"} />
               <Row label="Base Material" value={detailProduct.baseMaterial || "—"} />
               <Row label="Purity" value={detailProduct.purity || "—"} />
               <Row label="Weight" value={detailProduct.weight ? `${detailProduct.weight}g` : "—"} />
@@ -864,7 +942,7 @@ export default function AdminProductsPage() {
               <Row label="Created" value={formatDate(detailProduct.createdAt)} />
             </div>
             <div className="mt-4 pt-4 border-t border-border flex justify-end">
-              <Button onClick={() => setPrintLabelProduct({ productName: detailProduct.name, sku: detailProduct.sku || "", barcodeId: detailProduct.barcodeId, price: detailProduct.price })} variant="accent" size="sm">
+              <Button onClick={() => setPrintLabelProduct({ productName: detailProduct.name, sku: detailProduct.sku || "", barcodeId: detailProduct.barcodeId, price: detailProduct.price, shortCode: detailProduct.shortCode })} variant="accent" size="sm">
                 <Printer className="h-4 w-4" /> Print Label
               </Button>
             </div>

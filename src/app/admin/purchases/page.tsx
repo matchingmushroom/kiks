@@ -93,9 +93,9 @@ function PurchasesContent() {
   const [saving, setSaving] = useState(false);
   const [purchaseSaved, setPurchaseSaved] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
-  const [printLabelsData, setPrintLabelsData] = useState<{ items: { productName: string; sku: string; barcodeId?: string; price: number; quantity: number }[] } | null>(null);
+  const [printLabelsData, setPrintLabelsData] = useState<{ items: { productName: string; sku: string; barcodeId?: string; shortCode?: string; price: number; quantity: number }[] } | null>(null);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
-  const [printLabelsPurchase, setPrintLabelsPurchase] = useState<{ items: { productName: string; sku: string; barcodeId?: string; price: number; quantity: number }[] } | null>(null);
+  const [printLabelsPurchase, setPrintLabelsPurchase] = useState<{ items: { productName: string; sku: string; barcodeId?: string; shortCode?: string; price: number; quantity: number }[] } | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [returnModal, setReturnModal] = useState<Purchase | null>(null);
   const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
@@ -290,7 +290,7 @@ function PurchasesContent() {
       setCsvBillImageUrl("");
       setCsvManualSupplier(false);
       setPurchaseSaved(true);
-      setPrintLabelsData({ items: items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((p) => p.id === i.productId)?.barcodeId, price: i.salesPrice, quantity: i.quantity })) });
+      setPrintLabelsData({ items: items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((p) => p.id === i.productId)?.barcodeId, shortCode: products.find((p) => p.id === i.productId)?.shortCode, price: i.salesPrice, quantity: i.quantity })) });
       setTimeout(() => setPurchaseSaved(false), 6000);
     } catch (e: any) {
       setPurchaseError(e?.message || "CSV import failed.");
@@ -627,7 +627,7 @@ function PurchasesContent() {
       setEditingId(null);
       setShowForm(false);
       setPurchaseSaved(true);
-      setPrintLabelsData({ items: form.items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((p) => p.id === i.productId)?.barcodeId, price: i.salesPrice, quantity: i.quantity })) });
+      setPrintLabelsData({ items: form.items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((p) => p.id === i.productId)?.barcodeId, shortCode: products.find((p) => p.id === i.productId)?.shortCode, price: i.salesPrice, quantity: i.quantity })) });
       setTimeout(() => setPurchaseSaved(false), 6000);
     } catch (e: any) {
       setPurchaseError(e?.message || "Purchase failed. Please try again.");
@@ -1646,7 +1646,7 @@ function PurchasesContent() {
                       className={"inline-flex items-center gap-1 text-xs " + (p.returned ? "text-muted-foreground/40 cursor-not-allowed" : "text-muted-foreground hover:text-primary")}>
                       <RotateCcw className="h-3 w-3" /> {p.returned ? "Returned" : "Return"}
                     </button>
-                    <button onClick={() => setPrintLabelsPurchase({ items: p.items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((prod) => prod.id === i.productId)?.barcodeId, price: i.salesPrice, quantity: i.quantity })) })}
+                    <button onClick={() => setPrintLabelsPurchase({ items: p.items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((prod) => prod.id === i.productId)?.barcodeId, shortCode: products.find((prod) => prod.id === i.productId)?.shortCode, price: i.salesPrice, quantity: i.quantity })) })}
                       className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                       <Printer className="h-3 w-3" />
                     </button>
@@ -1703,7 +1703,7 @@ function PurchasesContent() {
                         <Button onClick={() => openReturn(p)} disabled={p.returned} size="sm" variant="outline" className={"text-xs px-2 py-1 " + (p.returned ? "opacity-40 cursor-not-allowed" : "")} title={p.returned ? "Already returned" : "Return"}>
                           <Undo2 className="h-3 w-3" />
                         </Button>
-                        <Button onClick={() => setPrintLabelsPurchase({ items: p.items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((prod) => prod.id === i.productId)?.barcodeId, price: i.salesPrice, quantity: i.quantity })) })} size="sm" variant="outline" className="text-xs px-2 py-1" title="Print Labels">
+                        <Button onClick={() => setPrintLabelsPurchase({ items: p.items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((prod) => prod.id === i.productId)?.barcodeId, shortCode: products.find((prod) => prod.id === i.productId)?.shortCode, price: i.salesPrice, quantity: i.quantity })) })} size="sm" variant="outline" className="text-xs px-2 py-1" title="Print Labels">
                           <Printer className="h-3 w-3" />
                         </Button>
                         <Button onClick={() => handleDelete(p.id)} size="sm" variant="outline" className="text-xs px-2 py-1 text-red-500">
