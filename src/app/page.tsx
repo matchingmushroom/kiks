@@ -36,11 +36,13 @@ const heroSlides = [
 ];
 
 function AnnouncementBar() {
+  const { settings } = useShopSettings();
+  const text = settings?.announcementText;
   const [dismissed, setDismissed] = useState(false);
-  if (dismissed) return null;
+  if (dismissed || !text) return null;
   return (
     <div className="bg-accent text-secondary text-xs sm:text-sm text-center py-2 px-4 relative">
-      <span className="font-medium">Free shipping on orders over Rs. 1,000 &mdash; Use code <strong>PANCHAKANYA10</strong> for 10% off!</span>
+      <span className="font-medium" dangerouslySetInnerHTML={{ __html: text }} />
       <button onClick={() => setDismissed(true)} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:opacity-70">
         <X className="h-3.5 w-3.5" />
       </button>

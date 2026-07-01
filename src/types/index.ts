@@ -424,6 +424,7 @@ export interface ShopSettings {
   twitter?: string;
   tiktok?: string;
   hiddenSocialLinks?: string[];
+  announcementText?: string;
   gasWebhookUrl?: string;
   emailTo?: string;
   driveFolderId?: string;

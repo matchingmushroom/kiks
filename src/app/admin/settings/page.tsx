@@ -27,6 +27,7 @@ interface Settings {
   twitter: string;
   tiktok: string;
   hiddenSocialLinks: string[];
+  announcementText?: string;
   useBsCalendar?: boolean;
   deliveryFeeInsideValley?: number;
   deliveryFeeOutsideValley?: number;
@@ -62,6 +63,7 @@ const defaults: Settings = {
   twitter: "",
   tiktok: "",
   hiddenSocialLinks: [],
+  announcementText: "Free shipping on orders over Rs. 1,000 \u2014 Use code PANCHAKANYA10 for 10% off!",
 };
 
 const emailDefaults: EmailBackupConfig = {
@@ -373,6 +375,17 @@ export default function SettingsPage() {
                   </label>
                 ))}
               </div>
+            </div>
+
+            <div className="space-y-3 pt-4 border-t border-border">
+              <label className="block text-sm font-medium text-secondary">Announcement Bar Text</label>
+              <textarea value={form.announcementText ?? ""}
+                onChange={(e) => setForm({ ...form, announcementText: e.target.value })}
+                rows={2} maxLength={300}
+                className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
+              <p className="text-xs text-muted-foreground">
+                Shown at the top of every page. Supports HTML entities. Leave empty to hide.
+              </p>
             </div>
 
             <div className="flex items-center gap-3 pt-4 border-t border-border">
