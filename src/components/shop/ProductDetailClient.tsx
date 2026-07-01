@@ -4,12 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
-import { Product, Testimonial } from "@/types";
+import { Product } from "@/types";
 import { formatNumber } from "@/lib/utils";
-import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, Gift, Truck, Star, MessageSquare } from "lucide-react";
-import { collection, addDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useFirestore, where } from "@/hooks/useFirestore";
+import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, RefreshCw, Truck } from "lucide-react";
 
 function extractGoogleDriveId(url: string): string | null {
   const m = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^/?#&]+)/);
@@ -24,7 +21,7 @@ function imgUrl(url: string): string {
 
 const usps = [
   { icon: Truck, label: "Free Shipping", desc: "On orders above Rs. 5000" },
-  { icon: Gift, label: "Gift Ready", desc: "Free premium packaging" },
+  { icon: RefreshCw, label: "Easy Returns", desc: "7-day return policy" },
   { icon: ShieldCheck, label: "Authentic", desc: "100% genuine products" },
 ];
 
@@ -231,9 +228,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               </div>
             )}
 
-            <ProductReviews productId={product.id} />
-            <ProductReviewForm product={product} />
-
             <div className="lg:hidden grid grid-cols-3 gap-3 mt-4">
               {usps.map((usp) => (
                 <div key={usp.label} className="flex flex-col items-center text-center gap-1.5 p-3 bg-white rounded-xl border border-border">
@@ -244,223 +238,13 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               ))}
             </div>
 
+            <div className="flex items-center gap-4 justify-center mt-6 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Secure Checkout</span>
+              <span className="flex items-center gap-1.5"><RefreshCw className="h-3.5 w-3.5" /> Easy Returns</span>
+            </div>
           </div>
         </div>
       </main>
-    </div>
-  );
-}
-
-function ProductReviews({ productId }: { productId: string }) {
-  const { data: reviews, loading } = useFirestore<Testimonial>("testimonials", {
-    constraints: [where("productId", "==", productId), where("isActive", "==", true)],
-    realtime: false,
-  });
-
-  if (loading) return null;
-  if (reviews.length === 0) return null;
-
-  const avgRating = Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10;
-
-  return (
-    <div className="bg-white rounded-2xl border border-border p-5 sm:p-6 shadow-sm mt-4">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
-          <h2 className="text-base font-bold text-secondary">Customer Reviews</h2>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-lg font-bold text-secondary">{avgRating}</span>
-          <div className="flex gap-0.5">
-            {[1, 2, 3, 4, 5].map((r) => (
-              <Star key={r} className={`h-3.5 w-3.5 ${r <= Math.round(avgRating) ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
-            ))}
-          </div>
-          <span className="text-xs text-muted-foreground ml-1">({reviews.length})</span>
-        </div>
-      </div>
-      <div className="space-y-4 divide-y divide-border/60">
-        {reviews.sort((a, b) => b.createdAt - a.createdAt).map((review) => (
-          <div key={review.id} className="pt-4 first:pt-0">
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-xs">
-                {review.customerName.charAt(0)}
-              </div>
-              <span className="text-sm font-semibold text-secondary">{review.customerName}</span>
-              <div className="flex gap-0.5 ml-1">
-                {[1, 2, 3, 4, 5].map((r) => (
-                  <Star key={r} className={`h-3 w-3 ${r <= review.rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
-                ))}
-              </div>
-            </div>
-            <p className="text-sm text-secondary leading-relaxed">&ldquo;{review.text}&rdquo;</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ProductReviewForm({ product }: { product: Product }) {
-  const { user, signInWithGoogle } = useAuth();
-  const [rating, setRating] = useState(0);
-  const [hoverRating, setHoverRating] = useState(0);
-  const [customerName, setCustomerName] = useState(user?.displayName || "");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [text, setText] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [pendingReview, setPendingReview] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!customerName.trim() || !text.trim() || rating === 0) return;
-    if (!user && !customerPhone.trim()) return;
-    setSubmitting(true);
-    setError("");
-    try {
-      await addDoc(collection(db, "testimonials"), {
-        customerName: customerName.trim(),
-        customerPhone: user ? (customerPhone.trim() || "") : customerPhone.trim(),
-        rating,
-        text: text.trim(),
-        productId: product.id,
-        productName: product.name,
-        isActive: rating >= 4,
-        order: 0,
-        createdAt: Date.now(),
-      });
-      setSubmitted(true);
-      if (rating < 4) setPendingReview(true);
-    } catch {
-      setError("Failed to submit review. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (submitted) {
-    return (
-      <div className="bg-white rounded-2xl border border-border p-5 sm:p-6 shadow-sm mt-4">
-        <div className="text-center py-4">
-          <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3">
-            <Check className="h-7 w-7 text-emerald-600" />
-          </div>
-          <h3 className="text-base font-bold text-secondary mb-1">Thank You!</h3>
-          <p className="text-sm text-muted-foreground">
-            {pendingReview
-              ? "Your review has been submitted and is pending approval."
-              : "Your review has been published. Thank you for your feedback!"}
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white rounded-2xl border border-border p-5 sm:p-6 shadow-sm mt-4">
-      <div className="flex items-center gap-2 mb-4">
-        <MessageSquare className="h-5 w-5 text-accent" />
-        <h2 className="text-base font-bold text-secondary">Write a Review</h2>
-      </div>
-
-      {!user && (
-        <div className="mb-4 pb-4 border-b border-border">
-          <p className="text-xs text-muted-foreground mb-2">Sign in to auto-fill your name:</p>
-          <button
-            type="button"
-            onClick={signInWithGoogle}
-            className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors text-sm"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-            Google
-          </button>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Rating *</label>
-          <div className="flex gap-1">
-            {[1, 2, 3, 4, 5].map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => setRating(r)}
-                onMouseEnter={() => setHoverRating(r)}
-                onMouseLeave={() => setHoverRating(0)}
-                className="p-0.5 transition-colors"
-              >
-                <Star
-                  className={`h-6 w-6 ${
-                    r <= (hoverRating || rating) ? "text-amber-400 fill-amber-400" : "text-gray-200"
-                  }`}
-                />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-              Your Name {!user && "*"}
-            </label>
-            <input
-              type="text"
-              value={user ? (user.displayName || customerName) : customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              placeholder={user ? user.displayName || "Enter your name" : "Enter your name"}
-              required={!user}
-              readOnly={!!user}
-              className={`w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent ${user ? "bg-muted/50 text-muted-foreground" : ""}`}
-            />
-            {user && <p className="text-[10px] text-muted-foreground mt-0.5">Signed in as {user.displayName || user.email}</p>}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-              Mobile Number {!user && "*"}
-            </label>
-            <input
-              type="tel"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              placeholder={user ? "Optional" : "98XXXXXXXX"}
-              required={!user}
-              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Your Review *</label>
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Share your experience with this product..."
-            rows={3}
-            required
-            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-          />
-        </div>
-
-        {error && <p className="text-sm text-red-500">{error}</p>}
-
-        <button
-          type="submit"
-          disabled={submitting || !customerName.trim() || !text.trim() || rating === 0 || (!user && !customerPhone.trim())}
-          className="w-full py-2.5 bg-accent text-secondary font-semibold rounded-xl hover:bg-accent/90 transition-all disabled:opacity-50 text-sm"
-        >
-          {submitting ? "Submitting..." : "Submit Review"}
-        </button>
-
-        {rating > 0 && rating < 4 && (
-          <p className="text-xs text-amber-600 text-center">
-            Reviews with 1-3 stars will be reviewed before publishing.
-          </p>
-        )}
-      </form>
     </div>
   );
 }
