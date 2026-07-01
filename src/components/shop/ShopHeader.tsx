@@ -18,7 +18,7 @@ export default function ShopHeader() {
     constraints: [where("isActive", "==", true), orderBy("order", "asc")],
     realtime: false,
   });
-  const dropdownRef = useRef<HTMLLIElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   useEffect(() => {
