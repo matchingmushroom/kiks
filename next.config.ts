@@ -7,9 +7,6 @@ const nextConfig: NextConfig = {
   },
   basePath: process.env.PAGE_URL ? new URL(process.env.PAGE_URL).pathname.replace(/\/$/, "") : "",
   trailingSlash: false,
-  typescript: {
-    ignoreBuildErrors: true,
-  },
 };
 
 export default nextConfig;
