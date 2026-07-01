@@ -85,7 +85,7 @@ function ViewerInner() {
                 <img src={logoUrl} alt={shopName} className="h-14 mb-2" />
                 <h2 className="text-xl font-bold text-secondary">{shopName}</h2>
                 <p className="text-sm text-muted-foreground">{shopTagline}</p>
-                {shopAddress && <p className="text-sm text-muted-foreground whitespace-pre-line">{shopAddress}</p>}
+                {shopAddress && <p className="text-sm text-muted-foreground">{shopAddress}</p>}
               </div>
               <div className="text-right">
                 <h1 className="text-3xl font-bold text-primary mb-1">INVOICE</h1>
@@ -209,7 +209,7 @@ function ViewerInner() {
             {!invoice.couponIssued && (
               <div className="border-t border-border pt-6 text-center text-xs text-muted-foreground">
                 <p>Thank you for your business! &bull; {shopName}</p>
-                {shopAddress && <p className="whitespace-pre-line">{shopAddress}</p>}
+                {shopAddress && <p>{shopAddress}</p>}
               </div>
             )}
           </div>
