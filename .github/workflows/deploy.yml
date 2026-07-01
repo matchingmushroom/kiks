@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build with Next.js
-        run: npm run build
+        run: npm run build -- --webpack
         env:
           PAGE_URL: ${{ steps.pages.outputs.base_url }}
           NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyBWYuU_UpuHhgvbG9KjaSIvQxazWpeIXZE
