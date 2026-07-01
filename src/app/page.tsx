@@ -8,7 +8,7 @@ import ProductCard from "@/components/shop/ProductCard";
 import Carousel from "@/components/shop/Carousel";
 import TrustBar from "@/components/shop/TrustBar";
 import { formatNumber } from "@/lib/utils";
-import { ShoppingBag, ChevronRight, Sparkles, ArrowRight, Star, X, Facebook, Instagram, Music2 } from "lucide-react";
+import { ShoppingBag, ChevronRight, Sparkles, ArrowRight, Star, X } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -380,58 +380,6 @@ function ComboSection({ products }: { products: ProductType[] }) {
   );
 }
 
-function StayConnectedSection() {
-  const { settings } = useShopSettings();
-
-  const socialLinks = [
-    settings.facebook && { icon: Facebook, href: settings.facebook, label: "Facebook" },
-    settings.instagram && { icon: Instagram, href: settings.instagram, label: "Instagram" },
-    settings.tiktok && { icon: Music2, href: settings.tiktok, label: "TikTok" },
-  ].filter(Boolean) as { icon: any; href: string; label: string }[];
-
-  return (
-    <section className="py-12 sm:py-16 bg-secondary">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-          <div className="text-center md:text-left">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">Stay in Touch</h2>
-            <p className="text-white/70 mb-6 text-sm sm:text-base">Subscribe to get updates on new arrivals and exclusive offers</p>
-            <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto md:mx-0">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="flex-1 px-4 py-2.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-accent text-sm"
-              />
-              <button className="px-6 py-2.5 bg-accent text-secondary font-semibold rounded-full hover:bg-accent/90 transition-colors text-sm whitespace-nowrap">
-                Subscribe
-              </button>
-            </div>
-          </div>
-          {socialLinks.length > 0 && (
-            <div className="text-center md:text-left">
-              <h3 className="text-lg font-semibold text-white mb-3">Follow Us</h3>
-              <div className="flex items-center justify-center md:justify-start gap-3">
-                {socialLinks.map((s) => (
-                  <a
-                    key={s.label}
-                    href={s.href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-11 h-11 rounded-full bg-white/10 flex items-center justify-center hover:bg-accent hover:text-secondary transition-all text-white/80"
-                    title={s.label}
-                  >
-                    <s.icon className="h-5 w-5" />
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function CustomHtmlSection({ section }: { section: HomeSection }) {
   const html = (section.config?.htmlContent as string) || "";
   if (!html) return null;
@@ -489,7 +437,6 @@ function HomeContent() {
         <CategoryProductSection key={cat.id} category={cat} products={sortedProducts} />
       ))}
       <ComboSection products={sortedProducts} />
-      <StayConnectedSection />
       {sections.length > 0 && (
         <div className="max-w-7xl mx-auto px-4">
           {sections.sort((a, b) => (a.order ?? 99) - (b.order ?? 99)).map((section) => (
