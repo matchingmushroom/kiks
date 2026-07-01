@@ -20,17 +20,12 @@ export function generateModelNo(categoryShortCode: string, costPrice: number, qu
   return `M${categoryShortCode}-${cp}-${qty}`;
 }
 
-const MAX_ITEM_NUM = 9999;
-
 export async function generateShortCode(categoryShortCode: string, subCatIndex: number): Promise<string> {
   const extNum = subCatIndex;
   const counterKey = `shortCode_${categoryShortCode}_${extNum}`;
   const counterRef = doc(db, "counters", counterKey);
   const snap = await getDoc(counterRef);
-  let next = (snap.exists() ? snap.data().lastNumber : 0) + 1;
-  if (next > MAX_ITEM_NUM) {
-    next = 1;
-  }
+  const next = (snap.exists() ? snap.data().lastNumber : 0) + 1;
   await setDoc(counterRef, { lastNumber: next }, { merge: true });
   return `${categoryShortCode}${extNum}-${next}`;
 }
