@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
-import { Product } from "@/types";
+import { Product, Testimonial } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, Gift, Truck, Star, MessageSquare } from "lucide-react";
 import { collection, addDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useFirestore, where } from "@/hooks/useFirestore";
 
 function extractGoogleDriveId(url: string): string | null {
   const m = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^/?#&]+)/);
@@ -230,6 +231,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               </div>
             )}
 
+            <ProductReviews productId={product.id} />
             <ProductReviewForm product={product} />
 
             <div className="lg:hidden grid grid-cols-3 gap-3 mt-4">
@@ -245,6 +247,56 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function ProductReviews({ productId }: { productId: string }) {
+  const { data: reviews, loading } = useFirestore<Testimonial>("testimonials", {
+    constraints: [where("productId", "==", productId), where("isActive", "==", true)],
+    realtime: false,
+  });
+
+  if (loading) return null;
+  if (reviews.length === 0) return null;
+
+  const avgRating = Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10;
+
+  return (
+    <div className="bg-white rounded-2xl border border-border p-5 sm:p-6 shadow-sm mt-4">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
+          <h2 className="text-base font-bold text-secondary">Customer Reviews</h2>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-lg font-bold text-secondary">{avgRating}</span>
+          <div className="flex gap-0.5">
+            {[1, 2, 3, 4, 5].map((r) => (
+              <Star key={r} className={`h-3.5 w-3.5 ${r <= Math.round(avgRating) ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+            ))}
+          </div>
+          <span className="text-xs text-muted-foreground ml-1">({reviews.length})</span>
+        </div>
+      </div>
+      <div className="space-y-4 divide-y divide-border/60">
+        {reviews.sort((a, b) => b.createdAt - a.createdAt).map((review) => (
+          <div key={review.id} className="pt-4 first:pt-0">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center text-accent font-bold text-xs">
+                {review.customerName.charAt(0)}
+              </div>
+              <span className="text-sm font-semibold text-secondary">{review.customerName}</span>
+              <div className="flex gap-0.5 ml-1">
+                {[1, 2, 3, 4, 5].map((r) => (
+                  <Star key={r} className={`h-3 w-3 ${r <= review.rating ? "text-amber-400 fill-amber-400" : "text-gray-200"}`} />
+                ))}
+              </div>
+            </div>
+            <p className="text-sm text-secondary leading-relaxed">&ldquo;{review.text}&rdquo;</p>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
