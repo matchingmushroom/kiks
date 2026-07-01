@@ -424,7 +424,6 @@ export interface ShopSettings {
   twitter?: string;
   tiktok?: string;
   hiddenSocialLinks?: string[];
-  announcementText?: string;
   gasWebhookUrl?: string;
   emailTo?: string;
   driveFolderId?: string;
@@ -456,20 +455,6 @@ export interface Offer {
   createdBy: string;
   createdAt: number;
   updatedAt: number;
-}
-
-export interface Testimonial {
-  id: string;
-  customerName: string;
-  customerPhone?: string;
-  customerPhoto?: string;
-  rating: number;
-  text: string;
-  productId?: string;
-  productName?: string;
-  isActive: boolean;
-  order: number;
-  createdAt: number;
 }
 
 export interface AccountHead {

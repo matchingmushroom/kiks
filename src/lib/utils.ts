@@ -2,7 +2,7 @@ import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { formatBS, formatBSDateTime } from "./nepaliDate";
 
-let _useBs = true;
+let _useBs = false;
 export const setUseBsCalendar = (v: boolean) => { _useBs = v; };
 export const getUseBsCalendar = () => _useBs;
 

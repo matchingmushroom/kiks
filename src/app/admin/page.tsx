@@ -85,12 +85,10 @@ export default function AdminDashboardPage() {
   const [showScanner, setShowScanner] = useState(false);
 
   const handleSkuSearch = () => {
-    try {
-      const p = products.find((x) => x.sku === skuSearch.trim());
-      if (!p) { setSkuResult(null); return; }
-      const pc = purchases.find((x) => x.items?.some((i) => i.productId === p.id));
-      setSkuResult({ product: p, purchase: pc || null });
-    } catch { setSkuResult(null); }
+    const p = products.find((x) => x.sku === skuSearch.trim());
+    if (!p) { setSkuResult(null); return; }
+    const pc = purchases.find((x) => x.items.some((i) => i.productId === p.id));
+    setSkuResult({ product: p, purchase: pc || null });
   };
 
   const currentUserName = profile?.displayName || "";
@@ -843,12 +841,10 @@ export default function AdminDashboardPage() {
         <BarcodeScannerDialog
           onScan={(value) => {
             setSkuSearch(value);
-            try {
-              const p = products.find((x) => x.sku === value.trim());
-              if (!p) { setSkuResult(null); return; }
-              const pc = purchases.find((x) => x.items?.some((i) => i.productId === p.id));
-              setSkuResult({ product: p, purchase: pc || null });
-            } catch { setSkuResult(null); }
+            const p = products.find((x) => x.sku === value.trim());
+            if (!p) { setSkuResult(null); return; }
+            const pc = purchases.find((x) => x.items.some((i) => i.productId === p.id));
+            setSkuResult({ product: p, purchase: pc || null });
           }}
           onClose={() => setShowScanner(false)}
         />
