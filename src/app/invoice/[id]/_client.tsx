@@ -122,7 +122,7 @@ export default function PublicInvoicePage() {
                 <img src={logoUrl} alt={shopName} className="h-14 mb-2" />
                 <h2 className="text-xl font-bold text-secondary">{shopName}</h2>
                 <p className="text-sm text-muted-foreground">{shopTagline}</p>
-                {shopAddress && <p className="text-sm text-muted-foreground">{shopAddress}</p>}
+                {shopAddress && <p className="text-sm text-muted-foreground whitespace-pre-line">{shopAddress}</p>}
               </div>
               <div className="text-right">
                 <h1 className="text-3xl font-bold text-primary mb-1">
@@ -270,7 +270,7 @@ export default function PublicInvoicePage() {
             ) : (
               <div className="border-t border-border pt-6 text-center text-xs text-muted-foreground">
                 <p>Thank you for your business! &bull; {shopName}</p>
-                {shopAddress && <p>{shopAddress}</p>}
+                {shopAddress && <p className="whitespace-pre-line">{shopAddress}</p>}
               </div>
             )}
           </div>

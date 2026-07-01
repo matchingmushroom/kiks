@@ -195,7 +195,7 @@ export default function CouponCardPrint({ coupons, onClose }: CouponCardPrintPro
           .cp-logo { max-width: 11mm; max-height: 6mm; object-fit: contain; display: block; }
           .cp-info-cell { vertical-align: middle; }
           .cp-name { font-size: 12px; font-weight: 800; color: #1a1a2e; line-height: 1.15; }
-          .cp-addr, .cp-phone { font-size: 7px; color: #888; line-height: 1.2; }
+          .cp-addr, .cp-phone { font-size: 7px; color: #888; line-height: 1.2; white-space: pre-line; }
 
           .cp-exclusive {
             text-align: center; font-size: 9px; font-weight: 800; color: #fff;
