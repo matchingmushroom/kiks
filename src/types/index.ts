@@ -460,6 +460,7 @@ export interface Offer {
 export interface Testimonial {
   id: string;
   customerName: string;
+  customerPhone?: string;
   customerPhoto?: string;
   rating: number;
   text: string;

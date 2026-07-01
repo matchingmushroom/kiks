@@ -6,7 +6,9 @@ import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { Product } from "@/types";
 import { formatNumber } from "@/lib/utils";
-import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, Gift, Truck } from "lucide-react";
+import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, Gift, Truck, Star, MessageSquare } from "lucide-react";
+import { collection, addDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 function extractGoogleDriveId(url: string): string | null {
   const m = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^/?#&]+)/);
@@ -228,6 +230,8 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               </div>
             )}
 
+            <ProductReviewForm product={product} />
+
             <div className="lg:hidden grid grid-cols-3 gap-3 mt-4">
               {usps.map((usp) => (
                 <div key={usp.label} className="flex flex-col items-center text-center gap-1.5 p-3 bg-white rounded-xl border border-border">
@@ -241,6 +245,148 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function ProductReviewForm({ product }: { product: Product }) {
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [text, setText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [pendingReview, setPendingReview] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerName.trim() || !customerPhone.trim() || !text.trim() || rating === 0) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await addDoc(collection(db, "testimonials"), {
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
+        rating,
+        text: text.trim(),
+        productId: product.id,
+        productName: product.name,
+        isActive: rating >= 4,
+        order: 0,
+        createdAt: Date.now(),
+      });
+      setSubmitted(true);
+      if (rating < 4) setPendingReview(true);
+    } catch {
+      setError("Failed to submit review. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <div className="bg-white rounded-2xl border border-border p-5 sm:p-6 shadow-sm mt-4">
+        <div className="text-center py-4">
+          <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+            <Check className="h-7 w-7 text-emerald-600" />
+          </div>
+          <h3 className="text-base font-bold text-secondary mb-1">Thank You!</h3>
+          <p className="text-sm text-muted-foreground">
+            {pendingReview
+              ? "Your review has been submitted and is pending approval."
+              : "Your review has been published. Thank you for your feedback!"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-border p-5 sm:p-6 shadow-sm mt-4">
+      <div className="flex items-center gap-2 mb-4">
+        <MessageSquare className="h-5 w-5 text-accent" />
+        <h2 className="text-base font-bold text-secondary">Write a Review</h2>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Rating *</label>
+          <div className="flex gap-1">
+            {[1, 2, 3, 4, 5].map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => setRating(r)}
+                onMouseEnter={() => setHoverRating(r)}
+                onMouseLeave={() => setHoverRating(0)}
+                className="p-0.5 transition-colors"
+              >
+                <Star
+                  className={`h-6 w-6 ${
+                    r <= (hoverRating || rating) ? "text-amber-400 fill-amber-400" : "text-gray-200"
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Your Name *</label>
+            <input
+              type="text"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Enter your name"
+              required
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1.5">Mobile Number *</label>
+            <input
+              type="tel"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              placeholder="98XXXXXXXX"
+              required
+              className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-muted-foreground mb-1.5">Your Review *</label>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Share your experience with this product..."
+            rows={3}
+            required
+            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
+          />
+        </div>
+
+        {error && <p className="text-sm text-red-500">{error}</p>}
+
+        <button
+          type="submit"
+          disabled={submitting || !customerName.trim() || !customerPhone.trim() || !text.trim() || rating === 0}
+          className="w-full py-2.5 bg-accent text-secondary font-semibold rounded-xl hover:bg-accent/90 transition-all disabled:opacity-50 text-sm"
+        >
+          {submitting ? "Submitting..." : "Submit Review"}
+        </button>
+
+        {rating > 0 && rating < 4 && (
+          <p className="text-xs text-amber-600 text-center">
+            Reviews with 1-3 stars will be reviewed before publishing.
+          </p>
+        )}
+      </form>
     </div>
   );
 }
