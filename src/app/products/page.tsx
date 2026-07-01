@@ -71,7 +71,7 @@ export default function ProductsPage() {
             <p className="text-muted-foreground">No products found in this category.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {filtered.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
