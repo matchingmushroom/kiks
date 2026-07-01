@@ -244,7 +244,7 @@ export default function BulkCouponDialog({ onClose, onComplete }: BulkCouponDial
           .cp-logo { max-width: 15mm; max-height: 9mm; object-fit: contain; display: block; }
           .cp-info-cell { vertical-align: middle; }
           .cp-name { font-size: 16px; font-weight: 800; color: #1a1a2e; line-height: 1.15; }
-          .cp-addr, .cp-phone { font-size: 10px; color: #888; line-height: 1.2; }
+          .cp-addr, .cp-phone { font-size: 10px; color: #888; line-height: 1.2; white-space: pre-line; }
 
           .cp-exclusive {
             text-align: center; font-size: 12px; font-weight: 800; color: #fff;

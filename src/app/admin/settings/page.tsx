@@ -308,9 +308,10 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Address</label>
-                <input type="text" value={form.address}
+                <textarea value={form.address}
                   onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  rows={3}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Website URL</label>

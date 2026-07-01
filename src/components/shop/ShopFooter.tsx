@@ -76,7 +76,7 @@ export default function ShopFooter() {
               {settings.address && (
                 <div className="flex items-start gap-2.5">
                   <MapPin className="h-4 w-4 mt-0.5 shrink-0 text-secondary-foreground/40" />
-                  <span>{settings.address}</span>
+                  <span className="whitespace-pre-line">{settings.address}</span>
                 </div>
               )}
               {settings.phone && (
