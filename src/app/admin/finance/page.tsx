@@ -32,7 +32,7 @@ function ReportHeader({ title, period }: { title: string; period: string }) {
         </div>
       )}
       <h1 className="text-xl font-bold text-gray-900 tracking-tight">{settings?.shopName || "Shop Name"}</h1>
-      {settings?.address && <p className="text-sm text-gray-500 mt-0.5">{settings.address}</p>}
+      {settings?.address && <p className="text-sm text-gray-500 mt-0.5 whitespace-pre-line">{settings.address}</p>}
       {settings?.phone && <p className="text-xs text-gray-400">Phone: {settings.phone}</p>}
       <h2 className="text-lg font-semibold text-gray-800 mt-4">{title}</h2>
       <p className="text-sm text-gray-500 italic">{period}</p>
