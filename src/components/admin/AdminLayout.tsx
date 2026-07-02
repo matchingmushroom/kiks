@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Receipt, Users, BarChart3,
   Settings, LogOut, Menu, X, Tags, FileText, Truck, Home, Shield,
   Rocket, ArrowLeft, DollarSign, CreditCard, Wallet, Sparkles,
-  ClipboardList, Zap, ChevronDown, Bell, Search, MessageSquare, Database,
+  ClipboardList, Zap, ChevronDown, Bell, Search, MessageSquare,
 } from "lucide-react";
 
 interface NavItem {
@@ -54,7 +54,6 @@ const navItems: NavItem[] = [
   { label: "Homepage", href: "/admin/homepage", icon: <Home className="h-4 w-4" />, permission: "manage_homepage" },
   { label: "Access Control", href: "/admin/access-control", icon: <Shield className="h-4 w-4" />, permission: "manage_access_control" },
   { label: "Backup", href: "/admin/backup", icon: <Receipt className="h-4 w-4" />, permission: "manage_backup" },
-  { label: "Migration", href: "/admin/migration", icon: <Database className="h-4 w-4" />, permission: "manage_settings" },
   { label: "Settings", href: "/admin/settings", icon: <Settings className="h-4 w-4" />, permission: "manage_settings" },
   { label: "Setup", href: "/admin/setup", icon: <Rocket className="h-4 w-4" />, permission: "manage_settings" },
 ];

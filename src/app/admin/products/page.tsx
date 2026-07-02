@@ -78,9 +78,6 @@ export default function AdminProductsPage() {
   const [selectedComboIds, setSelectedComboIds] = useState<string[]>([]);
   const [comboPrice, setComboPrice] = useState(0);
   const [savingCombo, setSavingCombo] = useState(false);
-  const [backfilling, setBackfilling] = useState(false);
-  const [backfillDone, setBackfillDone] = useState(0);
-
   const filtered = products.filter((p) => {
     const q = search.toLowerCase();
     const matchSearch = !search || p.name.toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
@@ -300,28 +297,6 @@ export default function AdminProductsPage() {
     setSavingCombo(false);
   };
 
-  const handleBackfillShortCodes = async () => {
-    const missing = products.filter((p) => !p.shortCode && !p.comboItems?.length);
-    if (missing.length === 0) { alert("All products already have short codes."); return; }
-    if (!confirm(`Generate short codes (Base-36) for ${missing.length} products?`)) return;
-    setBackfilling(true);
-    setBackfillDone(0);
-    try {
-      let done = 0;
-      for (const p of missing) {
-        const shortCode = await generateSkuV2();
-        await updateDoc(doc(db, "products", p.id), { shortCode });
-        done++;
-        setBackfillDone(done);
-      }
-      alert(`Backfilled ${done} products with short codes.`);
-    } catch (e) {
-      console.error("Backfill failed", e);
-      alert("Backfill failed: " + (e instanceof Error ? e.message : "Unknown error"));
-    }
-    setBackfilling(false);
-  };
-
   return (
     <AdminLayout>
       <div className="p-6">
@@ -335,9 +310,6 @@ export default function AdminProductsPage() {
               className="p-2 border border-border rounded-lg text-muted-foreground hover:bg-muted" title={viewMode === "grid" ? "List View" : "Grid View"}>
               {viewMode === "grid" ? <List className="h-4 w-4" /> : <LayoutGrid className="h-4 w-4" />}
             </button>
-            <Button onClick={handleBackfillShortCodes} disabled={backfilling} variant="outline" className="text-xs">
-              {backfilling ? `Backfilling ${backfillDone}...` : "Backfill Short Codes"}
-            </Button>
             <Button onClick={() => { setShowComboModal(true); setComboName(""); setComboProductSearch(""); setSelectedComboIds([]); setComboPrice(0); }} variant="outline">
               <Package className="h-4 w-4" /> Create Combo
             </Button>
