@@ -20,7 +20,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateDummyProducts } from "@/lib/dummyProducts";
-import { generateSkuV2, generateModelCode, findExistingModelCodes, generateShortCode, generateSku, generateModelNo } from "@/lib/sku-generator";
+import { generateSkuV2, generateModelCode, findExistingModelCodes, generateShortCode, generateSku, generateBarcodeId } from "@/lib/sku-generator";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import PrintLabelsDialog from "@/components/admin/PrintLabelsDialog";
@@ -52,7 +52,7 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", modelCode: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[], shortCode: "" });
+  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", modelCode: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
   const [saving, setSaving] = useState(false);
   const [existingModelCodes, setExistingModelCodes] = useState<string[]>([]);
   const [generateNewModelCode, setGenerateNewModelCode] = useState(true);
@@ -83,7 +83,7 @@ export default function AdminProductsPage() {
 
   const filtered = products.filter((p) => {
     const q = search.toLowerCase();
-    const matchSearch = !search || p.name.toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q);
+    const matchSearch = !search || p.name.toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
     const matchCat = !catFilter || p.categoryId === catFilter;
     return matchSearch && matchCat;
   });
@@ -105,7 +105,6 @@ export default function AdminProductsPage() {
       idealFor: Array.isArray(p.idealFor) ? p.idealFor : (p.idealFor ? [p.idealFor] : []),
       netQuantity: p.netQuantity || 1,
       occasion: Array.isArray(p.occasion) ? p.occasion : (p.occasion ? [p.occasion] : []),
-      shortCode: p.shortCode || "",
     });
     setEditingId(p.id);
     setShowForm(true);
@@ -134,21 +133,13 @@ export default function AdminProductsPage() {
       } else {
         const prodId = await generateId("PROD");
         const cat = categories.find((c) => c.id === form.categoryId);
-        const sku = await generateSkuV2();
+        const shortCode = await generateSkuV2();
         let modelCode = form.modelCode;
         if (!modelCode || generateNewModelCode) {
           modelCode = await generateModelCode(cat?.shortCode || "XX");
         }
-        const barcodeId = sku;
-        let shortCode = form.shortCode;
-        if (!shortCode && cat?.shortCode) {
-          const subIdx = cat.subCategories.indexOf(form.productType) + 1;
-          if (subIdx > 0) {
-            shortCode = await generateShortCode(cat.shortCode, subIdx);
-          } else {
-            shortCode = await generateShortCode(cat.shortCode, 0);
-          }
-        }
+        const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
+        const sku = generateSku(barcodeId, form.costPrice || 0, form.supplierShortCode || "XX", form.quantityInStock || 1);
         await setDoc(doc(db, "products", prodId), {
           ...data,
           sku, modelCode, barcodeId, shortCode,
@@ -312,35 +303,16 @@ export default function AdminProductsPage() {
   const handleBackfillShortCodes = async () => {
     const missing = products.filter((p) => !p.shortCode && !p.comboItems?.length);
     if (missing.length === 0) { alert("All products already have short codes."); return; }
-    if (!confirm(`Generate short codes for ${missing.length} products?`)) return;
+    if (!confirm(`Generate short codes (Base-36) for ${missing.length} products?`)) return;
     setBackfilling(true);
     setBackfillDone(0);
     try {
-      const groups: Record<string, { product: Product; cat: Category | undefined; subIdx: number }[]> = {};
-      for (const p of missing) {
-        const cat = categories.find((c) => c.id === p.categoryId);
-        const subIdx = cat ? cat.subCategories.indexOf(p.productType) + 1 : 0;
-        const key = `${cat?.shortCode || "XX"}_${subIdx}`;
-        if (!groups[key]) groups[key] = [];
-        groups[key].push({ product: p, cat, subIdx });
-      }
       let done = 0;
-      const total = missing.length;
-      for (const [key, group] of Object.entries(groups)) {
-        const [catCode, subIdxStr] = key.split("_");
-        const subIdx = Number(subIdxStr);
-        const counterKey = `shortCode_${catCode}_${subIdx}`;
-        const counterRef = doc(db, "counters", counterKey);
-        const snap = await getDoc(counterRef);
-        let next = (snap.exists() ? snap.data().lastNumber : 0);
-        for (const { product: p } of group) {
-          next++;
-          const shortCode = `${catCode}${subIdx}-${next}`;
-          await updateDoc(doc(db, "products", p.id), { shortCode });
-          done++;
-          setBackfillDone(done);
-        }
-        await setDoc(counterRef, { lastNumber: next }, { merge: true });
+      for (const p of missing) {
+        const shortCode = await generateSkuV2();
+        await updateDoc(doc(db, "products", p.id), { shortCode });
+        done++;
+        setBackfillDone(done);
       }
       alert(`Backfilled ${done} products with short codes.`);
     } catch (e) {
@@ -670,32 +642,27 @@ export default function AdminProductsPage() {
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">SKU</label>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">SKU (old format)</label>
                     {editingId ? (
                       <input type="text" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })}
                         className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     ) : (
                       <div className="w-full px-3 py-2 bg-muted/30 border border-border rounded-lg text-sm text-muted-foreground">
-                        5-char Base-36 code auto-generated on save
+                        Old format auto-generated on save
                       </div>
                     )}
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Short Code</label>
-                    <div className="flex gap-2">
-                      <input type="text" value={form.shortCode} onChange={(e) => setForm({ ...form, shortCode: e.target.value })}
-                        placeholder="Auto-generated"
-                        className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                      <button type="button" onClick={async () => {
-                        const cat = categories.find((c) => c.id === form.categoryId);
-                        if (!cat?.shortCode) { alert("Select a category with a short code first."); return; }
-                        const subIdx = cat.subCategories.indexOf(form.productType) + 1;
-                        const sc = await generateShortCode(cat.shortCode, subIdx > 0 ? subIdx : 0);
-                        setForm((prev) => ({ ...prev, shortCode: sc }));
-                      }} className="px-3 py-2 text-xs font-medium border border-border rounded-lg hover:bg-muted">
-                        Generate
-                      </button>
-                    </div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Short Code (5-char Base-36)</label>
+                    {editingId ? (
+                      <div className="w-full px-3 py-2 bg-muted/30 border border-border rounded-lg text-sm font-mono text-primary">
+                        {products.find(p => p.id === editingId)?.shortCode || "—"}
+                      </div>
+                    ) : (
+                      <div className="w-full px-3 py-2 bg-muted/30 border border-border rounded-lg text-sm text-muted-foreground">
+                        5-char Base-36 code auto-generated on save
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Badge</label>

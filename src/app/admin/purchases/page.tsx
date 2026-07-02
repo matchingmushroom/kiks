@@ -233,13 +233,15 @@ function PurchasesContent() {
           const supCode = supplier?.shortCode || "XX";
           const cp = r.unitCost || 0;
           const qty = r.quantity || 1;
-          const newSku = await generateSkuV2();
+          const shortCode = await generateSkuV2();
+          const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
+          const sku = generateSku(barcodeId, cp, supCode, qty);
           const modelCode = await generateModelCode(cat?.shortCode || "XX");
           await setDoc(doc(db, "products", prodId_), {
             name: r.productName, description: r.description || "", design: "", categoryId: r.categoryId,
             images: [], videoUrl: "", price: r.salesPrice, costPrice: r.unitCost,
             weight: 0, metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0,
-            warranty: r.warranty || "", sku: newSku, modelCode, quantityInStock: 0,
+            warranty: r.warranty || "", sku, shortCode, barcodeId, modelCode, quantityInStock: 0,
             isActive: r.isActive !== undefined ? r.isActive : true,
             isFeatured: r.isFeatured || false,
             badge: "", originalPrice: 0, brand: "", modelNo: "",
@@ -248,7 +250,7 @@ function PurchasesContent() {
             occasion: [], createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
           });
           prodId = prodId_;
-          prodSku = newSku;
+          prodSku = sku;
         }
         const prodRef = doc(db, "products", prodId);
         const prodSnap = await getDoc(prodRef);
@@ -471,7 +473,9 @@ function PurchasesContent() {
     const cat = categories.find((c) => c.id === f.categoryId);
     const supplier = allSuppliers.find((s) => s.name === form.supplierName);
     const supCode = supplier?.shortCode || "XX";
-    const newSku = await generateSkuV2();
+    const shortCode = await generateSkuV2();
+    const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
+    const sku = generateSku(barcodeId, f.costPrice, supCode, 1);
     const modelCode = await generateModelCode(cat?.shortCode || "XX");
     const prodData: Record<string, any> = {
       name: f.name, description: "", design: "", categoryId: f.categoryId,
@@ -479,8 +483,8 @@ function PurchasesContent() {
       price: f.salesPrice || f.costPrice, costPrice: f.costPrice,
       weight: f.weight, purity: f.purity, metalType: f.metalType,
       stoneType: f.stoneType, stoneWeight: f.stoneWeight,
-      makingCharge: f.makingCharge, warranty: f.warranty, sku: newSku,
-      modelCode, modelNo: "", barcodeId: newSku,
+      makingCharge: f.makingCharge, warranty: f.warranty, sku, shortCode, barcodeId,
+      modelCode, modelNo: "",
       quantityInStock: 0, isActive: true, isFeatured: false,
       badge: "", brand: f.brand, baseMaterial: f.baseMaterial,
       plating: f.plating, color: f.color, productType: f.productType,
@@ -1209,16 +1213,7 @@ function PurchasesContent() {
                                 if (catId === "__new__") {
                                   setShowNewCategory(true);
                                 } else {
-                                  const cat = categories.find((c) => c.id === catId);
-                                  const supplier = allSuppliers.find((s) => s.name === form.supplierName);
-                                  const supCode = supplier?.shortCode || "XX";
-                                  const cp = newProductForm.costPrice || 0;
-                                  if (cat?.shortCode) {
-                                    const previewBarcodeId = `${cat.shortCode}-TEMP`;
-                                    setNewProductForm({ ...newProductForm, categoryId: catId, sku: "Auto" });
-                                  } else {
-                                    setNewProductForm({ ...newProductForm, categoryId: catId });
-                                  }
+                                  setNewProductForm({ ...newProductForm, categoryId: catId, sku: "Auto" });
                                 }
                               }}
                               className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
@@ -1431,15 +1426,7 @@ function PurchasesContent() {
                           <input type="number" value={newProductForm.costPrice || ""}
                             onChange={(e) => {
                               const cp = Number(e.target.value);
-                              const cat = categories.find((c) => c.id === newProductForm.categoryId);
-                              const supplier = allSuppliers.find((s) => s.name === form.supplierName);
-                              const supCode = supplier?.shortCode || "XX";
-                              if (cat?.shortCode) {
-                                const previewBarcodeId = `${cat.shortCode}-TEMP`;
-                                setNewProductForm({ ...newProductForm, costPrice: cp, sku: "Auto" });
-                              } else {
-                                setNewProductForm({ ...newProductForm, costPrice: cp });
-                              }
+                              setNewProductForm({ ...newProductForm, costPrice: cp, sku: "Auto" });
                             }}
                             className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                         </div>
