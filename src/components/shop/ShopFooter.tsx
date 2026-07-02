@@ -53,9 +53,10 @@ export default function ShopFooter() {
             )}
           </div>
           <div>
-            <div className="space-y-2.5 text-sm text-secondary-foreground/70">
+            <div className="flex flex-wrap gap-2">
               {footerCategories.map((cat) => (
-                <Link key={cat.id} href={`/products/${cat.id}`} className="block hover:text-accent transition-colors">
+                <Link key={cat.id} href={`/products/${cat.id}`}
+                  className="inline-block px-3 py-1.5 text-xs font-medium rounded-full bg-secondary-foreground/10 text-secondary-foreground/80 hover:bg-accent hover:text-secondary transition-all">
                   {cat.name}
                 </Link>
               ))}
