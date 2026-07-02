@@ -8,7 +8,7 @@ import ProductCard from "@/components/shop/ProductCard";
 import Carousel from "@/components/shop/Carousel";
 import TrustBar from "@/components/shop/TrustBar";
 import { formatNumber } from "@/lib/utils";
-import { ShoppingBag, ChevronRight, Sparkles, ArrowRight, Star, X } from "lucide-react";
+import { ShoppingBag, ChevronRight, Sparkles, ArrowRight, Star, X, Circle, Diamond, Ear, Infinity, Gem, Heart } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
@@ -288,7 +288,9 @@ function AffordableCategorySection({ products: allProducts, categories }: { prod
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeader title="Shop by Category" subtitle="Find your perfect piece" />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-          {visible.map((cat) => (
+          {visible.map((cat) => {
+            const Icon = categoryIcon(cat.name, cat.shortCode);
+            return (
             <Link
               key={cat.id}
               href={`/products/${cat.id}`}
@@ -298,7 +300,7 @@ function AffordableCategorySection({ products: allProducts, categories }: { prod
                 {cat.image ? (
                   <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
                 ) : (
-                  <span className="text-accent font-bold text-lg">{cat.name.charAt(0)}</span>
+                  <Icon className="w-6 h-6 text-accent" />
                 )}
               </div>
               <h3 className="text-sm font-semibold text-secondary">{cat.name}</h3>
@@ -306,11 +308,29 @@ function AffordableCategorySection({ products: allProducts, categories }: { prod
                 <p className="text-xs text-accent font-medium mt-1">From Rs. {formatNumber(minPriceInCategory[cat.id])}</p>
               )}
             </Link>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
   );
+}
+
+function categoryIcon(name: string, shortCode: string): React.ComponentType<{ className?: string }> {
+  const n = name.toLowerCase();
+  const c = shortCode?.toLowerCase() || "";
+  if (n.includes("ring") || c === "rl") return Circle;
+  if (n.includes("earring") || c === "er") return Ear;
+  if (n.includes("nosepin") || n.includes("nose pin") || c === "np") return Gem;
+  if (n.includes("necklace") || n.includes("chain") || c === "nl" || c === "ch") return Infinity;
+  if (n.includes("mangalsutra") || c === "ms") return Heart;
+  if (n.includes("bangle") || n.includes("bracelet") || n.includes("anklet") || c === "bg" || c === "br" || c === "ak") return Circle;
+  if (n.includes("pendant") || c === "ps") return Diamond;
+  if (n.includes("jewel set") || n.includes("set") || c === "js") return Sparkles;
+  if (n.includes("brooch") || c === "bo") return Star;
+  if (n.includes("cufflink") || c === "cf") return Circle;
+  if (n.includes("hair") || c === "ha") return Sparkles;
+  return Diamond;
 }
 
 function CategoryProductSection({ category, products }: { category: Category; products: ProductType[] }) {
