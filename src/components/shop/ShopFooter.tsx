@@ -53,15 +53,6 @@ export default function ShopFooter() {
             )}
           </div>
           <div>
-            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Quick Links</h3>
-            <div className="space-y-2.5 text-sm text-secondary-foreground/70">
-              <Link href="/" className="block hover:text-accent transition-colors">Home</Link>
-              <Link href="/products" className="block hover:text-accent transition-colors">All Products</Link>
-              <Link href="/cart" className="block hover:text-accent transition-colors">Cart</Link>
-            </div>
-          </div>
-          <div>
-            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Categories</h3>
             <div className="space-y-2.5 text-sm text-secondary-foreground/70">
               {footerCategories.map((cat) => (
                 <Link key={cat.id} href={`/products/${cat.id}`} className="block hover:text-accent transition-colors">
@@ -71,7 +62,6 @@ export default function ShopFooter() {
             </div>
           </div>
           <div>
-            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Contact</h3>
             <div className="space-y-3 text-sm text-secondary-foreground/70">
               {settings.address && (
                 <div className="flex items-start gap-2.5">
