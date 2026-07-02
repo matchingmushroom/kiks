@@ -64,6 +64,7 @@ const defaults: Settings = {
   tiktok: "",
   hiddenSocialLinks: [],
   announcementText: "Free shipping on orders over Rs. 1,000 \u2014 Use code PANCHAKANYA10 for 10% off!",
+  mapEmbedUrl: "",
 };
 
 const emailDefaults: EmailBackupConfig = {
@@ -428,6 +429,18 @@ export default function SettingsPage() {
                     min={0} step={100}
                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
+              </div>
+            </div>
+
+            <div className="border-t border-border pt-4 mt-4">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Google Maps</h3>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Maps Embed URL</label>
+                <input type="url" value={form.mapEmbedUrl ?? ""}
+                  onChange={(e) => setForm({ ...form, mapEmbedUrl: e.target.value })}
+                  placeholder="https://www.google.com/maps/embed?pb=!1m18!..."
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <p className="text-xs text-muted-foreground mt-1">Get from Google Maps → Share → Embed a map. Leave empty to hide.</p>
               </div>
             </div>
 

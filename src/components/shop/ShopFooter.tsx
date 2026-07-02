@@ -82,6 +82,20 @@ export default function ShopFooter() {
                   <span>{settings.emailTo}</span>
                 </div>
               )}
+              {settings.mapEmbedUrl && (
+                <div className="pt-3">
+                  <iframe
+                    src={settings.mapEmbedUrl}
+                    width="100%"
+                    height="180"
+                    style={{ border: 0, borderRadius: "0.75rem" }}
+                    allowFullScreen
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Store Location"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
