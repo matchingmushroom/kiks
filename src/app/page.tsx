@@ -290,8 +290,12 @@ function AffordableCategorySection({ products: allProducts, categories }: { prod
               href={`/products/${cat.id}`}
               className="group bg-muted/50 rounded-xl p-5 sm:p-6 border border-border text-center hover:bg-accent/5 hover:border-accent/30 transition-all"
             >
-              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                <span className="text-accent font-bold text-lg">{cat.name.charAt(0)}</span>
+              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform overflow-hidden">
+                {cat.image ? (
+                  <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-accent font-bold text-lg">{cat.name.charAt(0)}</span>
+                )}
               </div>
               <h3 className="text-sm font-semibold text-secondary">{cat.name}</h3>
               {minPriceInCategory[cat.id] !== undefined && (
