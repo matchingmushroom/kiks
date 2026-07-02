@@ -42,8 +42,8 @@ export default function ShopHeader() {
     <header className="bg-white text-foreground border-b border-border sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20">
-          <Link href="/" className="flex items-center gap-2 shrink-0 bg-muted/30 px-3 py-1.5 rounded-xl">
-            <img src={settings.logoUrl || "/logo.svg"} alt={settings.shopName} className="h-14 sm:h-20 w-auto object-contain drop-shadow-sm" />
+          <Link href="/" className="flex items-center gap-2 shrink-0">
+            <img src={settings.logoUrl || "/logo.svg"} alt={settings.shopName} className="h-14 sm:h-18 w-auto object-contain" />
           </Link>
           <nav className="hidden md:flex items-center gap-1">
             <Link href="/" className="px-3 py-2 text-sm font-medium hover:text-accent transition-colors rounded-lg hover:bg-muted">Home</Link>
