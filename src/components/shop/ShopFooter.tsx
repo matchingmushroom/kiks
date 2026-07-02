@@ -26,7 +26,7 @@ export default function ShopFooter() {
     (ch) => settings[ch.key] && !hidden.includes(ch.key)
   );
 
-  const footerCategories = categories.filter((c) => c.showOnHomepage !== false).slice(0, 6);
+  const footerCategories = categories.filter((c) => c.showOnHomepage !== false);
 
   return (
     <footer className="bg-secondary text-secondary-foreground pt-14 pb-8">
