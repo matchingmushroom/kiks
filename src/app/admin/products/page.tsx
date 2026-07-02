@@ -24,7 +24,7 @@ import { generateSkuV2, generateModelCode, findExistingModelCodes, generateShort
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import PrintLabelsDialog from "@/components/admin/PrintLabelsDialog";
-import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, LayoutGrid, List, Loader2, AlertTriangle, Upload, Package, Check, ShoppingBag, Printer } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, Tag, LayoutGrid, List, Loader2, AlertTriangle, Upload, Package, Check, ShoppingBag, Printer } from "lucide-react";
 
 const BASE_MATERIALS = ["", "Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"];
 const PLATING_OPTIONS = ["", "Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"];
@@ -52,10 +52,11 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", modelCode: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
+  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, isOnSale: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", modelCode: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
   const [saving, setSaving] = useState(false);
   const [existingModelCodes, setExistingModelCodes] = useState<string[]>([]);
   const [generateNewModelCode, setGenerateNewModelCode] = useState(true);
+  const [bulkIds, setBulkIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (form.categoryId && !editingId) {
@@ -94,7 +95,7 @@ export default function AdminProductsPage() {
       metalType: p.metalType, stoneType: p.stoneType,
       stoneWeight: p.stoneWeight, makingCharge: p.makingCharge,
       warranty: p.warranty, sku: p.sku, quantityInStock: p.quantityInStock,
-      isActive: p.isActive, isFeatured: p.isFeatured,
+      isActive: p.isActive, isFeatured: p.isFeatured, isOnSale: p.isOnSale || false,
       badge: p.badge || "none", originalPrice: p.originalPrice || 0,
       brand: p.brand || "", modelNo: p.modelNo || "", modelCode: p.modelCode || "",
       baseMaterial: p.baseMaterial || "",
@@ -196,7 +197,7 @@ export default function AdminProductsPage() {
     setSeeding(false);
   };
 
-  const toggleField = async (id: string, field: "isActive" | "isFeatured", value: boolean) => {
+  const toggleField = async (id: string, field: "isActive" | "isFeatured" | "isOnSale", value: boolean) => {
     await updateDoc(doc(db, "products", id), { [field]: value, updatedAt: Timestamp.fromDate(new Date()) });
   };
 
@@ -364,6 +365,27 @@ export default function AdminProductsPage() {
             ))}
           </select>
         </div>
+
+        {bulkIds.size > 0 && (
+          <div className="bg-accent/10 border border-accent/20 rounded-xl p-3 mb-4 flex items-center gap-3">
+            <span className="text-sm font-medium text-accent">{bulkIds.size} selected</span>
+            <Button onClick={async () => {
+              for (const id of bulkIds) await toggleField(id, "isOnSale", true);
+              setBulkIds(new Set());
+            }} size="sm" variant="accent">
+              <Tag className="h-3.5 w-3.5" /> Mark as Sale
+            </Button>
+            <Button onClick={async () => {
+              for (const id of bulkIds) await toggleField(id, "isOnSale", false);
+              setBulkIds(new Set());
+            }} size="sm" variant="outline">
+              <Tag className="h-3.5 w-3.5" /> Remove Sale
+            </Button>
+            <button onClick={() => setBulkIds(new Set())} className="ml-auto p-1 hover:bg-muted rounded">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {showComboModal && (
           <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
@@ -665,6 +687,11 @@ export default function AdminProductsPage() {
                         className="rounded border-border" />
                       Featured
                     </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="checkbox" checked={form.isOnSale} onChange={(e) => setForm({ ...form, isOnSale: e.target.checked })}
+                        className="rounded border-border" />
+                      Sale
+                    </label>
                   </div>
                 </div>
               </div>
@@ -763,9 +790,13 @@ export default function AdminProductsPage() {
               return (
                 <div key={p.id} onClick={() => setDetailProduct(p)} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-secondary text-sm truncate">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">{catName}{p.brand ? ` • ${p.brand}` : ""}</p>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <input type="checkbox" checked={bulkIds.has(p.id)} onChange={(e) => { e.stopPropagation(); const next = new Set(bulkIds); if (next.has(p.id)) next.delete(p.id); else next.add(p.id); setBulkIds(next); }}
+                        className="rounded border-border shrink-0" onClick={(e) => e.stopPropagation()} />
+                      <div>
+                        <p className="font-medium text-secondary text-sm truncate">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">{catName}{p.brand ? ` • ${p.brand}` : ""}</p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
                       <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isActive", !p.isActive); }}
@@ -777,6 +808,11 @@ export default function AdminProductsPage() {
                         className={`p-1.5 rounded ${p.isFeatured ? "text-amber-500" : "text-muted-foreground"}`}
                         title={p.isFeatured ? "Featured" : "Not featured"}>
                         <Star className={`h-3.5 w-3.5 ${p.isFeatured ? "fill-amber-500" : ""}`} />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isOnSale", !p.isOnSale); }}
+                        className={`p-1.5 rounded ${p.isOnSale ? "text-red-500" : "text-muted-foreground"}`}
+                        title={p.isOnSale ? "On Sale" : "Not on sale"}>
+                        <Tag className={`h-3.5 w-3.5 ${p.isOnSale ? "fill-red-500" : ""}`} />
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
                         <Edit2 className="h-3.5 w-3.5" />
@@ -794,6 +830,9 @@ export default function AdminProductsPage() {
                     <span className={p.quantityInStock <= 3 ? "text-red-600 font-medium" : "text-muted-foreground"}>
                       Stock: {p.quantityInStock}
                     </span>
+                    {p.isOnSale && (
+                      <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-medium">Sale</span>
+                    )}
                     {p.comboItems?.length ? (
                       <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-medium">{p.comboItems.length} items</span>
                     ) : null}
@@ -812,6 +851,11 @@ export default function AdminProductsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted text-left">
+                  <th className="px-2 py-2.5 w-8">
+                    <input type="checkbox" checked={filtered.length > 0 && filtered.every((p) => bulkIds.has(p.id))}
+                      onChange={(e) => { setBulkIds(new Set(e.target.checked ? filtered.map((p) => p.id) : [])); }}
+                      className="rounded border-border" />
+                  </th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Name</th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Category</th>
                   <th className="px-4 py-2.5 text-xs text-muted-foreground font-medium">Brand</th>
@@ -827,6 +871,10 @@ export default function AdminProductsPage() {
                   const catName = categories.find((c) => c.id === p.categoryId)?.name || "—";
                   return (
                     <tr key={p.id} onClick={() => setDetailProduct(p)} className="hover:bg-muted/30 cursor-pointer">
+                      <td className="px-2 py-2.5">
+                        <input type="checkbox" checked={bulkIds.has(p.id)} onChange={(e) => { e.stopPropagation(); const next = new Set(bulkIds); if (next.has(p.id)) next.delete(p.id); else next.add(p.id); setBulkIds(next); }}
+                          className="rounded border-border" onClick={(e) => e.stopPropagation()} />
+                      </td>
                       <td className="px-4 py-2.5 text-sm font-medium text-secondary">{p.name}</td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">{catName}</td>
                       <td className="px-4 py-2.5 text-sm text-muted-foreground">{p.brand || "—"}</td>
@@ -834,6 +882,7 @@ export default function AdminProductsPage() {
                       <td className="px-4 py-2.5 text-sm text-right">{formatCurrency(p.price)}</td>
                       <td className={`px-4 py-2.5 text-sm text-right ${p.quantityInStock <= 3 ? "text-red-600 font-medium" : ""}`}>{p.quantityInStock}</td>
                       <td className="px-4 py-2.5 text-sm text-center">
+                        {p.isOnSale && <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-xs font-medium mr-1">Sale</span>}
                         {p.comboItems?.length ? (
                           <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-xs font-medium">Combo</span>
                         ) : p.badge && p.badge !== "none" ? (
@@ -851,6 +900,10 @@ export default function AdminProductsPage() {
                           <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isFeatured", !p.isFeatured); }}
                             className={`p-1.5 rounded ${p.isFeatured ? "text-amber-500" : "text-muted-foreground"}`} title={p.isFeatured ? "Featured" : "Not featured"}>
                             <Star className={`h-3.5 w-3.5 ${p.isFeatured ? "fill-amber-500" : ""}`} />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isOnSale", !p.isOnSale); }}
+                            className={`p-1.5 rounded ${p.isOnSale ? "text-red-500" : "text-muted-foreground"}`} title={p.isOnSale ? "On Sale" : "Not on sale"}>
+                            <Tag className={`h-3.5 w-3.5 ${p.isOnSale ? "fill-red-500" : ""}`} />
                           </button>
                           <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded"><Edit2 className="h-3.5 w-3.5" /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id, p.name); }} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="h-3.5 w-3.5" /></button>
@@ -883,6 +936,7 @@ export default function AdminProductsPage() {
               <Row label="Badge" value={detailProduct.badge && detailProduct.badge !== "none" ? detailProduct.badge.replace("_", " ") : "None"} />
               <Row label="Status" value={detailProduct.isActive ? "Active" : "Inactive"} />
               <Row label="Featured" value={detailProduct.isFeatured ? "Yes" : "No"} />
+              <Row label="On Sale" value={detailProduct.isOnSale ? "Yes" : "No"} />
               {detailProduct.description && <Row label="Description" value={detailProduct.description} />}
               {detailProduct.images.filter(Boolean).length > 0 && (
                 <div>

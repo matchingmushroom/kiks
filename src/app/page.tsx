@@ -160,11 +160,15 @@ function CategoryGridSection({ products: allProducts, categories }: { products: 
 function PromoCardSection({ products }: { products: ProductType[] }) {
   const activeProducts = products.filter((p) => p.isActive);
 
-  const newArrivals = [...activeProducts].sort((a, b) => ((b.createdAt as number) ?? 0) - ((a.createdAt as number) ?? 0)).slice(0, 4);
+  const fifteenDaysAgo = Date.now() - 15 * 24 * 60 * 60 * 1000;
+  const recent = activeProducts.filter((p) => (p.createdAt as number) >= fifteenDaysAgo);
+  const newArrivals = recent.length >= 4
+    ? recent.sort((a, b) => ((b.createdAt as number) ?? 0) - ((a.createdAt as number) ?? 0)).slice(0, 4)
+    : [...activeProducts].sort((a, b) => ((b.createdAt as number) ?? 0) - ((a.createdAt as number) ?? 0)).slice(0, 4);
 
-  const onSale = activeProducts.filter((p) => p.badge === "offer" || p.badge === "price_dropped" || (p.originalPrice && p.originalPrice > p.price));
+  const onSale = activeProducts.filter((p) => p.isOnSale || p.badge === "offer" || p.badge === "price_dropped" || (p.originalPrice && p.originalPrice > p.price));
 
-  const bestSellers = [...activeProducts].sort((a, b) => (a.quantityInStock > b.quantityInStock ? -1 : 1)).slice(0, 4);
+  const bestSellers = [...activeProducts].filter((p) => p.price >= 500).sort((a, b) => (a.quantityInStock > b.quantityInStock ? -1 : 1)).slice(0, 4);
 
   const cards = [
     {

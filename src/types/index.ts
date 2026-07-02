@@ -63,6 +63,7 @@ export interface Product {
   shortCode?: string;
   comboItems?: string[];
   comboPrice?: number;
+  isOnSale?: boolean;
   createdAt: number;
   updatedAt: number;
 }
