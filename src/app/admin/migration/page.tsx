@@ -7,7 +7,7 @@ import { Database, AlertTriangle, CheckCircle, XCircle, Loader2, ArrowRight } fr
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateSkuV2, generateModelCode } from "@/lib/sku-generator";
-import { Product } from "@/types";
+import { Product, Category } from "@/types";
 
 interface MigrationResult {
   productId: string;
@@ -36,8 +36,12 @@ export default function MigrationPage() {
     let migrated = 0, skipped = 0, errors = 0;
 
     try {
-      const snap = await getDocs(collection(db, "products"));
-      const products = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Product));
+      const [prodSnap, catSnap] = await Promise.all([
+        getDocs(collection(db, "products")),
+        getDocs(collection(db, "categories")),
+      ]);
+      const products = prodSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Product));
+      const catMap = new Map(catSnap.docs.map((d) => [d.id, d.data() as Category]));
 
       for (const p of products) {
         try {
@@ -50,7 +54,8 @@ export default function MigrationPage() {
           const newSku = await generateSkuV2();
           let modelCode = p.modelCode;
           if (!modelCode) {
-            modelCode = await generateModelCode("XX");
+            const cat = catMap.get(p.categoryId);
+            modelCode = await generateModelCode(cat?.shortCode || "XX");
           }
 
           await updateDoc(doc(db, "products", p.id), {

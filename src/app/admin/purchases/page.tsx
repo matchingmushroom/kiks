@@ -1215,7 +1215,7 @@ function PurchasesContent() {
                                   const cp = newProductForm.costPrice || 0;
                                   if (cat?.shortCode) {
                                     const previewBarcodeId = `${cat.shortCode}-TEMP`;
-                                    setNewProductForm({ ...newProductForm, categoryId: catId, sku: generateSku(previewBarcodeId, cp, supCode, 1), modelNo: generateModelNo(cat.shortCode, cp, 1) });
+                                    setNewProductForm({ ...newProductForm, categoryId: catId, sku: "Auto" });
                                   } else {
                                     setNewProductForm({ ...newProductForm, categoryId: catId });
                                   }
@@ -1253,10 +1253,10 @@ function PurchasesContent() {
                             className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                         </div>
                         <div>
-                          <label className="block text-xs text-muted-foreground mb-1">Model Number</label>
-                          <input type="text" value={newProductForm.modelNo}
-                            onChange={(e) => setNewProductForm({ ...newProductForm, modelNo: e.target.value })}
-                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                          <label className="block text-xs text-muted-foreground mb-1">Model Code</label>
+                          <div className="w-full px-3 py-2 bg-muted/30 border border-border rounded-lg text-sm text-muted-foreground">
+                            Auto-generated from category on save
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1436,7 +1436,7 @@ function PurchasesContent() {
                               const supCode = supplier?.shortCode || "XX";
                               if (cat?.shortCode) {
                                 const previewBarcodeId = `${cat.shortCode}-TEMP`;
-                                setNewProductForm({ ...newProductForm, costPrice: cp, sku: generateSku(previewBarcodeId, cp, supCode, 1), modelNo: generateModelNo(cat.shortCode, cp, 1) });
+                                setNewProductForm({ ...newProductForm, costPrice: cp, sku: "Auto" });
                               } else {
                                 setNewProductForm({ ...newProductForm, costPrice: cp });
                               }
