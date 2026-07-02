@@ -252,11 +252,12 @@ export function exportOrdersCSV(orders: Order[]): string {
 }
 
 export function exportInventoryCSV(products: Product[]): string {
-  const headers = "id,Name,SKU,Brand,Quantity In Stock,Cost Price,Sales Price,Weight,Purity,Metal Type,Is Active";
+  const headers = "id,Name,SKU,Model Code,Brand,Quantity In Stock,Cost Price,Sales Price,Weight,Purity,Metal Type,Is Active";
   const rows = products.map((p) => [
     esc(p.id),
     esc(p.name),
     esc(p.sku),
+    esc(p.modelCode),
     esc(p.brand),
     String(p.quantityInStock ?? 0),
     fmt(p.costPrice),

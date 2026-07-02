@@ -20,7 +20,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { generateDummyProducts } from "@/lib/dummyProducts";
-import { generateBarcodeId, generateSku, generateModelNo, generateShortCode } from "@/lib/sku-generator";
+import { generateSkuV2, generateModelCode, findExistingModelCodes, generateShortCode, generateSku, generateModelNo } from "@/lib/sku-generator";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import PrintLabelsDialog from "@/components/admin/PrintLabelsDialog";
@@ -52,8 +52,18 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[], shortCode: "" });
+  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", modelCode: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[], shortCode: "" });
   const [saving, setSaving] = useState(false);
+  const [existingModelCodes, setExistingModelCodes] = useState<string[]>([]);
+  const [generateNewModelCode, setGenerateNewModelCode] = useState(true);
+
+  useEffect(() => {
+    if (form.categoryId && !editingId) {
+      findExistingModelCodes(form.categoryId).then(setExistingModelCodes);
+    } else {
+      setExistingModelCodes([]);
+    }
+  }, [form.categoryId, editingId]);
 
   const [deletingAll, setDeletingAll] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
@@ -89,7 +99,8 @@ export default function AdminProductsPage() {
       warranty: p.warranty, sku: p.sku, quantityInStock: p.quantityInStock,
       isActive: p.isActive, isFeatured: p.isFeatured,
       badge: p.badge || "none", originalPrice: p.originalPrice || 0,
-      brand: p.brand || "", modelNo: p.modelNo || "", baseMaterial: p.baseMaterial || "",
+      brand: p.brand || "", modelNo: p.modelNo || "", modelCode: p.modelCode || "",
+      baseMaterial: p.baseMaterial || "",
       plating: p.plating || "", color: p.color || "", productType: p.productType || "",
       idealFor: Array.isArray(p.idealFor) ? p.idealFor : (p.idealFor ? [p.idealFor] : []),
       netQuantity: p.netQuantity || 1,
@@ -123,9 +134,12 @@ export default function AdminProductsPage() {
       } else {
         const prodId = await generateId("PROD");
         const cat = categories.find((c) => c.id === form.categoryId);
-        const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
-        const sku = generateSku(barcodeId, form.costPrice || 0, "XX", form.quantityInStock || 1);
-        const modelNo = generateModelNo(cat?.shortCode || "XX", form.costPrice || 0, form.quantityInStock || 1);
+        const sku = await generateSkuV2();
+        let modelCode = form.modelCode;
+        if (!modelCode || generateNewModelCode) {
+          modelCode = await generateModelCode(cat?.shortCode || "XX");
+        }
+        const barcodeId = sku;
         let shortCode = form.shortCode;
         if (!shortCode && cat?.shortCode) {
           const subIdx = cat.subCategories.indexOf(form.productType) + 1;
@@ -137,7 +151,7 @@ export default function AdminProductsPage() {
         }
         await setDoc(doc(db, "products", prodId), {
           ...data,
-          sku, barcodeId, modelNo, shortCode,
+          sku, modelCode, barcodeId, shortCode,
           createdAt: Timestamp.fromDate(new Date()),
         });
       }
@@ -487,20 +501,10 @@ export default function AdminProductsPage() {
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Category</label>
                     <select value={form.categoryId} onChange={(e) => {
                       const catId = e.target.value;
+                      setForm((prev) => ({ ...prev, categoryId: catId, modelCode: "" }));
                       if (catId && !editingId) {
-                        const cat = categories.find((c) => c.id === catId);
-                          if (cat?.shortCode) {
-                          const cp = form.costPrice || 0;
-                          setForm((prev) => ({
-                            ...prev,
-                            categoryId: catId,
-                            sku: generateSku(cat.shortCode, cp, "XX", 1),
-                            modelNo: generateModelNo(cat.shortCode, cp, 1),
-                          }));
-                          return;
-                        }
+                        findExistingModelCodes(catId).then(setExistingModelCodes);
                       }
-                      setForm((prev) => ({ ...prev, categoryId: catId }));
                     }}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                       <option value="">Select</option>
@@ -513,9 +517,35 @@ export default function AdminProductsPage() {
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Model Number</label>
-                    <input type="text" value={form.modelNo} onChange={(e) => setForm({ ...form, modelNo: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Model Code</label>
+                    {!editingId && existingModelCodes.length > 0 ? (
+                      <div className="space-y-2">
+                        <select value={generateNewModelCode ? "__new__" : form.modelCode}
+                          onChange={(e) => {
+                            if (e.target.value === "__new__") {
+                              setGenerateNewModelCode(true);
+                              setForm({ ...form, modelCode: "" });
+                            } else {
+                              setGenerateNewModelCode(false);
+                              setForm({ ...form, modelCode: e.target.value });
+                            }
+                          }}
+                          className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                          <option value="__new__">Generate New Model Code</option>
+                          {existingModelCodes.map((mc) => (
+                            <option key={mc} value={mc}>{mc}</option>
+                          ))}
+                        </select>
+                        {generateNewModelCode && (
+                          <p className="text-xs text-muted-foreground">A new Model Code will be auto-generated when saved.</p>
+                        )}
+                      </div>
+                    ) : (
+                      <input type="text" value={form.modelCode}
+                        placeholder={editingId ? "Existing code" : "Auto-generated on save"}
+                        onChange={(e) => setForm({ ...form, modelCode: e.target.value })}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Base Material</label>
@@ -641,8 +671,14 @@ export default function AdminProductsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">SKU</label>
-                    <input type="text" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    {editingId ? (
+                      <input type="text" value={form.sku} onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                        className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    ) : (
+                      <div className="w-full px-3 py-2 bg-muted/30 border border-border rounded-lg text-sm text-muted-foreground">
+                        5-char Base-36 code auto-generated on save
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Short Code</label>
@@ -899,6 +935,7 @@ export default function AdminProductsPage() {
               <Row label="Cost Price" value={detailProduct.costPrice ? `Rs. ${detailProduct.costPrice}` : "—"} />
               <Row label="Stock" value={String(detailProduct.quantityInStock)} />
               <Row label="SKU" value={detailProduct.sku || "—"} />
+              <Row label="Model Code" value={detailProduct.modelCode || "—"} />
               <Row label="Short Code" value={detailProduct.shortCode || "—"} />
               <Row label="Base Material" value={detailProduct.baseMaterial || "—"} />
               <Row label="Purity" value={detailProduct.purity || "—"} />

@@ -307,7 +307,7 @@ export default function AdminDashboardPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   <tr><td className="px-3 py-2 text-muted-foreground">Product Name</td><td className="px-3 py-2 font-medium">{skuResult.product.name}</td></tr>
-                  <tr><td className="px-3 py-2 text-muted-foreground">Model No.</td><td className="px-3 py-2">{skuResult.product.modelNo || "—"}</td></tr>
+                  <tr><td className="px-3 py-2 text-muted-foreground">Model Code</td><td className="px-3 py-2">{skuResult.product.modelCode || "—"}</td></tr>
                   <tr><td className="px-3 py-2 text-muted-foreground">SKU</td><td className="px-3 py-2 font-mono">{skuResult.product.sku}</td></tr>
                   <tr><td className="px-3 py-2 text-muted-foreground">Inventory Qty</td><td className="px-3 py-2">{skuResult.product.quantityInStock}</td></tr>
                   <tr><td className="px-3 py-2 text-muted-foreground">Store Cost</td><td className="px-3 py-2">{formatCurrency(Math.ceil((skuResult.product.costPrice || 0) * 1.25 / 10) * 10)}</td></tr>

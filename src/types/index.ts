@@ -45,6 +45,8 @@ export interface Product {
   makingCharge: number;
   warranty: string;
   sku: string;
+  modelCode: string;
+  legacySku?: string;
   quantityInStock: number;
   isActive: boolean;
   isFeatured: boolean;

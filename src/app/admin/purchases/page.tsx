@@ -8,7 +8,7 @@ import { Purchase, PurchaseItem as PurchaseItemType, Product, Category, Supplier
 import { formatCurrency, formatDate, formatNumber, toDate, compressImageUnder200KB, getUseBsCalendar } from "@/lib/utils";
 import { getFiscalYearStartEpoch } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
-import { generateBarcodeId, generateSku, generateModelNo } from "@/lib/sku-generator";
+import { generateBarcodeId, generateSku, generateModelNo, generateSkuV2, generateModelCode } from "@/lib/sku-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { createJournalEntry, buildPurchaseJournal, buildAdvanceSettlementJournal } from "@/lib/journal";
 import { createLayer, consumeFifo } from "@/lib/fifo";
@@ -233,17 +233,16 @@ function PurchasesContent() {
           const supCode = supplier?.shortCode || "XX";
           const cp = r.unitCost || 0;
           const qty = r.quantity || 1;
-          const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
-          const newSku = generateSku(barcodeId, cp, supCode, qty);
-          const newModelNo = generateModelNo(cat?.shortCode || "XX", cp, qty);
+          const newSku = await generateSkuV2();
+          const modelCode = await generateModelCode(cat?.shortCode || "XX");
           await setDoc(doc(db, "products", prodId_), {
             name: r.productName, description: r.description || "", design: "", categoryId: r.categoryId,
             images: [], videoUrl: "", price: r.salesPrice, costPrice: r.unitCost,
             weight: 0, metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0,
-            warranty: r.warranty || "", sku: newSku, barcodeId, quantityInStock: 0,
+            warranty: r.warranty || "", sku: newSku, modelCode, quantityInStock: 0,
             isActive: r.isActive !== undefined ? r.isActive : true,
             isFeatured: r.isFeatured || false,
-            badge: "", originalPrice: 0, brand: "", modelNo: newModelNo,
+            badge: "", originalPrice: 0, brand: "", modelNo: "",
             baseMaterial: r.baseMaterial || "", plating: r.plating || "", color: r.color || "",
             productType: r.productType || "", idealFor: [], netQuantity: 1,
             occasion: [], createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
@@ -472,17 +471,16 @@ function PurchasesContent() {
     const cat = categories.find((c) => c.id === f.categoryId);
     const supplier = allSuppliers.find((s) => s.name === form.supplierName);
     const supCode = supplier?.shortCode || "XX";
-    const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
-    const newSku = generateSku(barcodeId, f.costPrice || 0, supCode, 1);
-    const newModelNo = generateModelNo(cat?.shortCode || "XX", f.costPrice || 0, 1);
-    const prodData = {
+    const newSku = await generateSkuV2();
+    const modelCode = await generateModelCode(cat?.shortCode || "XX");
+    const prodData: Record<string, any> = {
       name: f.name, description: "", design: "", categoryId: f.categoryId,
       images: [""], videoUrl: "",
       price: f.salesPrice || f.costPrice, costPrice: f.costPrice,
       weight: f.weight, purity: f.purity, metalType: f.metalType,
       stoneType: f.stoneType, stoneWeight: f.stoneWeight,
       makingCharge: f.makingCharge, warranty: f.warranty, sku: newSku,
-      barcodeId, modelNo: newModelNo,
+      modelCode, modelNo: "", barcodeId: newSku,
       quantityInStock: 0, isActive: true, isFeatured: false,
       badge: "", brand: f.brand, baseMaterial: f.baseMaterial,
       plating: f.plating, color: f.color, productType: f.productType,
@@ -492,13 +490,13 @@ function PurchasesContent() {
     };
     const prodId = await generateId("PROD");
     await setDoc(doc(db, "products", prodId), prodData);
-    const newProduct: Product = {
+    const newProduct = {
       id: prodId, ...prodData,
       price: f.salesPrice || f.costPrice,
       originalPrice: 0, badge: "none",
       quantityInStock: 0, isActive: true, isFeatured: false,
       createdAt: Date.now(), updatedAt: Date.now(),
-    };
+    } as Product;
     addItem(newProduct);
     setProductSearch("");
     setShowNewProduct(false);
