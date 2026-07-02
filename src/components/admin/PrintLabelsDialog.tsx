@@ -21,10 +21,6 @@ interface PrintLabelsDialogProps {
 
 type TagFormat = "standard" | "small";
 
-const ROWS = 14;
-const COLS = 4;
-const TOTAL = ROWS * COLS;
-
 export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogProps) {
   const { settings } = useShopSettings();
   const shopName = settings.shopName || "Panchakanya Collections";
@@ -34,6 +30,19 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
   const [quantities, setQuantities] = useState<number[]>(() => items.map((it) => it.quantity));
   const [startRow, setStartRow] = useState(1);
   const [startCol, setStartCol] = useState(1);
+
+  const switchFormat = (fmt: TagFormat) => {
+    setTagFormat(fmt);
+    setStartRow(1);
+    setStartCol(1);
+  };
+
+  const layout = tagFormat === "small"
+    ? { cols: 4, rows: 21, labelW: 46, labelH: 11, name: "ST-84", total: 84 }
+    : { cols: 4, rows: 14, labelW: 50, labelH: 20, name: "ST-56", total: 56 };
+  const ROWS = layout.rows;
+  const COLS = layout.cols;
+  const TOTAL = layout.total;
 
   const toggle = (idx: number) => {
     const next = [...checked];
@@ -144,12 +153,12 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
     `;
 
     const smallCss = `
-      .label-grid { display: grid; gap: 0; grid-template-columns: repeat(${COLS}, 50mm); grid-template-rows: repeat(${ROWS}, 20mm); width: 210mm; justify-content: center; align-content: start; padding: 8.5mm 5mm; }
-      .label-cell { width: 50mm; height: 20mm; box-sizing: border-box; padding: 0.5mm 1mm; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
-      .label-cell.small { gap: 1px; }
-      .st-shortcode { font-size: 18px; font-weight: 800; text-align: center; line-height: 1.1; letter-spacing: 0.5px; }
-      .st-name { font-size: 5px; font-weight: 600; text-align: center; color: #555; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 48mm; }
-      .st-mrp { font-size: 8px; font-weight: 700; text-align: center; }
+      .label-grid { display: grid; gap: 0; grid-template-columns: repeat(${COLS}, 46mm); grid-template-rows: repeat(${ROWS}, 11mm); width: 210mm; justify-content: center; align-content: start; padding: 8.5mm 13mm; }
+      .label-cell { width: 46mm; height: 11mm; box-sizing: border-box; padding: 0.3mm 0.5mm; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+      .label-cell.small { gap: 0; }
+      .st-shortcode { font-size: 14px; font-weight: 800; text-align: center; line-height: 1.1; letter-spacing: 0.3px; }
+      .st-name { font-size: 4px; font-weight: 600; text-align: center; color: #555; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 44mm; }
+      .st-mrp { font-size: 6px; font-weight: 700; text-align: center; }
     `;
 
     const labelCss = tagFormat === "small" ? smallCss : standardCss;
@@ -201,13 +210,13 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="radio" name="tagFormat" value="standard" checked={tagFormat === "standard"}
-                onChange={() => setTagFormat("standard")} className="accent-primary" />
+                onChange={() => switchFormat("standard")} className="accent-primary" />
               Standard (ST-56)
             </label>
             <label className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="radio" name="tagFormat" value="small" checked={tagFormat === "small"}
-                onChange={() => setTagFormat("small")} className="accent-primary" />
-              Small Tag
+                onChange={() => switchFormat("small")} className="accent-primary" />
+              Small Tag (ST-84)
             </label>
           </div>
 
@@ -244,7 +253,7 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Start Row</label>
                 <input type="number" min={1} max={ROWS} value={startRow}
-                  onChange={(e) => setStartRow(Math.min(ROWS, Math.max(1, Number(e.target.value) || 1)))}
+                  onChange={(e) => { const v = Math.min(ROWS, Math.max(1, Number(e.target.value) || 1)); setStartRow(v); if (startCol > COLS) setStartCol(COLS); }}
                   className="w-16 px-2 py-1.5 border border-border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
@@ -258,7 +267,7 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-[1px] bg-border rounded border border-border overflow-hidden" style={{ maxWidth: "330px" }}>
+            <div className="grid gap-[1px] bg-border rounded border border-border overflow-hidden" style={{ maxWidth: "330px", gridTemplateColumns: `repeat(${COLS}, 1fr)` }}>
               {cellContents.map((cell, i) => {
                 const row = Math.floor(i / COLS) + 1;
                 const col = (i % COLS) + 1;
@@ -268,12 +277,13 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
                   <button key={i}
                     onClick={() => { setStartRow(row); setStartCol(col); }}
                     className={`
-                      aspect-[50/20] flex items-center justify-center text-[7px] font-mono transition-colors
+                      flex items-center justify-center text-[7px] font-mono transition-colors
                       ${!isActive ? "bg-white text-transparent pointer-events-none" : ""}
                       ${cell.type === "filled" ? "bg-primary/10 text-primary font-bold" : ""}
                       ${cell.type === "unused" ? "bg-white text-muted-foreground/40 border border-dashed border-muted-foreground/20 m-[1px]" : ""}
                       ${cell.type === "empty" ? "" : "cursor-pointer hover:bg-primary/5"}
                     `}
+                    style={{ aspectRatio: `${layout.labelW}/${layout.labelH}` }}
                     title={`Row ${row}, Col ${col} (Pos ${pos})`}
                   >
                     {isActive && cell.type === "unused" ? pos : ""}
@@ -287,7 +297,7 @@ export default function PrintLabelsDialog({ items, onClose }: PrintLabelsDialogP
               <p>Starting at <strong className="text-secondary">position {startPos}</strong> — filling <strong className="text-secondary">{onFirstSheet}</strong> of <strong className="text-secondary">{firstPageSlots}</strong> slots on this sheet.</p>
               {unused > 0 && <p><strong className="text-amber-600">{unused}</strong> slot{unused !== 1 ? "s" : ""} will remain unused on this sheet.</p>}
               <p>Total: <strong className="text-secondary">{totalLabels}</strong> label{totalLabels !== 1 ? "s" : ""} on <strong className="text-secondary">{sheets}</strong> sheet{sheets !== 1 ? "s" : ""}.</p>
-              <p className="text-[10px] text-muted-foreground mt-1">{tagFormat === "standard" ? "ST-56 template (50mm × 20mm, 56 per sheet)" : "Small tag format (short code focused, 56 per sheet)"}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{layout.name} template ({layout.labelW}mm × {layout.labelH}mm, {layout.total} per sheet)</p>
             </div>
           </div>
         )}
