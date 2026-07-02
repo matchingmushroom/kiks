@@ -120,7 +120,12 @@ function PurchasesContent() {
   const [archiveLoading, setArchiveLoading] = useState(false);
   const [showArchive, setShowArchive] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
-  const [csvRows, setCsvRows] = useState<{ productName: string; quantity: number; unitCost: number; salesPrice: number; categoryShortCode?: string; categoryId?: string; match: Product | null; error?: string }[]>([]);
+  const [csvRows, setCsvRows] = useState<{
+    productName: string; quantity: number; unitCost: number; salesPrice: number;
+    categoryShortCode?: string; categoryId?: string; match: Product | null; error?: string;
+    productType?: string; baseMaterial?: string; plating?: string; color?: string;
+    description?: string; warranty?: string; isFeatured?: boolean; isActive?: boolean;
+  }[]>([]);
   const [csvSupplier, setCsvSupplier] = useState("");
   const [csvSupplierPhone, setCsvSupplierPhone] = useState("");
   const [csvPaymentStatus, setCsvPaymentStatus] = useState<"paid" | "unpaid" | "partially_paid">("unpaid");
@@ -143,6 +148,14 @@ function PurchasesContent() {
     const priceIdx = headers.findIndex((h) => h === "salesprice" || h === "sales price" || h === "price" || h === "selling price");
     const skuIdx = headers.findIndex((h) => h === "sku");
     const catIdx = headers.findIndex((h) => h === "category" || h === "categorycode" || h === "cat");
+    const subCatIdx = headers.findIndex((h) => h === "subcategory" || h === "sub category" || h === "producttype");
+    const materialIdx = headers.findIndex((h) => h === "basematerial" || h === "base material" || h === "material");
+    const platingIdx = headers.findIndex((h) => h === "plating" || h === "platingtype" || h === "plating type");
+    const colorIdx = headers.findIndex((h) => h === "color");
+    const descIdx = headers.findIndex((h) => h === "description" || h === "desc");
+    const warrantyIdx = headers.findIndex((h) => h === "warranty");
+    const featuredIdx = headers.findIndex((h) => h === "featured" || h === "isfeatured");
+    const activeIdx = headers.findIndex((h) => h === "active" || h === "isactive" || h === "status");
     if (nameIdx === -1 && skuIdx === -1) { alert("CSV must have a 'productName' or 'sku' column."); return; }
     const parsed: typeof csvRows = [];
     for (let i = 1; i < lines.length; i++) {
@@ -158,15 +171,25 @@ function PurchasesContent() {
       if (catShortCode) {
         const cat = categories.find((c) => c.shortCode?.toUpperCase() === catShortCode);
         if (cat) catId = cat.id;
-        else catShortCode = ""; // invalid shortcode, ignore
+        else catShortCode = "";
       }
+      const productType = subCatIdx >= 0 ? cols[subCatIdx] || "" : "";
+      const baseMaterial = materialIdx >= 0 ? cols[materialIdx] || "" : "";
+      const plating = platingIdx >= 0 ? cols[platingIdx] || "" : "";
+      const color = colorIdx >= 0 ? cols[colorIdx] || "" : "";
+      const description = descIdx >= 0 ? cols[descIdx] || "" : "";
+      const warranty = warrantyIdx >= 0 ? cols[warrantyIdx] || "" : "";
+      const rawFeatured = featuredIdx >= 0 ? cols[featuredIdx]?.toLowerCase() : "";
+      const rawActive = activeIdx >= 0 ? cols[activeIdx]?.toLowerCase() : "";
+      const isFeatured = featuredIdx >= 0 ? (rawFeatured === "yes" || rawFeatured === "true" || rawFeatured === "1" || rawFeatured === "featured") : undefined;
+      const isActive = activeIdx >= 0 ? !(rawActive === "no" || rawActive === "false" || rawActive === "0" || rawActive === "inactive") : undefined;
       const match = products.find((p) =>
         (name && (p.name.toLowerCase() === name.toLowerCase() || p.name.toLowerCase().includes(name.toLowerCase()))) ||
         (sku && (p.sku?.toLowerCase() === sku.toLowerCase() || p.shortCode?.toLowerCase() === sku.toLowerCase()))
       );
       if (!match) {
         const errMsg = catId ? "New product (will be created)" : "Product not found — add category column to create new";
-        parsed.push({ productName: name || sku, quantity: qty, unitCost: cost, salesPrice: price, categoryShortCode: catShortCode, categoryId: catId, match: null, error: errMsg });
+        parsed.push({ productName: name || sku, quantity: qty, unitCost: cost, salesPrice: price, categoryShortCode: catShortCode, categoryId: catId, match: null, error: errMsg, productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive });
       } else {
         parsed.push({
           productName: match.name,
@@ -176,6 +199,7 @@ function PurchasesContent() {
           categoryShortCode: catShortCode,
           categoryId: catId,
           match,
+          productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive,
         });
       }
     }
@@ -213,12 +237,15 @@ function PurchasesContent() {
           const newSku = generateSku(barcodeId, cp, supCode, qty);
           const newModelNo = generateModelNo(cat?.shortCode || "XX", cp, qty);
           await setDoc(doc(db, "products", prodId_), {
-            name: r.productName, description: "", design: "", categoryId: r.categoryId,
+            name: r.productName, description: r.description || "", design: "", categoryId: r.categoryId,
             images: [], videoUrl: "", price: r.salesPrice, costPrice: r.unitCost,
             weight: 0, metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0,
-            warranty: "", sku: newSku, barcodeId, quantityInStock: 0, isActive: true, isFeatured: false,
+            warranty: r.warranty || "", sku: newSku, barcodeId, quantityInStock: 0,
+            isActive: r.isActive !== undefined ? r.isActive : true,
+            isFeatured: r.isFeatured || false,
             badge: "", originalPrice: 0, brand: "", modelNo: newModelNo,
-            baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], netQuantity: 1,
+            baseMaterial: r.baseMaterial || "", plating: r.plating || "", color: r.color || "",
+            productType: r.productType || "", idealFor: [], netQuantity: 1,
             occasion: [], createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
           });
           prodId = prodId_;
@@ -232,6 +259,14 @@ function PurchasesContent() {
           const newStock = oldStock + r.quantity;
           const updateData: Record<string, unknown> = { quantityInStock: newStock, price: r.salesPrice };
           if (r.categoryId) updateData.categoryId = r.categoryId;
+          if (r.productType) updateData.productType = r.productType;
+          if (r.baseMaterial) updateData.baseMaterial = r.baseMaterial;
+          if (r.plating) updateData.plating = r.plating;
+          if (r.color) updateData.color = r.color;
+          if (r.description) updateData.description = r.description;
+          if (r.warranty) updateData.warranty = r.warranty;
+          if (r.isFeatured !== undefined) updateData.isFeatured = r.isFeatured;
+          if (r.isActive !== undefined) updateData.isActive = r.isActive;
           await updateDoc(prodRef, updateData);
         }
         await createLayer(prodId, csvPurchaseId, Date.now(), r.quantity, r.unitCost);
