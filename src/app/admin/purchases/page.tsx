@@ -2016,8 +2016,14 @@ function PurchasesContent() {
             </div>
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               <p className="text-xs text-muted-foreground">
-                CSV columns: <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code>, <code className="bg-muted px-1 rounded">category</code> (optional — use category shortCode). Header row required. Supports comma or tab delimiters.
+                CSV columns: <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code>, <code className="bg-muted px-1 rounded">category</code> (category shortCode), <code className="bg-muted px-1 rounded">subcategory</code>, <code className="bg-muted px-1 rounded">baseMaterial</code>, <code className="bg-muted px-1 rounded">plating</code>, <code className="bg-muted px-1 rounded">color</code>, <code className="bg-muted px-1 rounded">warranty</code>. Header row required. Supports comma or tab delimiters.
               </p>
+              <button type="button" onClick={() => {
+                const sample = "productName,quantity,unitCost,salesPrice,category,subcategory,baseMaterial,plating,color,warranty\nSample Ring,10,500,1200,R,Gold,Gold,Gold,Yellow,1 year\nSample Necklace,5,1500,3500,HC,Necklace..Silver,Rhodium,Silver,0";
+                downloadBlob(new Blob([sample], { type: "text/csv" }), "sample-import.csv");
+              }} className="text-xs text-primary hover:underline inline-flex items-center gap-1">
+                <Download className="h-3 w-3" /> Download Sample CSV
+              </button>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">Supplier *</label>

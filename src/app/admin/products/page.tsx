@@ -139,7 +139,7 @@ export default function AdminProductsPage() {
           modelCode = await generateModelCode(cat?.shortCode || "XX");
         }
         const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
-        const sku = generateSku(barcodeId, form.costPrice || 0, form.supplierShortCode || "XX", form.quantityInStock || 1);
+        const sku = generateSku(barcodeId, form.costPrice || 0, "XX", form.quantityInStock || 1);
         await setDoc(doc(db, "products", prodId), {
           ...data,
           sku, modelCode, barcodeId, shortCode,
