@@ -159,69 +159,86 @@ function CategoryGridSection({ products: allProducts, categories }: { products: 
 
 function PromoCardSection({ products }: { products: ProductType[] }) {
   const activeProducts = products.filter((p) => p.isActive);
+  const [activeTab, setActiveTab] = useState<string | null>(null);
 
-  const fifteenDaysAgo = Date.now() - 15 * 24 * 60 * 60 * 1000;
-  const recent = activeProducts.filter((p) => (p.createdAt as number) >= fifteenDaysAgo);
-  const newArrivals = recent.length >= 4
-    ? recent.sort((a, b) => ((b.createdAt as number) ?? 0) - ((a.createdAt as number) ?? 0)).slice(0, 4)
-    : [...activeProducts].sort((a, b) => ((b.createdAt as number) ?? 0) - ((a.createdAt as number) ?? 0)).slice(0, 4);
+  const sortedByNewest = [...activeProducts].sort((a, b) => ((b.createdAt as number) ?? 0) - ((a.createdAt as number) ?? 0));
+  const newArrivals = sortedByNewest.slice(0, 15);
 
-  const onSale = activeProducts.filter((p) => p.isOnSale || p.badge === "offer" || p.badge === "price_dropped" || (p.originalPrice && p.originalPrice > p.price));
+  const onSale = activeProducts.filter((p) => p.badge === "offer" || p.badge === "price_dropped" || (p.originalPrice && p.originalPrice > p.price));
 
-  const bestSellers = [...activeProducts].filter((p) => p.price >= 500).sort((a, b) => (a.quantityInStock > b.quantityInStock ? -1 : 1)).slice(0, 4);
+  const bestSellers = [...activeProducts].filter((p) => p.price > 500);
 
   const cards = [
     {
-      title: "New Arrivals",
+      key: "new_arrivals", title: "New Arrivals",
       subtitle: "Latest jewellery designs of the season",
-      cta: "Shop Now",
-      link: "/products",
-      gradient: "from-amber-100 to-amber-50",
-      icon: Sparkles,
-      products: newArrivals,
+      cta: "Shop Now", gradient: "from-amber-100 to-amber-50", icon: Sparkles,
     },
     {
-      title: "On Sale",
+      key: "on_sale", title: "On Sale",
       subtitle: "Special discounts on selected jewelry",
-      cta: "View Offers",
-      link: "/products",
-      gradient: "from-rose-100 to-rose-50",
-      icon: Star,
-      products: onSale,
+      cta: "View Offers", gradient: "from-rose-100 to-rose-50", icon: Star,
     },
     {
-      title: "Best Sellers",
+      key: "best_sellers", title: "Best Sellers",
       subtitle: "Most popular jewellery styles",
-      cta: "Shop Bestsellers",
-      link: "/products",
-      gradient: "from-purple-100 to-purple-50",
-      icon: ShoppingBag,
-      products: bestSellers,
+      cta: "Shop Bestsellers", gradient: "from-purple-100 to-purple-50", icon: ShoppingBag,
     },
   ];
+
+  const activeProductsToShow = activeTab === "new_arrivals" ? newArrivals
+    : activeTab === "on_sale" ? onSale
+    : activeTab === "best_sellers" ? bestSellers
+    : [];
+
+  const showEmptyMessage = activeTab === "on_sale" && onSale.length === 0;
 
   return (
     <section className="py-12 sm:py-16 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeader title="Featured Collections" subtitle="Curated just for you" />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {cards.map((card) => (
-            <Link
-              key={card.title}
-              href={card.link}
-              className={`group relative bg-gradient-to-br ${card.gradient} rounded-xl p-6 sm:p-8 border border-border overflow-hidden hover:shadow-md transition-all`}
-            >
-              <div className="relative z-10">
-                <card.icon className="h-8 w-8 text-accent mb-3" />
-                <h3 className="text-lg sm:text-xl font-bold text-secondary mb-1">{card.title}</h3>
-                <p className="text-sm text-muted-foreground mb-4">{card.subtitle}</p>
-                <span className="inline-flex items-center gap-1 text-sm font-medium text-accent group-hover:gap-2 transition-all">
-                  {card.cta} <ArrowRight className="h-3.5 w-3.5" />
-                </span>
-              </div>
-            </Link>
-          ))}
+          {cards.map((card) => {
+            const isActive = activeTab === card.key;
+            return (
+              <button
+                key={card.key}
+                onClick={() => setActiveTab(isActive ? null : card.key)}
+                className={`group relative bg-gradient-to-br ${card.gradient} rounded-xl p-6 sm:p-8 border text-left w-full ${
+                  isActive ? "border-accent ring-2 ring-accent/20" : "border-border"
+                } overflow-hidden hover:shadow-md transition-all cursor-pointer`}
+              >
+                <div className="relative z-10">
+                  <card.icon className="h-8 w-8 text-accent mb-3" />
+                  <h3 className="text-lg sm:text-xl font-bold text-secondary mb-1">{card.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{card.subtitle}</p>
+                  <span className="inline-flex items-center gap-1 text-sm font-medium text-accent group-hover:gap-2 transition-all">
+                    {isActive ? "Close" : card.cta} <ArrowRight className={`h-3.5 w-3.5 transition-transform ${isActive ? "rotate-90" : ""}`} />
+                  </span>
+                </div>
+              </button>
+            );
+          })}
         </div>
+
+        {activeTab && (
+          <div className="mt-8">
+            {showEmptyMessage ? (
+              <div className="text-center py-12 bg-muted/30 rounded-xl border border-border">
+                <Star className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
+                <p className="text-base text-muted-foreground max-w-md mx-auto">
+                  Use our coupon codes and existing discounts and continue shopping.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                {activeProductsToShow.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );
