@@ -648,7 +648,7 @@ function PartnershipSection() {
   useEffect(() => { load(); }, []);
 
   const totalCapital = partners.reduce((s, p) => s + p.amount, 0);
-  const partnerEmails = partners.map((p) => p.email).filter(Boolean);
+  const partnerEmails = partners.flatMap((p) => (p.email || "").split(";").map((e) => e.trim()).filter(Boolean));
 
   const handleAdd = async () => {
     if (!name.trim() || amount <= 0) return;
@@ -728,7 +728,7 @@ function PartnershipSection() {
               <div>
                 <span className="font-medium text-secondary">{p.name}</span>
                 <span className="text-muted-foreground ml-2">Rs. {p.amount.toLocaleString()}</span>
-                {p.email && <span className="text-muted-foreground/50 ml-2 text-xs">{p.email}</span>}
+                {p.email && <span className="text-muted-foreground/50 ml-2 text-xs">{p.email.split(";").join(", ")}</span>}
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => handleEdit(p)} className="p-1 hover:bg-muted rounded text-xs text-muted-foreground">Edit</button>
@@ -751,8 +751,8 @@ function PartnershipSection() {
         </div>
         <div className="flex-1 min-w-[180px]">
           <label className="block text-xs text-muted-foreground mb-1">Email</label>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-            placeholder="partner@email.com" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+            <input type="text" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="partner@email.com; partner2@email.com" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
         </div>
         <div className="w-32">
           <label className="block text-xs text-muted-foreground mb-1">Capital (Rs.)</label>
