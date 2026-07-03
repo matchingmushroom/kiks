@@ -1,7 +1,7 @@
 import { db } from "./firebase";
 import {
   collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, Timestamp, writeBatch,
+  query, where, writeBatch,
 } from "firebase/firestore";
 import { FifoLayer } from "@/types";
 
@@ -11,10 +11,11 @@ export async function getLayers(productId: string): Promise<FifoLayer[]> {
   const q = query(
     collection(db, LAYERS_COLL),
     where("productId", "==", productId),
-    orderBy("purchaseDate", "asc"),
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as FifoLayer));
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() } as FifoLayer))
+    .sort((a, b) => (a.purchaseDate as number) - (b.purchaseDate as number));
 }
 
 export async function getActiveLayers(productId: string): Promise<FifoLayer[]> {

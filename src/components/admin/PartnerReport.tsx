@@ -80,7 +80,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   }, []);
 
   useEffect(() => {
-    if (loading || sales.length === 0) return;
+    if (loading) return;
     renderCharts();
     generatePdf();
   }, [loading, sales, purchases, products]);
@@ -140,7 +140,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   });
 
   function renderCharts() {
-    setTimeout(() => {
+    setTimeout(async () => {
       if (chartRef.current) {
         const ctx = chartRef.current.getContext("2d");
         if (ctx) {
@@ -158,6 +158,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
             options: {
               responsive: true,
               maintainAspectRatio: true,
+              animation: false,
               plugins: { legend: { display: false } },
               scales: { y: { beginAtZero: true, ticks: { callback: (v) => "Rs." + formatNumber(v as number) } } },
             },
@@ -179,6 +180,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
             options: {
               responsive: true,
               maintainAspectRatio: true,
+              animation: false,
               plugins: {
                 legend: { position: "bottom", labels: { boxWidth: 12, padding: 8, font: { size: 9 } } },
               },
@@ -190,7 +192,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   }
 
   async function generatePdf() {
-    await new Promise((r) => setTimeout(r, 1000));
+    await new Promise((r) => setTimeout(r, 1500));
     const pdf = new jsPDF("p", "mm", "a4");
     const pageW = 190;
     let y = 20;
@@ -294,32 +296,38 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
     if (!pdfBlob || partnerEmails.length === 0) return;
     setSending(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(pdfBlob);
-      reader.onload = async () => {
-        const base64 = (reader.result as string).split(",")[1];
-        const webhookUrl = settings.gasWebhookUrl || "";
-        if (!webhookUrl) {
-          handleDownload();
-          setSent(true);
-          setSending(false);
-          return;
-        }
-        await fetch(webhookUrl, {
-          method: "POST",
-          body: JSON.stringify({
-            action: "sendPartnerReport",
-            pdfBase64: base64,
-            partnerEmails,
-            shopName: settings.shopName,
-            period: new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" }),
-          }),
+      const toBase64 = (blob: Blob): Promise<string> =>
+        new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve((reader.result as string).split(",")[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
         });
+      const base64 = await toBase64(pdfBlob);
+      const webhookUrl = settings.gasWebhookUrl || "";
+      if (!webhookUrl) {
+        handleDownload();
         setSent(true);
-      };
+        setSending(false);
+        return;
+      }
+      const res = await fetch(webhookUrl, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "sendPartnerReport",
+          pdfBase64: base64,
+          partnerEmails,
+          shopName: settings.shopName,
+          period: new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" }),
+        }),
+      });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const result = await res.json();
+      if (result.status !== "ok") throw new Error(result.message || "Unknown error");
+      setSent(true);
     } catch (e) {
       console.error("Send failed", e);
-      alert("Failed to send report. Check GAS webhook URL in settings.");
+      alert("Failed to send report. " + (e instanceof Error ? e.message : "Check GAS webhook URL in settings."));
     }
     setSending(false);
   };
