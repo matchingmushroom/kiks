@@ -119,7 +119,8 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   const mtdPurchaseTotal = mtdPurchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
   const ytdPurchaseTotal = ytdPurchases.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
 
-  const inventoryValue = products.reduce((sum, p) => sum + (p.price || 0) * (p.quantityInStock || 0), 0);
+  const costPrice = (p: Product) => p.costPrice || p.price || 0;
+  const inventoryValue = products.reduce((sum, p) => sum + costPrice(p) * (p.quantityInStock || 0), 0);
 
   const inventoryByCategory: { name: string; value: number; color: string }[] = [];
   const catMap = new Map(categories.map((c) => [c.id, c]));
@@ -129,7 +130,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
     const cat = catMap.get(p.categoryId);
     const catName = cat?.name || "Uncategorized";
     const existing = inventoryByCategory.find((c) => c.name === catName);
-    const val = (p.price || 0) * (p.quantityInStock || 0);
+    const val = costPrice(p) * (p.quantityInStock || 0);
     if (existing) {
       existing.value += val;
     } else {
@@ -292,7 +293,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "bold");
       pdf.setTextColor(50, 50, 50);
-      pdf.text("Inventory by Category", 10, y);
+      pdf.text("Inventory by Category (at Cost)", 10, y);
       y += 6;
 
       const invColW = [60, 60, 60];
@@ -420,7 +421,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
                 </div>
 
                 <div className="bg-white border border-border rounded-xl p-4">
-                  <p className="text-sm font-semibold text-secondary mb-3">Inventory by Category</p>
+                  <p className="text-sm font-semibold text-secondary mb-3">Inventory by Category (at Cost)</p>
                   <div className="overflow-x-auto mb-3">
                     <table className="w-full text-xs">
                       <thead>
