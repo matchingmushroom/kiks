@@ -665,6 +665,49 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
+    if (data.action === "sendPartnerReport" && data.pdfBase64) {
+      try {
+        var pdfBlob = Utilities.newBlob(
+          Utilities.base64Decode(data.pdfBase64),
+          "application/pdf",
+          "partner-report-" + new Date().toISOString().slice(0, 10) + ".pdf"
+        );
+        var emails = data.partnerEmails || [];
+        var shopName = data.shopName || "Shop";
+        var period = data.period || new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" });
+
+        if (emails.length > 0) {
+          var recipient = emails[0];
+          var bcc = emails.slice(1).join(",");
+
+          var htmlBody = [
+            "<div style=\"font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;\">",
+            "<h2 style=\"color: #1e3a5f;\">" + shopName + " — Partner Report</h2>",
+            "<p style=\"color: #666;\">Please find attached the partner report for <strong>" + period + "</strong>.</p>",
+            "<hr style=\"border: none; border-top: 1px solid #eee;\" />",
+            "<p style=\"color: #999; font-size: 12px;\">This is an automated report from " + shopName + ". Generated on " + new Date().toLocaleString("en-IN") + ".</p>",
+            "</div>"
+          ].join("\n");
+
+          MailApp.sendEmail({
+            to: recipient,
+            bcc: bcc || undefined,
+            subject: shopName + " Partner Report — " + period,
+            htmlBody: htmlBody,
+            attachments: [pdfBlob],
+          });
+        }
+
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "ok", message: "Partner report sent to " + emails.length + " recipients." }))
+          .setMimeType(ContentService.MimeType.JSON);
+      } catch (err) {
+        return ContentService
+          .createTextOutput(JSON.stringify({ status: "error", message: "Failed to send partner report: " + err.toString() }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
     return ContentService
       .createTextOutput(JSON.stringify({ status: "error", message: "Invalid payload" }))
       .setMimeType(ContentService.MimeType.JSON);

@@ -6,10 +6,11 @@ import { doc, getDoc, setDoc, addDoc, collection, getDocs, deleteDoc, query, whe
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Save, Image, Download, Mail, Database, Calendar } from "lucide-react";
+import { Save, Image, Download, Mail, Database, Calendar, FileText } from "lucide-react";
 import { getPreviousFYRange } from "@/lib/nepaliDate";
 import { createJournalEntry } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
+import PartnerReport from "@/components/admin/PartnerReport";
 
 interface Settings {
   shopName: string;
@@ -620,6 +621,7 @@ export default function SettingsPage() {
 interface PartnerEntry {
   id: string;
   name: string;
+  email: string;
   amount: number;
   addedAt: number;
 }
@@ -629,9 +631,11 @@ function PartnershipSection() {
   const [partners, setPartners] = useState<PartnerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [amount, setAmount] = useState(0);
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [showReport, setShowReport] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -644,6 +648,7 @@ function PartnershipSection() {
   useEffect(() => { load(); }, []);
 
   const totalCapital = partners.reduce((s, p) => s + p.amount, 0);
+  const partnerEmails = partners.map((p) => p.email).filter(Boolean);
 
   const handleAdd = async () => {
     if (!name.trim() || amount <= 0) return;
@@ -651,8 +656,7 @@ function PartnershipSection() {
     try {
       if (editId) {
         const prev = partners.find((p) => p.id === editId);
-        await setDoc(doc(db, "partnerCapitals", editId), { name: name.trim(), amount, addedAt: Date.now() });
-        // Delete old journal entry if amount changed, so it can be re-created
+        await setDoc(doc(db, "partnerCapitals", editId), { name: name.trim(), email: email.trim(), amount, addedAt: Date.now() });
         if (prev && prev.amount !== amount) {
           const jeSnap = await getDocs(query(collection(db, "journalEntries"), where("referenceType", "==", "capital"), where("referenceId", "==", editId)));
           for (const je of jeSnap.docs) await deleteDoc(doc(db, "journalEntries", je.id));
@@ -660,7 +664,7 @@ function PartnershipSection() {
         setEditId(null);
       } else {
         const addedAt = Date.now();
-        const docRef = await addDoc(collection(db, "partnerCapitals"), { name: name.trim(), amount, addedAt });
+        const docRef = await addDoc(collection(db, "partnerCapitals"), { name: name.trim(), email: email.trim(), amount, addedAt });
         await createJournalEntry({
           entryDate: addedAt,
           description: `Capital contribution - ${name.trim()}`,
@@ -681,7 +685,7 @@ function PartnershipSection() {
           recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
         });
       }
-      setName(""); setAmount(0);
+      setName(""); setEmail(""); setAmount(0);
       await load();
     } catch (e) {
       console.error("Capital save failed", e);
@@ -690,7 +694,7 @@ function PartnershipSection() {
   };
 
   const handleEdit = (p: PartnerEntry) => {
-    setName(p.name); setAmount(p.amount); setEditId(p.id);
+    setName(p.name); setEmail(p.email || ""); setAmount(p.amount); setEditId(p.id);
   };
 
   const handleDelete = async (id: string) => {
@@ -705,6 +709,14 @@ function PartnershipSection() {
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Partners & Capital</h3>
+        {partnerEmails.length > 0 && (
+          <Button onClick={() => setShowReport(true)} size="sm" variant="outline" className="text-xs">
+            <FileText className="h-3.5 w-3.5" /> Send Report
+          </Button>
+        )}
+      </div>
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading...</p>
       ) : partners.length === 0 ? (
@@ -716,6 +728,7 @@ function PartnershipSection() {
               <div>
                 <span className="font-medium text-secondary">{p.name}</span>
                 <span className="text-muted-foreground ml-2">Rs. {p.amount.toLocaleString()}</span>
+                {p.email && <span className="text-muted-foreground/50 ml-2 text-xs">{p.email}</span>}
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => handleEdit(p)} className="p-1 hover:bg-muted rounded text-xs text-muted-foreground">Edit</button>
@@ -730,13 +743,18 @@ function PartnershipSection() {
         </div>
       )}
 
-      <div className="flex items-end gap-3 pt-2 border-t border-border">
-        <div className="flex-1">
+      <div className="flex items-end gap-2 pt-2 border-t border-border flex-wrap">
+        <div className="flex-1 min-w-[150px]">
           <label className="block text-xs text-muted-foreground mb-1">Partner Name</label>
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
             placeholder="Enter partner name" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
         </div>
-        <div className="w-36">
+        <div className="flex-1 min-w-[180px]">
+          <label className="block text-xs text-muted-foreground mb-1">Email</label>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+            placeholder="partner@email.com" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+        </div>
+        <div className="w-32">
           <label className="block text-xs text-muted-foreground mb-1">Capital (Rs.)</label>
           <input type="number" value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))}
             min={0} step={1000} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
@@ -745,9 +763,13 @@ function PartnershipSection() {
           {editId ? "Update" : "Add"}
         </Button>
         {editId && (
-          <Button onClick={() => { setName(""); setAmount(0); setEditId(null); }} variant="ghost" size="sm">Cancel</Button>
+          <Button onClick={() => { setName(""); setEmail(""); setAmount(0); setEditId(null); }} variant="ghost" size="sm">Cancel</Button>
         )}
       </div>
+
+      {showReport && (
+        <PartnerReport partnerEmails={partnerEmails} onClose={() => setShowReport(false)} />
+      )}
     </div>
   );
 }
