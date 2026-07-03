@@ -66,7 +66,7 @@ export default function ShopFooter() {
             </div>
           </div>
           <div>
-            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Contact</h3>
+            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Store Address</h3>
             <div className="space-y-3 text-sm text-secondary-foreground/70">
               {settings.address && (
                 <div className="flex items-start gap-2.5">
