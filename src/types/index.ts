@@ -436,6 +436,7 @@ export interface ShopSettings {
   deliveryFeeInsideValley?: number;
   deliveryFeeOutsideValley?: number;
   freeDeliveryThreshold?: number;
+  mapEmbedUrl?: string;
 }
 
 export interface PaymentHistoryEntry {
