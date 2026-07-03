@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { jsPDF } from "jspdf";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { pdf } from "@react-pdf/renderer";
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend } from "chart.js";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -10,6 +10,7 @@ import { Sale, Purchase, Product, Category } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Send, Loader2, X, Download } from "lucide-react";
+import PartnerReportPDF from "./PartnerReportPDF";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend);
 
@@ -53,6 +54,8 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [barChartUrl, setBarChartUrl] = useState<string | null>(null);
+  const [pieChartUrl, setPieChartUrl] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const chartRef = useRef<HTMLCanvasElement>(null);
   const pieRef = useRef<HTMLCanvasElement>(null);
@@ -92,7 +95,6 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   useEffect(() => {
     if (loading) return;
     renderCharts();
-    generatePdf();
   }, [loading, sales, purchases, products]);
 
   const computeSaleTotal = (s: Sale[]) =>
@@ -154,8 +156,23 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   const netMtd = mtdSaleTotal - mtdPurchaseTotal;
   const netYtd = ytdSaleTotal - ytdPurchaseTotal;
 
+  const captureCharts = useCallback(() => {
+    if (!barChartUrl && chartRef.current) {
+      setBarChartUrl(chartRef.current.toDataURL("image/png"));
+    }
+    if (!pieChartUrl && pieRef.current) {
+      setPieChartUrl(pieRef.current.toDataURL("image/png"));
+    }
+  }, [barChartUrl, pieChartUrl]);
+
+  useEffect(() => {
+    if (barChartUrl && pieChartUrl) {
+      generatePdfBlob();
+    }
+  }, [barChartUrl, pieChartUrl]);
+
   function renderCharts() {
-    setTimeout(async () => {
+    setTimeout(() => {
       if (chartRef.current) {
         const ctx = chartRef.current.getContext("2d");
         if (ctx) {
@@ -203,134 +220,75 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
           });
         }
       }
+      setTimeout(captureCharts, 200);
     }, 300);
   }
 
-  function drawTable(pdf: jsPDF, headers: string[], rows: (string | number)[][], startY: number, colWidths: number[]) {
-    const lineH = 6.5;
-    const colX: number[] = [];
-    let cx = 10;
-    for (const w of colWidths) { colX.push(cx); cx += w; }
-    const totalW = colWidths.reduce((a, b) => a + b, 0);
+  const pdfDocProps = {
+    logoUrl: settings.logoUrl || "/logo.svg",
+    shopName: settings.shopName || "Shop Report",
+    tagline: settings.tagline || "",
+    period: new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" }),
+    todaySale: todaySaleTotal,
+    mtdSale: mtdSaleTotal,
+    ytdSale: ytdSaleTotal,
+    todayPurchase: todayPurchaseTotal,
+    mtdPurchase: mtdPurchaseTotal,
+    ytdPurchase: ytdPurchaseTotal,
+    netToday,
+    netMtd,
+    netYtd,
+    inventoryValue,
+    inventoryByCategory: inventoryByCategory.map((c) => ({ name: c.name, value: c.value })),
+    barChartUrl: barChartUrl || undefined,
+    pieChartUrl: pieChartUrl || undefined,
+  };
 
-    pdf.setDrawColor(200, 200, 200);
-    pdf.setLineWidth(0.3);
-
-    const drawRow = (cells: (string | number)[], isHeader: boolean, yy: number) => {
-      if (isHeader) {
-        pdf.setFillColor(30, 64, 175);
-        pdf.setTextColor(255, 255, 255);
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(8);
-      } else {
-        pdf.setFillColor(255, 255, 255);
-        pdf.setTextColor(50, 50, 50);
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(7.5);
-      }
-      for (let i = 0; i < cells.length; i++) {
-        const x = colX[i];
-        const w = colWidths[i];
-        pdf.rect(x, yy, w, lineH, isHeader ? "DF" : "D");
-        pdf.text(String(cells[i]), x + 1.5, yy + 4.5);
-      }
-    };
-
-    drawRow(headers, true, startY);
-    for (let r = 0; r < rows.length; r++) {
-      drawRow(rows[r], false, startY + (r + 1) * lineH);
+  async function generatePdfBlob() {
+    try {
+      const blob = await pdf(<PartnerReportPDF {...pdfDocProps} />).toBlob();
+      setPdfBlob(blob);
+    } catch (e) {
+      console.error("PDF generation failed", e);
     }
-    return startY + (rows.length + 1) * lineH + 4;
   }
 
-  async function generatePdf() {
-    await new Promise((r) => setTimeout(r, 1500));
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pageW = 190;
-    let y = 15;
-
-    const addHeader = () => {
-      pdf.setFontSize(18);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(30, 64, 175);
-      pdf.text(settings.shopName || "Shop Report", pageW / 2, y, { align: "center" });
-      y += 6;
-      pdf.setFontSize(9);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(`Partner Report — ${new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })}`, pageW / 2, y, { align: "center" });
-      y += 10;
-      pdf.setDrawColor(30, 64, 175);
-      pdf.setLineWidth(0.8);
-      pdf.line(10, y, pageW + 10, y);
-      y += 8;
-    };
-    addHeader();
-
-    const colW = [47, 47, 47, 47];
-    const perfRows = [
-      ["Sales", `Rs. ${formatNumber(todaySaleTotal)}`, `Rs. ${formatNumber(mtdSaleTotal)}`, `Rs. ${formatNumber(ytdSaleTotal)}`],
-      ["Purchases", `Rs. ${formatNumber(todayPurchaseTotal)}`, `Rs. ${formatNumber(mtdPurchaseTotal)}`, `Rs. ${formatNumber(ytdPurchaseTotal)}`],
-      ["Net", `Rs. ${formatNumber(netToday)}`, `Rs. ${formatNumber(netMtd)}`, `Rs. ${formatNumber(netYtd)}`],
-    ];
-    y = drawTable(pdf, ["Metric", "Today", "This Month", "This Year"], perfRows, y, colW);
-    y += 2;
-
-    if (chartRef.current) {
-      const chartImg = chartRef.current.toDataURL("image/png");
-      if (y + 50 > 270) { pdf.addPage(); y = 20; addHeader(); }
-      pdf.setFontSize(9);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(50, 50, 50);
-      pdf.text("Sales Trend (Last 30 Days)", 10, y);
-      y += 2;
-      pdf.addImage(chartImg, "PNG", 10, y, pageW, 45);
-      y += 52;
-    }
-
-    if (inventoryByCategory.length > 0) {
-      if (y + 10 > 270) { pdf.addPage(); y = 20; addHeader(); }
-      pdf.setFontSize(9);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(50, 50, 50);
-      pdf.text("Inventory by Category (at Cost)", 10, y);
-      y += 6;
-
-      const invColW = [60, 60, 60];
-      const invRows = inventoryByCategory.slice(0, 10).map((c) => [c.name, `Rs. ${formatNumber(c.value)}`, `${((c.value / (inventoryValue || 1)) * 100).toFixed(1)}%`]);
-      invRows.push(["Total", `Rs. ${formatNumber(inventoryValue)}`, "100%"]);
-      y = drawTable(pdf, ["Category", "Value", "Share"], invRows, y, invColW);
-      y += 3;
-
-      if (pieRef.current && inventoryByCategory.length > 0) {
-        const pieImg = pieRef.current.toDataURL("image/png");
-        if (y + 60 > 270) { pdf.addPage(); y = 20; addHeader(); }
-        pdf.addImage(pieImg, "PNG", 40, y, 110, 60);
-        y += 67;
+  const handleDownload = async () => {
+    let blob = pdfBlob;
+    if (!blob) {
+      if (barChartUrl && pieChartUrl) {
+        blob = await pdf(<PartnerReportPDF {...pdfDocProps} />).toBlob();
+        setPdfBlob(blob);
       }
     }
-
-    pdf.setFontSize(7);
-    pdf.setFont("helvetica", "normal");
-    pdf.setTextColor(150, 150, 150);
-    pdf.text(`Generated on ${new Date().toLocaleString("en-IN")} | ${settings.shopName}`, pageW / 2, 290, { align: "center" });
-
-    const blob = pdf.output("blob");
-    setPdfBlob(blob);
-  }
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `partner-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const handleSend = async () => {
-    if (!pdfBlob || partnerEmails.length === 0) return;
+    let blob = pdfBlob;
+    if (!blob) {
+      if (barChartUrl && pieChartUrl) {
+        blob = await pdf(<PartnerReportPDF {...pdfDocProps} />).toBlob();
+        setPdfBlob(blob);
+      }
+    }
+    if (!blob || partnerEmails.length === 0) return;
     setSending(true);
     try {
-      const toBase64 = (blob: Blob): Promise<string> =>
+      const toBase64 = (b: Blob): Promise<string> =>
         new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve((reader.result as string).split(",")[1]);
           reader.onerror = reject;
-          reader.readAsDataURL(blob);
+          reader.readAsDataURL(b);
         });
-      const base64 = await toBase64(pdfBlob);
+      const base64 = await toBase64(blob);
       const webhookUrl = settings.gasWebhookUrl || "";
       if (!webhookUrl) {
         handleDownload();
@@ -357,16 +315,6 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
       alert("Failed to send report. " + (e instanceof Error ? e.message : "Check GAS webhook URL in settings."));
     }
     setSending(false);
-  };
-
-  const handleDownload = () => {
-    if (!pdfBlob) return;
-    const url = URL.createObjectURL(pdfBlob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `partner-report-${new Date().toISOString().slice(0, 10)}.pdf`;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
