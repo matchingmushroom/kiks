@@ -32,7 +32,6 @@ interface Settings {
   deliveryFeeInsideValley?: number;
   deliveryFeeOutsideValley?: number;
   freeDeliveryThreshold?: number;
-  mapEmbedUrl?: string;
 }
 
 interface EmailBackupConfig {
