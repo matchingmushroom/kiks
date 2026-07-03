@@ -1,10 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { Facebook, Instagram, Youtube, Twitter, Music2, Mail, MapPin, Phone } from "lucide-react";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
-import { useFirestore, where, orderBy } from "@/hooks/useFirestore";
-import { Category } from "@/types";
 
 const socialChannels = [
   { key: "facebook" as const, icon: Facebook, label: "Facebook" },
@@ -17,16 +14,10 @@ const socialChannels = [
 export default function ShopFooter() {
   const { settings } = useShopSettings();
   const hidden = settings.hiddenSocialLinks || [];
-  const { data: categories } = useFirestore<Category>("categories", {
-    constraints: [where("isActive", "==", true), orderBy("order", "asc")],
-    realtime: false,
-  });
 
   const socialLinks = socialChannels.filter(
     (ch) => settings[ch.key] && !hidden.includes(ch.key)
   );
-
-  const footerCategories = categories.filter((c) => c.showOnHomepage !== false).slice(0, 5);
 
   return (
     <footer className="bg-secondary text-secondary-foreground pt-14 pb-8">
@@ -35,8 +26,11 @@ export default function ShopFooter() {
           <div>
             <img src={settings.footerLogoUrl || settings.logoUrl || "/logo.svg"} alt={settings.shopName} className="h-12 sm:h-16 mb-4" />
             <p className="text-sm text-secondary-foreground/70 mb-4 leading-relaxed">{settings.tagline}</p>
-            {socialLinks.length > 0 && (
-              <div className="flex items-center gap-2">
+          </div>
+          <div>
+            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Follow Us</h3>
+            {socialLinks.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
                 {socialLinks.map((ch) => (
                   <a
                     key={ch.key}
@@ -50,20 +44,9 @@ export default function ShopFooter() {
                   </a>
                 ))}
               </div>
+            ) : (
+              <p className="text-xs text-secondary-foreground/50">No social links configured</p>
             )}
-          </div>
-          <div>
-            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Categories</h3>
-            <div className="flex flex-wrap gap-2">
-              {footerCategories.length > 0 ? footerCategories.map((cat) => (
-                <Link key={cat.id} href={`/products/${cat.id}`}
-                  className="inline-block px-3 py-1.5 text-xs font-medium rounded-full bg-secondary-foreground/10 text-secondary-foreground/80 hover:bg-accent hover:text-secondary transition-all">
-                  {cat.name}
-                </Link>
-              )) : (
-                <p className="text-xs text-secondary-foreground/50">Loading categories...</p>
-              )}
-            </div>
           </div>
           <div>
             <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Store Address</h3>
