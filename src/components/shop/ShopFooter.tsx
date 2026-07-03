@@ -71,21 +71,7 @@ export default function ShopFooter() {
               )}
             </div>
           </div>
-          {settings.mapEmbedUrl && (
-            <div>
-              <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Store Location</h3>
-              <iframe
-                src={settings.mapEmbedUrl}
-                width="100%"
-                height="180"
-                style={{ border: 0, borderRadius: "0.75rem" }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Store Location"
-              />
-            </div>
-          )}
+
         </div>
         <div className="border-t border-secondary-foreground/20 mt-10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-secondary-foreground/50">
           <p>&copy; {new Date().getFullYear()} {settings.shopName}. All rights reserved.</p>
