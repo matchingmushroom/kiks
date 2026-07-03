@@ -33,6 +33,7 @@ interface Settings {
   deliveryFeeOutsideValley?: number;
   freeDeliveryThreshold?: number;
   mapEmbedUrl?: string;
+  emailTo?: string;
 }
 
 interface EmailBackupConfig {
@@ -64,8 +65,9 @@ const defaults: Settings = {
   twitter: "",
   tiktok: "",
   hiddenSocialLinks: [],
-  announcementText: "Free shipping on orders over Rs. 1,000 \u2014 Use code PANCHAKANYA10 for 10% off!",
+  announcementText: "Free shipping on orders over Rs. 1,000 — Use code PANCHAKANYA10 for 10% off!",
   mapEmbedUrl: "",
+  emailTo: "",
 };
 
 const emailDefaults: EmailBackupConfig = {
@@ -292,6 +294,13 @@ export default function SettingsPage() {
                 <input type="text" value={form.phone}
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   minLength={6}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Email</label>
+                <input type="email" value={form.emailTo ?? ""}
+                  onChange={(e) => setForm({ ...form, emailTo: e.target.value })}
+                  placeholder="shop@example.com"
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
