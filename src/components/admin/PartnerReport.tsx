@@ -67,8 +67,18 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
           getDocs(collection(db, "products")),
           getDocs(collection(db, "categories")),
         ]);
-        setSales(saleSnap.docs.map((d) => ({ ...d.data(), id: d.id } as Sale)));
-        setPurchases(purchaseSnap.docs.map((d) => ({ ...d.data(), id: d.id } as Purchase)));
+        const toMs = (v: unknown): number =>
+          v && typeof v === "object" && "seconds" in v
+            ? (v as { seconds: number; nanoseconds: number }).seconds * 1000
+            : (v as number);
+        setSales(saleSnap.docs.map((d) => {
+          const data = d.data();
+          return { ...data, id: d.id, createdAt: toMs(data.createdAt), saleDate: toMs(data.saleDate) } as Sale;
+        }));
+        setPurchases(purchaseSnap.docs.map((d) => {
+          const data = d.data();
+          return { ...data, id: d.id, createdAt: toMs(data.createdAt) } as Purchase;
+        }));
         setProducts(prodSnap.docs.map((d) => ({ ...d.data(), id: d.id } as Product)));
         setCategories(catSnap.docs.map((d) => ({ ...d.data(), id: d.id } as Category)));
       } catch (e) {
