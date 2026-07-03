@@ -53,16 +53,20 @@ export default function ShopFooter() {
             )}
           </div>
           <div>
+            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Categories</h3>
             <div className="flex flex-wrap gap-2">
-              {footerCategories.map((cat) => (
+              {footerCategories.length > 0 ? footerCategories.map((cat) => (
                 <Link key={cat.id} href={`/products/${cat.id}`}
                   className="inline-block px-3 py-1.5 text-xs font-medium rounded-full bg-secondary-foreground/10 text-secondary-foreground/80 hover:bg-accent hover:text-secondary transition-all">
                   {cat.name}
                 </Link>
-              ))}
+              )) : (
+                <p className="text-xs text-secondary-foreground/50">Loading categories...</p>
+              )}
             </div>
           </div>
           <div>
+            <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Contact</h3>
             <div className="space-y-3 text-sm text-secondary-foreground/70">
               {settings.address && (
                 <div className="flex items-start gap-2.5">
