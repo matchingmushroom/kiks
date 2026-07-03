@@ -9,7 +9,7 @@ import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Sale, Purchase, Product, Category } from "@/types";
 import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { FileText, Send, Loader2, X, Download } from "lucide-react";
+import { Send, Loader2, X, Download } from "lucide-react";
 
 Chart.register(BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend);
 
@@ -149,6 +149,10 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
     return computeSaleTotal(daySales);
   });
 
+  const netToday = todaySaleTotal - todayPurchaseTotal;
+  const netMtd = mtdSaleTotal - mtdPurchaseTotal;
+  const netYtd = ytdSaleTotal - ytdPurchaseTotal;
+
   function renderCharts() {
     setTimeout(async () => {
       if (chartRef.current) {
@@ -201,96 +205,108 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
     }, 300);
   }
 
+  function drawTable(pdf: jsPDF, headers: string[], rows: (string | number)[][], startY: number, colWidths: number[]) {
+    const lineH = 6.5;
+    const colX: number[] = [];
+    let cx = 10;
+    for (const w of colWidths) { colX.push(cx); cx += w; }
+    const totalW = colWidths.reduce((a, b) => a + b, 0);
+
+    pdf.setDrawColor(200, 200, 200);
+    pdf.setLineWidth(0.3);
+
+    const drawRow = (cells: (string | number)[], isHeader: boolean, yy: number) => {
+      if (isHeader) {
+        pdf.setFillColor(30, 64, 175);
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(8);
+      } else {
+        pdf.setFillColor(255, 255, 255);
+        pdf.setTextColor(50, 50, 50);
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(7.5);
+      }
+      for (let i = 0; i < cells.length; i++) {
+        const x = colX[i];
+        const w = colWidths[i];
+        pdf.rect(x, yy, w, lineH, isHeader ? "DF" : "D");
+        pdf.text(String(cells[i]), x + 1.5, yy + 4.5);
+      }
+    };
+
+    drawRow(headers, true, startY);
+    for (let r = 0; r < rows.length; r++) {
+      drawRow(rows[r], false, startY + (r + 1) * lineH);
+    }
+    return startY + (rows.length + 1) * lineH + 4;
+  }
+
   async function generatePdf() {
     await new Promise((r) => setTimeout(r, 1500));
     const pdf = new jsPDF("p", "mm", "a4");
     const pageW = 190;
-    let y = 20;
+    let y = 15;
 
     const addHeader = () => {
-      pdf.setFontSize(16);
+      pdf.setFontSize(18);
       pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(30, 64, 175);
       pdf.text(settings.shopName || "Shop Report", pageW / 2, y, { align: "center" });
-      y += 7;
-      pdf.setFontSize(10);
+      y += 6;
+      pdf.setFontSize(9);
       pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(100, 100, 100);
       pdf.text(`Partner Report — ${new Date().toLocaleDateString("en-IN", { year: "numeric", month: "long", day: "numeric" })}`, pageW / 2, y, { align: "center" });
-      y += 12;
+      y += 10;
+      pdf.setDrawColor(30, 64, 175);
+      pdf.setLineWidth(0.8);
+      pdf.line(10, y, pageW + 10, y);
+      y += 8;
     };
     addHeader();
 
-    const addSection = (title: string) => {
-      if (y > 250) { pdf.addPage(); y = 20; addHeader(); }
-      pdf.setFontSize(13);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(30, 64, 175);
-      pdf.text(title, 10, y);
-      y += 8;
-      pdf.setDrawColor(30, 64, 175);
-      pdf.setLineWidth(0.5);
-      pdf.line(10, y, pageW + 10, y);
-      y += 6;
-      pdf.setTextColor(0, 0, 0);
-    };
-
-    const addKpi = (label: string, value: string, x: number) => {
-      pdf.setFontSize(8);
-      pdf.setFont("helvetica", "normal");
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(label, x, y);
-      y += 4;
-      pdf.setFontSize(14);
-      pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(0, 0, 0);
-      pdf.text(value, x, y);
-      y += 8;
-    };
-
-    addSection("Sales Summary");
-    const kpiX = [10, 75, 140];
-    addKpi("Today", `Rs. ${formatNumber(todaySaleTotal)}`, kpiX[0]);
-    y = 38;
-    addKpi("This Month (MTD)", `Rs. ${formatNumber(mtdSaleTotal)}`, kpiX[1]);
-    y = 38;
-    addKpi("This Year (YTD)", `Rs. ${formatNumber(ytdSaleTotal)}`, kpiX[2]);
-    y = 50;
+    const colW = [47, 47, 47, 47];
+    const perfRows = [
+      ["Sales", `Rs. ${formatNumber(todaySaleTotal)}`, `Rs. ${formatNumber(mtdSaleTotal)}`, `Rs. ${formatNumber(ytdSaleTotal)}`],
+      ["Purchases", `Rs. ${formatNumber(todayPurchaseTotal)}`, `Rs. ${formatNumber(mtdPurchaseTotal)}`, `Rs. ${formatNumber(ytdPurchaseTotal)}`],
+      ["Net", `Rs. ${formatNumber(netToday)}`, `Rs. ${formatNumber(netMtd)}`, `Rs. ${formatNumber(netYtd)}`],
+    ];
+    y = drawTable(pdf, ["Metric", "Today", "This Month", "This Year"], perfRows, y, colW);
+    y += 2;
 
     if (chartRef.current) {
       const chartImg = chartRef.current.toDataURL("image/png");
-      if (y + 55 > 270) { pdf.addPage(); y = 20; }
+      if (y + 50 > 270) { pdf.addPage(); y = 20; addHeader(); }
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "bold");
-      pdf.text("Last 30 Days Sales Trend", 10, y);
-      y += 3;
-      pdf.addImage(chartImg, "PNG", 10, y, pageW, 50);
-      y += 58;
+      pdf.setTextColor(50, 50, 50);
+      pdf.text("Sales Trend (Last 30 Days)", 10, y);
+      y += 2;
+      pdf.addImage(chartImg, "PNG", 10, y, pageW, 45);
+      y += 52;
     }
 
-    addSection("Purchase Summary");
-    y += 2;
-    const kpy2 = y;
-    addKpi("Today", `Rs. ${formatNumber(todayPurchaseTotal)}`, kpiX[0]);
-    y = kpy2;
-    addKpi("This Month (MTD)", `Rs. ${formatNumber(mtdPurchaseTotal)}`, kpiX[1]);
-    y = kpy2;
-    addKpi("This Year (YTD)", `Rs. ${formatNumber(ytdPurchaseTotal)}`, kpiX[2]);
-    y = kpy2 + 14;
-
-    addSection("Inventory Summary");
-    pdf.setFontSize(10);
-    pdf.setFont("helvetica", "bold");
-    pdf.text(`Total Inventory Value: Rs. ${formatNumber(inventoryValue)}`, 10, y);
-    y += 8;
-
-    if (pieRef.current && inventoryByCategory.length > 0) {
-      const pieImg = pieRef.current.toDataURL("image/png");
-      if (y + 70 > 270) { pdf.addPage(); y = 20; }
+    if (inventoryByCategory.length > 0) {
+      if (y + 10 > 270) { pdf.addPage(); y = 20; addHeader(); }
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(50, 50, 50);
       pdf.text("Inventory by Category", 10, y);
+      y += 6;
+
+      const invColW = [60, 60, 60];
+      const invRows = inventoryByCategory.slice(0, 10).map((c) => [c.name, `Rs. ${formatNumber(c.value)}`, `${((c.value / (inventoryValue || 1)) * 100).toFixed(1)}%`]);
+      invRows.push(["Total", `Rs. ${formatNumber(inventoryValue)}`, "100%"]);
+      y = drawTable(pdf, ["Category", "Value", "Share"], invRows, y, invColW);
       y += 3;
-      pdf.addImage(pieImg, "PNG", 45, y, 110, 65);
-      y += 72;
+
+      if (pieRef.current && inventoryByCategory.length > 0) {
+        const pieImg = pieRef.current.toDataURL("image/png");
+        if (y + 60 > 270) { pdf.addPage(); y = 20; addHeader(); }
+        pdf.addImage(pieImg, "PNG", 40, y, 110, 60);
+        y += 67;
+      }
     }
 
     pdf.setFontSize(7);
@@ -364,59 +380,76 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
             <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
-                  <p className="text-xs text-blue-600 font-medium uppercase">Today Sales</p>
-                  <p className="text-xl font-bold text-blue-800 mt-1">Rs. {formatNumber(todaySaleTotal)}</p>
-                </div>
-                <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-200">
-                  <p className="text-xs text-indigo-600 font-medium uppercase">MTD Sales</p>
-                  <p className="text-xl font-bold text-indigo-800 mt-1">Rs. {formatNumber(mtdSaleTotal)}</p>
-                </div>
-                <div className="bg-purple-50 rounded-xl p-4 border border-purple-200">
-                  <p className="text-xs text-purple-600 font-medium uppercase">YTD Sales</p>
-                  <p className="text-xl font-bold text-purple-800 mt-1">Rs. {formatNumber(ytdSaleTotal)}</p>
-                </div>
+              <div className="bg-white border border-border rounded-xl overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-[#1e3a5f] text-white">
+                      <th className="text-left px-3 py-2 text-xs font-semibold">Metric</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold">Today</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold">This Month</th>
+                      <th className="text-right px-3 py-2 text-xs font-semibold">This Year</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t border-border">
+                      <td className="px-3 py-2 font-medium text-muted-foreground">Sales</td>
+                      <td className="px-3 py-2 text-right font-semibold text-blue-700">Rs. {formatNumber(todaySaleTotal)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-blue-700">Rs. {formatNumber(mtdSaleTotal)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-blue-700">Rs. {formatNumber(ytdSaleTotal)}</td>
+                    </tr>
+                    <tr className="border-t border-border">
+                      <td className="px-3 py-2 font-medium text-muted-foreground">Purchases</td>
+                      <td className="px-3 py-2 text-right font-semibold text-orange-700">Rs. {formatNumber(todayPurchaseTotal)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-orange-700">Rs. {formatNumber(mtdPurchaseTotal)}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-orange-700">Rs. {formatNumber(ytdPurchaseTotal)}</td>
+                    </tr>
+                    <tr className="border-t border-border bg-muted/20">
+                      <td className="px-3 py-2 font-semibold text-secondary">Net</td>
+                      <td className={`px-3 py-2 text-right font-bold ${netToday >= 0 ? "text-green-700" : "text-red-700"}`}>Rs. {formatNumber(netToday)}</td>
+                      <td className={`px-3 py-2 text-right font-bold ${netMtd >= 0 ? "text-green-700" : "text-red-700"}`}>Rs. {formatNumber(netMtd)}</td>
+                      <td className={`px-3 py-2 text-right font-bold ${netYtd >= 0 ? "text-green-700" : "text-red-700"}`}>Rs. {formatNumber(netYtd)}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
 
               <div ref={reportRef} className="space-y-4">
                 <div className="bg-white border border-border rounded-xl p-4">
-                  <p className="text-sm font-semibold text-secondary mb-3">Last 30 Days Sales Trend</p>
-                  <canvas ref={chartRef} height="180" />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-orange-50 rounded-xl p-4 border border-orange-200">
-                    <p className="text-xs text-orange-600 font-medium uppercase">Today Purchases</p>
-                    <p className="text-xl font-bold text-orange-800 mt-1">Rs. {formatNumber(todayPurchaseTotal)}</p>
-                  </div>
-                  <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-                    <p className="text-xs text-amber-600 font-medium uppercase">MTD Purchases</p>
-                    <p className="text-xl font-bold text-amber-800 mt-1">Rs. {formatNumber(mtdPurchaseTotal)}</p>
-                  </div>
-                  <div className="bg-yellow-50 rounded-xl p-4 border border-yellow-200">
-                    <p className="text-xs text-yellow-600 font-medium uppercase">YTD Purchases</p>
-                    <p className="text-xl font-bold text-yellow-800 mt-1">Rs. {formatNumber(ytdPurchaseTotal)}</p>
-                  </div>
-                </div>
-
-                <div className="bg-white border border-border rounded-xl p-4">
-                  <p className="text-sm font-semibold text-secondary mb-1">Inventory Value</p>
-                  <p className="text-2xl font-bold text-green-700">Rs. {formatNumber(inventoryValue)}</p>
+                  <p className="text-sm font-semibold text-secondary mb-3">Sales Trend (Last 30 Days)</p>
+                  <canvas ref={chartRef} height="160" />
                 </div>
 
                 <div className="bg-white border border-border rounded-xl p-4">
                   <p className="text-sm font-semibold text-secondary mb-3">Inventory by Category</p>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {inventoryByCategory.slice(0, 8).map((c) => (
-                      <div key={c.name} className="flex items-center gap-1.5 text-xs">
-                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                        <span className="text-muted-foreground">{c.name}</span>
-                        <span className="font-medium">Rs. {formatNumber(c.value)}</span>
-                      </div>
-                    ))}
+                  <div className="overflow-x-auto mb-3">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-muted/50">
+                          <th className="text-left px-2 py-1.5 font-medium text-muted-foreground">Category</th>
+                          <th className="text-right px-2 py-1.5 font-medium text-muted-foreground">Value</th>
+                          <th className="text-right px-2 py-1.5 font-medium text-muted-foreground">Share</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {inventoryByCategory.slice(0, 10).map((c) => (
+                          <tr key={c.name} className="border-t border-border">
+                            <td className="px-2 py-1.5">
+                              <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: c.color }} />
+                              {c.name}
+                            </td>
+                            <td className="px-2 py-1.5 text-right font-medium">Rs. {formatNumber(c.value)}</td>
+                            <td className="px-2 py-1.5 text-right text-muted-foreground">{((c.value / (inventoryValue || 1)) * 100).toFixed(1)}%</td>
+                          </tr>
+                        ))}
+                        <tr className="border-t-2 border-secondary font-semibold">
+                          <td className="px-2 py-1.5">Total</td>
+                          <td className="px-2 py-1.5 text-right text-green-700">Rs. {formatNumber(inventoryValue)}</td>
+                          <td className="px-2 py-1.5 text-right">100%</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
-                  <canvas ref={pieRef} height="200" />
+                  <canvas ref={pieRef} height="180" />
                 </div>
               </div>
 
