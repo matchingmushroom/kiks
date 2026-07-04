@@ -789,7 +789,7 @@ export default function POSPage() {
       {showScanner && (
         <BarcodeScannerDialog
           onScan={(value) => {
-            const found = activeProducts.find((p) => p.sku === value.trim() || p.shortCode === value.trim());
+            const found = activeProducts.find((p) => p.sku === value.trim() || p.shortCode === value.trim() || p.barcodeId === value.trim());
             if (found) addItem(found);
             else setProductSearch(value.trim());
           }}
