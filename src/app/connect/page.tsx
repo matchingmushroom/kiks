@@ -93,17 +93,17 @@ export default function ConnectPage() {
             </div>
 
             <div className="space-y-3">
-              {settings.website && (
-                <a
-                  href={settings.website}
-                  className="group relative flex items-center justify-center gap-2.5 w-full h-13 rounded-2xl overflow-hidden font-semibold text-sm sm:text-base transition-all duration-300 active:scale-[0.98]"
-                  style={{ background: "linear-gradient(135deg, #d4a853, #b8860b)", color: "#1a1a2e" }}
-                >
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "linear-gradient(135deg, #f5e6b8, #d4a853)" }} />
-                  <Globe className="relative h-5 w-5" />
-                  <span className="relative">Visit Website</span>
-                </a>
-              )}
+              <a
+                href="https://www.panchakanyacollections.com.np"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative flex items-center justify-center gap-2.5 w-full h-13 rounded-2xl overflow-hidden font-semibold text-sm sm:text-base transition-all duration-300 active:scale-[0.98]"
+                style={{ background: "linear-gradient(135deg, #d4a853, #b8860b)", color: "#1a1a2e" }}
+              >
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "linear-gradient(135deg, #f5e6b8, #d4a853)" }} />
+                <Globe className="relative h-5 w-5" />
+                <span className="relative">Visit Website</span>
+              </a>
 
               {settings.phone && (
                 <a
