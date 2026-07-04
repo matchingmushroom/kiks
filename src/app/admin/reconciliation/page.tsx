@@ -50,7 +50,7 @@ export default function ReconciliationPage() {
     let result = categoryProducts;
     if (search) {
       const q = search.toLowerCase();
-      result = result.filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.shortCode?.toLowerCase().includes(q));
+      result = result.filter((p) => p.name.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.shortCode?.toLowerCase().includes(q) || p.barcodeId?.toLowerCase().includes(q));
     }
     return result;
   }, [categoryProducts, search]);
