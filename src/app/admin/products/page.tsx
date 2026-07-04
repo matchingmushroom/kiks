@@ -82,7 +82,7 @@ export default function AdminProductsPage() {
   const [savingCombo, setSavingCombo] = useState(false);
   const filtered = products.filter((p) => {
     const q = search.toLowerCase();
-    const matchSearch = !search || p.name.toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
+    const matchSearch = !search || p.name.toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q) || (p.barcodeId || "").toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
     const matchCat = !catFilter || p.categoryId === catFilter;
     return matchSearch && matchCat;
   });
@@ -445,7 +445,7 @@ export default function AdminProductsPage() {
                   onChange={(e) => setComboProductSearch(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary mb-2" />
                 <div className="max-h-48 overflow-y-auto border border-border rounded-lg divide-y divide-border">
-                  {products.filter((p) => !p.comboItems?.length && (p.name.toLowerCase().includes(comboProductSearch.toLowerCase()) || (p.sku || "").toLowerCase().includes(comboProductSearch.toLowerCase()))).map((p) => (
+                  {products.filter((p) => !p.comboItems?.length && (p.name.toLowerCase().includes(comboProductSearch.toLowerCase()) || (p.sku || "").toLowerCase().includes(comboProductSearch.toLowerCase()) || (p.shortCode || "").toLowerCase().includes(comboProductSearch.toLowerCase()) || (p.barcodeId || "").toLowerCase().includes(comboProductSearch.toLowerCase()))).map((p) => (
                     <label key={p.id} className="flex items-center gap-3 px-3 py-2 hover:bg-muted/50 cursor-pointer text-sm">
                       <input type="checkbox" checked={selectedComboIds.includes(p.id)}
                         onChange={() => setSelectedComboIds((prev) => prev.includes(p.id) ? prev.filter((id) => id !== p.id) : [...prev, p.id])}

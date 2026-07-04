@@ -54,7 +54,7 @@ export default function AdminInventoryPage() {
   const filtered = useMemo(() => {
     let result = products.filter((p) => {
       const q = search.toLowerCase();
-      const matchSearch = !search || p.name.toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q);
+      const matchSearch = !search || p.name.toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q) || (p.barcodeId || "").toLowerCase().includes(q);
       if (stockFilter === "low") return matchSearch && p.quantityInStock > 0 && p.quantityInStock <= 3;
       if (stockFilter === "out") return matchSearch && p.quantityInStock <= 0;
       if (stockFilter === "active") return matchSearch && p.isActive;
