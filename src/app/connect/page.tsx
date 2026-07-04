@@ -53,7 +53,7 @@ export default function ConnectPage() {
     : null;
 
   const mapsLink = (settings.mapLat && settings.mapLng)
-    ? `https://www.google.com/maps/dir/?api=1&destination=${settings.mapLat},${settings.mapLng}`
+    ? `https://www.google.com/maps/search/${encodeURIComponent(settings.shopName)}/@${settings.mapLat},${settings.mapLng},17z`
     : settings.address
       ? `https://www.google.com/maps/search/${encodeURIComponent(settings.address)}`
       : null;
