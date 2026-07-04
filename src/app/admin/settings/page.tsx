@@ -38,6 +38,7 @@ interface Settings {
   emailTo?: string;
   mapLat?: number;
   mapLng?: number;
+  mapEmbedUrl?: string;
 }
 
 interface EmailBackupConfig {
