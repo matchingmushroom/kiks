@@ -80,7 +80,7 @@ export default function POSPage() {
     if (!productSearch) return [];
     const q = productSearch.toLowerCase();
     return activeProducts.filter((p) =>
-      p.name.toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q)
+      p.name.toLowerCase().includes(q) || (p.sku || "").toLowerCase().includes(q) || (p.shortCode || "").toLowerCase().includes(q) || (p.barcodeId || "").toLowerCase().includes(q)
     ).slice(0, 10);
   }, [activeProducts, productSearch]);
 
