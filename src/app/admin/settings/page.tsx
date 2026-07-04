@@ -141,8 +141,8 @@ export default function SettingsPage() {
       mapLng: form.mapLng,
     };
     import("qrcode").then((QRCode) => {
-      const vcard = generateVCard(settingsForVCard);
-      QRCode.default.toDataURL(vcard, { width: 400, margin: 2, color: { dark: "#1a1a2e", light: "#ffffff" } }).then((url: string) => {
+      const connectUrl = `${window.location.origin}/connect`;
+      QRCode.default.toDataURL(connectUrl, { width: 400, margin: 2, color: { dark: "#b8860b", light: "#ffffff" } }).then((url: string) => {
         if (!cancelled) setQrDataUrl(url);
       });
     });
@@ -526,33 +526,51 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="pt-4 border-t border-border space-y-3">
-              <h3 className="text-sm font-semibold text-secondary flex items-center gap-2">
-                <Download className="h-4 w-4 text-primary" /> QR Code — Connect Page
-              </h3>
-              {qrDataUrl ? (
-                <div className="flex flex-col sm:flex-row items-start gap-4">
-                  <img src={qrDataUrl} alt="QR Code" className="w-32 h-32 border border-border rounded-lg" />
-                  <div className="space-y-2">
-                    <p className="text-xs text-muted-foreground">
-                      Scan this QR to save contact and visit the connect page.
-                    </p>
-                    <p className="text-xs font-mono text-muted-foreground break-all">
-                      {typeof window !== "undefined" && `${window.location.origin}/connect`}
-                    </p>
-                    <div className="flex gap-2">
-                      <Button onClick={downloadQR} size="sm" variant="accent">
-                        <Download className="h-3.5 w-3.5" /> Download QR
-                      </Button>
-                      <Button onClick={downloadVCardBtn} size="sm" variant="outline">
-                        <UserPlus className="h-3.5 w-3.5" /> Download VCF
-                      </Button>
-                    </div>
-                  </div>
+            <div className="pt-4 border-t border-border">
+              <div className="relative overflow-hidden rounded-xl p-5" style={{ background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0c29 100%)" }}>
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                  <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full opacity-20" style={{ background: "radial-gradient(circle, #d4a853 0%, transparent 70%)" }} />
+                  <div className="absolute -bottom-20 -left-20 w-40 h-40 rounded-full opacity-20" style={{ background: "radial-gradient(circle, #b8860b 0%, transparent 70%)" }} />
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">Saving settings will generate the QR code...</p>
-              )}
+                <div className="relative z-10">
+                  <h3 className="text-sm font-semibold flex items-center gap-2 mb-3" style={{ color: "#d4a853" }}>
+                    <Download className="h-4 w-4" /> QR Code — Connect Page
+                  </h3>
+                  {qrDataUrl ? (
+                    <div className="flex flex-col sm:flex-row items-center gap-5">
+                      <div className="relative">
+                        <div className="absolute inset-0 rounded-xl animate-pulse opacity-30" style={{ background: "radial-gradient(circle, #d4a853 0%, transparent 70%)", filter: "blur(16px)", transform: "scale(1.2)" }} />
+                        <img src={qrDataUrl} alt="QR Code" className="relative w-36 h-36 rounded-xl border" style={{ borderColor: "rgba(212,168,83,0.3)" }} />
+                      </div>
+                      <div className="space-y-3 flex-1 text-center sm:text-left">
+                        <p className="text-sm font-medium" style={{ color: "#f5e6b8" }}>
+                          Scan to Connect
+                        </p>
+                        <p className="text-xs leading-relaxed" style={{ color: "rgba(255,255,255,0.6)" }}>
+                          Customers scan this QR to instantly save your contact and access the premium connect page.
+                        </p>
+                        <p className="text-xs font-mono break-all px-3 py-1.5 rounded-lg inline-block" style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}>
+                          {typeof window !== "undefined" && `${window.location.origin}/connect`}
+                        </p>
+                        <div className="flex gap-2 pt-1">
+                          <Button onClick={downloadQR} size="sm" className="text-xs" style={{ background: "linear-gradient(135deg, #d4a853, #b8860b)", color: "#1a1a2e", border: "none" }}>
+                            <Download className="h-3.5 w-3.5" /> Download QR
+                          </Button>
+                          <Button onClick={downloadVCardBtn} size="sm" variant="outline" className="text-xs" style={{ borderColor: "rgba(212,168,83,0.3)", color: "#d4a853" }}>
+                            <UserPlus className="h-3.5 w-3.5" /> Download VCF
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-20 rounded-lg" style={{ background: "rgba(255,255,255,0.04)" }}>
+                      <p className="text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        Save settings below to generate QR code...
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center gap-3 pt-4 border-t border-border">
