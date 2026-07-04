@@ -6,11 +6,13 @@ import { doc, getDoc, setDoc, addDoc, collection, getDocs, deleteDoc, query, whe
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Save, Image, Download, Mail, Database, Calendar, FileText } from "lucide-react";
+import { Save, Image, Download, Mail, Database, Calendar, FileText, UserPlus } from "lucide-react";
 import { getPreviousFYRange } from "@/lib/nepaliDate";
 import { createJournalEntry } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
 import PartnerReport from "@/components/admin/PartnerReport";
+import { generateVCard, downloadVCard } from "@/lib/vcard";
+import type { ShopSettings } from "@/types";
 
 interface Settings {
   shopName: string;
@@ -34,6 +36,8 @@ interface Settings {
   deliveryFeeOutsideValley?: number;
   freeDeliveryThreshold?: number;
   emailTo?: string;
+  mapLat?: number;
+  mapLng?: number;
 }
 
 interface EmailBackupConfig {
@@ -67,6 +71,8 @@ const defaults: Settings = {
   hiddenSocialLinks: [],
   announcementText: "Free shipping on orders over Rs. 1,000 — Use code PANCHAKANYA10 for 10% off!",
   emailTo: "",
+  mapLat: undefined,
+  mapLng: undefined,
 };
 
 const emailDefaults: EmailBackupConfig = {
@@ -111,6 +117,70 @@ export default function SettingsPage() {
   const [emailSaved, setEmailSaved] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [archiveStatus, setArchiveStatus] = useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!form.shopName) return;
+    let cancelled = false;
+    const settingsForVCard: ShopSettings = {
+      shopName: form.shopName,
+      tagline: form.tagline || "",
+      logoUrl: form.logoUrl,
+      phone: form.phone,
+      address: form.address,
+      whatsappNumber: form.whatsappNumber,
+      currency: form.currency,
+      website: form.website,
+      facebook: form.facebook,
+      instagram: form.instagram,
+      youtube: form.youtube,
+      twitter: form.twitter,
+      tiktok: form.tiktok,
+      hiddenSocialLinks: form.hiddenSocialLinks,
+      mapLat: form.mapLat,
+      mapLng: form.mapLng,
+    };
+    import("qrcode").then((QRCode) => {
+      const vcard = generateVCard(settingsForVCard);
+      QRCode.default.toDataURL(vcard, { width: 400, margin: 2, color: { dark: "#1a1a2e", light: "#ffffff" } }).then((url: string) => {
+        if (!cancelled) setQrDataUrl(url);
+      });
+    });
+    return () => { cancelled = true; };
+  }, [form.shopName, form.phone, form.address, form.whatsappNumber, form.website, form.facebook, form.instagram, form.youtube, form.twitter, form.tiktok, form.hiddenSocialLinks, form.mapLat, form.mapLng, form.tagline, form.logoUrl, form.currency]);
+
+  const downloadQR = () => {
+    if (!qrDataUrl) return;
+    const a = document.createElement("a");
+    a.href = qrDataUrl;
+    a.download = `${form.shopName.replace(/\s+/g, "_")}_QR.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const downloadVCardBtn = () => {
+    const settingsForVCard: ShopSettings = {
+      shopName: form.shopName,
+      tagline: form.tagline || "",
+      logoUrl: form.logoUrl,
+      phone: form.phone,
+      address: form.address,
+      whatsappNumber: form.whatsappNumber,
+      currency: form.currency,
+      website: form.website,
+      facebook: form.facebook,
+      instagram: form.instagram,
+      youtube: form.youtube,
+      twitter: form.twitter,
+      tiktok: form.tiktok,
+      hiddenSocialLinks: form.hiddenSocialLinks,
+      mapLat: form.mapLat,
+      mapLng: form.mapLng,
+    };
+    downloadVCard(settingsForVCard);
+  };
+
   const runArchive = async () => {
     if (!emailConfig.gasWebhookUrl) { alert("Configure GAS Webhook URL first."); return; }
     if (!emailConfig.driveFolderId) { alert("Configure Drive Folder ID first."); return; }
@@ -332,6 +402,21 @@ export default function SettingsPage() {
                 <p className="text-xs text-muted-foreground mt-1">Used in coupon terms and public links</p>
               </div>
               <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Google Maps Latitude</label>
+                <input type="number" step="any" value={form.mapLat ?? ""}
+                  onChange={(e) => setForm({ ...form, mapLat: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="e.g. 27.7172"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Google Maps Longitude</label>
+                <input type="number" step="any" value={form.mapLng ?? ""}
+                  onChange={(e) => setForm({ ...form, mapLng: e.target.value ? Number(e.target.value) : undefined })}
+                  placeholder="e.g. 85.3240"
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <p className="text-xs text-muted-foreground mt-1">Used for &quot;Get Directions&quot; on connect page &amp; QR code</p>
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Facebook URL</label>
                 <input type="url" value={form.facebook}
                   onChange={(e) => setForm({ ...form, facebook: e.target.value })}
@@ -439,6 +524,35 @@ export default function SettingsPage() {
                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
               </div>
+            </div>
+
+            <div className="pt-4 border-t border-border space-y-3">
+              <h3 className="text-sm font-semibold text-secondary flex items-center gap-2">
+                <Download className="h-4 w-4 text-primary" /> QR Code — Connect Page
+              </h3>
+              {qrDataUrl ? (
+                <div className="flex flex-col sm:flex-row items-start gap-4">
+                  <img src={qrDataUrl} alt="QR Code" className="w-32 h-32 border border-border rounded-lg" />
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      Scan this QR to save contact and visit the connect page.
+                    </p>
+                    <p className="text-xs font-mono text-muted-foreground break-all">
+                      {typeof window !== "undefined" && `${window.location.origin}/connect`}
+                    </p>
+                    <div className="flex gap-2">
+                      <Button onClick={downloadQR} size="sm" variant="accent">
+                        <Download className="h-3.5 w-3.5" /> Download QR
+                      </Button>
+                      <Button onClick={downloadVCardBtn} size="sm" variant="outline">
+                        <UserPlus className="h-3.5 w-3.5" /> Download VCF
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Saving settings will generate the QR code...</p>
+              )}
             </div>
 
             <div className="flex items-center gap-3 pt-4 border-t border-border">

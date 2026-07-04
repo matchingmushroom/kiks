@@ -428,6 +428,8 @@ export interface ShopSettings {
   twitter?: string;
   tiktok?: string;
   hiddenSocialLinks?: string[];
+  mapLat?: number;
+  mapLng?: number;
   announcementText?: string;
   gasWebhookUrl?: string;
   emailTo?: string;
