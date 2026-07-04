@@ -430,6 +430,7 @@ export interface ShopSettings {
   hiddenSocialLinks?: string[];
   mapLat?: number;
   mapLng?: number;
+  mapEmbedUrl?: string;
   announcementText?: string;
   gasWebhookUrl?: string;
   emailTo?: string;

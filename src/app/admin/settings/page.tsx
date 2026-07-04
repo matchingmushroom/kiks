@@ -73,6 +73,7 @@ const defaults: Settings = {
   emailTo: "",
   mapLat: undefined,
   mapLng: undefined,
+  mapEmbedUrl: "",
 };
 
 const emailDefaults: EmailBackupConfig = {
@@ -139,6 +140,7 @@ export default function SettingsPage() {
       hiddenSocialLinks: form.hiddenSocialLinks,
       mapLat: form.mapLat,
       mapLng: form.mapLng,
+      mapEmbedUrl: form.mapEmbedUrl,
     };
     import("qrcode").then((QRCode) => {
       const connectUrl = `${window.location.origin}/connect`;
@@ -147,7 +149,7 @@ export default function SettingsPage() {
       });
     });
     return () => { cancelled = true; };
-  }, [form.shopName, form.phone, form.address, form.whatsappNumber, form.website, form.facebook, form.instagram, form.youtube, form.twitter, form.tiktok, form.hiddenSocialLinks, form.mapLat, form.mapLng, form.tagline, form.logoUrl, form.currency]);
+  }, [form.shopName, form.phone, form.address, form.whatsappNumber, form.website, form.facebook, form.instagram, form.youtube, form.twitter, form.tiktok, form.hiddenSocialLinks, form.mapLat, form.mapLng, form.mapEmbedUrl, form.tagline, form.logoUrl, form.currency]);
 
   const downloadQR = () => {
     if (!qrDataUrl) return;
@@ -177,6 +179,7 @@ export default function SettingsPage() {
       hiddenSocialLinks: form.hiddenSocialLinks,
       mapLat: form.mapLat,
       mapLng: form.mapLng,
+      mapEmbedUrl: form.mapEmbedUrl,
     };
     downloadVCard(settingsForVCard);
   };
@@ -402,19 +405,12 @@ export default function SettingsPage() {
                 <p className="text-xs text-muted-foreground mt-1">Used in coupon terms and public links</p>
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Google Maps Latitude</label>
-                <input type="number" step="any" value={form.mapLat ?? ""}
-                  onChange={(e) => setForm({ ...form, mapLat: e.target.value ? Number(e.target.value) : undefined })}
-                  placeholder="e.g. 27.7172"
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Google Maps Embed URL</label>
+                <input type="url" value={form.mapEmbedUrl}
+                  onChange={(e) => setForm({ ...form, mapEmbedUrl: e.target.value })}
+                  placeholder="https://www.google.com/maps/embed?pb=..."
                   className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Google Maps Longitude</label>
-                <input type="number" step="any" value={form.mapLng ?? ""}
-                  onChange={(e) => setForm({ ...form, mapLng: e.target.value ? Number(e.target.value) : undefined })}
-                  placeholder="e.g. 85.3240"
-                  className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                <p className="text-xs text-muted-foreground mt-1">Used for &quot;Get Directions&quot; on connect page &amp; QR code</p>
+                <p className="text-xs text-muted-foreground mt-1">Paste the iframe <code className="bg-muted px-1 rounded">src</code> URL from Google Maps &quot;Share → Embed a map&quot;. Used in footer map.</p>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Facebook URL</label>
