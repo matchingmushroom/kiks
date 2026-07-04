@@ -72,12 +72,15 @@ export default function ShopFooter() {
             </div>
           </div>
 
-          {settings.mapLat && settings.mapLng && (
+          {(settings.mapLat && settings.mapLng) || settings.address ? (
             <div>
               <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Find Us</h3>
               <div className="rounded-lg overflow-hidden border border-secondary-foreground/10">
                 <iframe
-                  src={`https://maps.google.com/maps?q=${settings.mapLat},${settings.mapLng}&z=15&output=embed`}
+                  src={settings.mapLat && settings.mapLng
+                    ? `https://maps.google.com/maps?q=${settings.mapLat},${settings.mapLng}&z=15&output=embed`
+                    : `https://maps.google.com/maps?q=${encodeURIComponent(settings.address)}&output=embed`
+                  }
                   width="100%"
                   height="180"
                   style={{ border: 0 }}
@@ -88,7 +91,7 @@ export default function ShopFooter() {
                 />
               </div>
             </div>
-          )}
+          ) : null}
         </div>
         <div className="border-t border-secondary-foreground/20 mt-10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-secondary-foreground/50">
           <p>&copy; {new Date().getFullYear()} {settings.shopName}. All rights reserved.</p>
