@@ -72,6 +72,23 @@ export default function ShopFooter() {
             </div>
           </div>
 
+          {settings.mapLat && settings.mapLng && (
+            <div>
+              <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Find Us</h3>
+              <div className="rounded-lg overflow-hidden border border-secondary-foreground/10">
+                <iframe
+                  src={`https://maps.google.com/maps?q=${settings.mapLat},${settings.mapLng}&z=15&output=embed`}
+                  width="100%"
+                  height="180"
+                  style={{ border: 0 }}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Google Maps"
+                />
+              </div>
+            </div>
+          )}
         </div>
         <div className="border-t border-secondary-foreground/20 mt-10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-secondary-foreground/50">
           <p>&copy; {new Date().getFullYear()} {settings.shopName}. All rights reserved.</p>
