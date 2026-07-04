@@ -73,6 +73,7 @@ export default function AdminProductsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const [uploading, setUploading] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [showComboModal, setShowComboModal] = useState(false);
   const [comboName, setComboName] = useState("");
   const [comboProductSearch, setComboProductSearch] = useState("");
@@ -177,6 +178,36 @@ export default function AdminProductsPage() {
       alert("Failed to delete all products.");
     }
     setDeletingAll(false);
+  };
+
+  const handleBackfillBarcodeIds = async () => {
+    if (!confirm("Generate barcodeId and shortCode for all products missing them?")) return;
+    setBackfilling(true);
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      const updates: { ref: any; barcodeId: string; shortCode: string }[] = [];
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (data.barcodeId && data.shortCode) continue;
+        const cat = categories.find((c) => c.id === data.categoryId);
+        const catCode = cat?.shortCode || "XX";
+        const barcodeId = data.barcodeId || await generateBarcodeId(catCode);
+        const shortCode = data.shortCode || await generateSkuV2();
+        updates.push({ ref: doc(db, "products", d.id), barcodeId, shortCode });
+      }
+      for (let i = 0; i < updates.length; i += 50) {
+        await Promise.all(
+          updates.slice(i, i + 50).map((u) =>
+            updateDoc(u.ref, { barcodeId: u.barcodeId, shortCode: u.shortCode, updatedAt: Timestamp.fromDate(new Date()) })
+          )
+        );
+      }
+      alert(`Backfilled barcodeId/shortCode for ${updates.length} products.`);
+    } catch (e) {
+      console.error("Backfill failed", e);
+      alert("Backfill failed: " + (e instanceof Error ? e.message : "Unknown error"));
+    }
+    setBackfilling(false);
   };
 
   const handleSeed = async () => {
@@ -316,6 +347,10 @@ export default function AdminProductsPage() {
             </Button>
             <Button onClick={() => window.location.href = "/admin/purchases"} variant="accent">
               <Plus className="h-4 w-4" /> Add Product via Purchase
+            </Button>
+            <Button onClick={handleBackfillBarcodeIds} disabled={backfilling} variant="outline">
+              {backfilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Tag className="h-4 w-4" />}
+              {backfilling ? "Backfilling..." : "Backfill Barcode IDs"}
             </Button>
           </div>
         </div>

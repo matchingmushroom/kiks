@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { pdf } from "@react-pdf/renderer";
 import { Chart, BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend } from "chart.js";
+import ChartDataLabels from "chartjs-plugin-datalabels";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Send, Loader2, X, Download } from "lucide-react";
 import PartnerReportPDF from "./PartnerReportPDF";
 
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend);
+Chart.register(BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend, ChartDataLabels);
 
 function getMonthStart(): number {
   const d = new Date();
@@ -187,11 +188,20 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
                 borderRadius: 4,
               }],
             },
-            options: {
+              options: {
               responsive: true,
               maintainAspectRatio: true,
               animation: false,
-              plugins: { legend: { display: false } },
+              plugins: {
+                legend: { display: false },
+                datalabels: {
+                  anchor: "end",
+                  align: "end",
+                  color: "#1e3a5f",
+                  font: { weight: "bold", size: 9 },
+                  formatter: (v) => "Rs. " + formatNumber(v),
+                },
+              },
               scales: { y: { beginAtZero: true, ticks: { callback: (v) => "Rs." + formatNumber(v as number) } } },
             },
           });
@@ -332,7 +342,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
               <div className="bg-white border border-border rounded-xl overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-[#1e3a5f] text-white">
+                    <tr className="bg-primary text-primary-foreground">
                       <th className="text-left px-3 py-2 text-xs font-semibold">Metric</th>
                       <th className="text-right px-3 py-2 text-xs font-semibold">Today</th>
                       <th className="text-right px-3 py-2 text-xs font-semibold">This Month</th>
