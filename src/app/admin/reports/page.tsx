@@ -884,8 +884,9 @@ function InventoryTurnoverSection({
       const sold = unitsSold[pid] || 0;
       const cogs = cogsTotal[pid] || 0;
       const stock = product.quantityInStock || 0;
+      const rangeDays = Math.max(1, (toMs - fromMs) / 86400000);
       const ratio = stock > 0 ? sold / stock : (sold > 0 ? 99 : 0);
-      const daysToSell = ratio > 0 ? Math.round(365 / ratio) : 999;
+      const daysToSell = ratio > 0 ? Math.round(rangeDays / ratio) : 999;
 
       return {
         productId: pid, name: product.name, sku: product.sku, categoryId: product.categoryId,
