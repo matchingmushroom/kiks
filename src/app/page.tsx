@@ -450,7 +450,7 @@ function SectionRenderer({ section }: { section: HomeSection }) {
 
 function HomeContent() {
   const { data: products, loading: productsLoading } = useFirestore<ProductType>("products", {
-    constraints: [where("isActive", "==", true)],
+    constraints: [where("isActive", "==", true), where("showOnWebsite", "==", true)],
     realtime: false,
   });
 

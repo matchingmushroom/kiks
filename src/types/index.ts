@@ -51,6 +51,7 @@ export interface Product {
   quantityInStock: number;
   isActive: boolean;
   isFeatured: boolean;
+  showOnWebsite?: boolean;
   brand: string;
   modelNo: string;
   baseMaterial: string;

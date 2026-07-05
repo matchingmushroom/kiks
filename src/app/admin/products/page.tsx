@@ -52,7 +52,7 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", websiteName: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, isOnSale: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", modelCode: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
+  const [form, setForm] = useState({ name: "", websiteName: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, showOnWebsite: false, isOnSale: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", modelCode: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
   const [saving, setSaving] = useState(false);
   const [existingModelCodes, setExistingModelCodes] = useState<string[]>([]);
   const [generateNewModelCode, setGenerateNewModelCode] = useState(true);
@@ -96,7 +96,7 @@ export default function AdminProductsPage() {
       metalType: p.metalType, stoneType: p.stoneType,
       stoneWeight: p.stoneWeight, makingCharge: p.makingCharge,
       warranty: p.warranty, sku: p.sku, quantityInStock: p.quantityInStock,
-      isActive: p.isActive, isFeatured: p.isFeatured, isOnSale: p.isOnSale || false,
+      isActive: p.isActive, isFeatured: p.isFeatured, showOnWebsite: p.showOnWebsite || false, isOnSale: p.isOnSale || false,
       badge: p.badge || "none", originalPrice: p.originalPrice || 0,
       brand: p.brand || "", modelNo: p.modelNo || "", modelCode: p.modelCode || "",
       baseMaterial: p.baseMaterial || "",
@@ -726,6 +726,11 @@ export default function AdminProductsPage() {
                       <input type="checkbox" checked={form.isFeatured} onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })}
                         className="rounded border-border" />
                       Featured
+                    </label>
+                    <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <input type="checkbox" checked={form.showOnWebsite} onChange={(e) => setForm({ ...form, showOnWebsite: e.target.checked })}
+                        className="rounded border-border" />
+                      Show on Website
                     </label>
                     <label className="flex items-center gap-2 text-sm cursor-pointer">
                       <input type="checkbox" checked={form.isOnSale} onChange={(e) => setForm({ ...form, isOnSale: e.target.checked })}

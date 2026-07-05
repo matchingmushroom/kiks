@@ -320,7 +320,7 @@ export function exportPurchaseItemsCSV(purchase: Purchase, products: Product[], 
   const prodMap = new Map(products.map((p) => [p.id, p]));
   const catMap = new Map(categories.map((c) => [c.id, c.shortCode]));
   const boolStr = (v: unknown): string => v === true ? "yes" : v === false ? "no" : "";
-  const headers = "SN,productName,websiteName,quantity,unitCost,salesPrice,sku,category,subcategory,baseMaterial,plating,color,description,warranty,featured,active,SKUcode,Shortcode";
+  const headers = "SN,productName,websiteName,quantity,unitCost,salesPrice,sku,category,subcategory,baseMaterial,plating,color,description,warranty,featured,active,showOnWebsite,SKUcode,Shortcode";
   const rows = (purchase.items || []).map((item) => {
     const prod = prodMap.get(item.productId);
     return [
@@ -340,6 +340,7 @@ export function exportPurchaseItemsCSV(purchase: Purchase, products: Product[], 
       esc(prod?.warranty || ""),
       boolStr(prod?.isFeatured),
       boolStr(prod?.isActive),
+      boolStr(prod?.showOnWebsite),
       esc(prod?.sku || ""),
       esc(prod?.shortCode || ""),
     ].join(",");

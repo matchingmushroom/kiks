@@ -19,6 +19,7 @@ export default function CategoryProductsPage() {
 
   const { data: products, loading, error: prodError } = useFirestore<Product>("products", {
     constraints: [
+      where("showOnWebsite", "==", true),
       where("isActive", "==", true),
       where("categoryId", "==", categoryId),
     ],

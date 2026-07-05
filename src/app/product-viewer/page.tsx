@@ -41,7 +41,11 @@ function ProductViewerContent() {
         if (snap.exists()) {
           const p = { id: snap.id, ...snap.data() } as Product;
           if (p.images) p.images = p.images.map(fixImageUrl);
-          setProduct(p);
+          if (p.showOnWebsite === false) {
+            setError("Product not found");
+          } else {
+            setProduct(p);
+          }
         } else {
           setError("Product not found");
         }
