@@ -24,7 +24,7 @@ import { generateSkuV2, generateModelCode, findExistingModelCodes, generateShort
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import PrintLabelsDialog from "@/components/admin/PrintLabelsDialog";
-import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, Tag, LayoutGrid, List, Loader2, AlertTriangle, Upload, Package, Check, ShoppingBag, Printer, Globe } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, Tag, LayoutGrid, List, Loader2, AlertTriangle, Upload, Package, Check, ShoppingBag, Printer, Globe, MoreVertical } from "lucide-react";
 
 const BASE_MATERIALS = ["", "Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"];
 const PLATING_OPTIONS = ["", "Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"];
@@ -68,6 +68,8 @@ export default function AdminProductsPage() {
 
   const [deletingAll, setDeletingAll] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  useEffect(() => { if (openMenuId) { const handler = () => setOpenMenuId(null); window.addEventListener("click", handler); return () => window.removeEventListener("click", handler); } }, [openMenuId]);
   const [printLabelProduct, setPrintLabelProduct] = useState<{ productName: string; sku: string; barcodeId?: string; price: number; shortCode?: string } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -833,65 +835,80 @@ export default function AdminProductsPage() {
             {filtered.map((p) => {
               const catName = categories.find((c) => c.id === p.categoryId)?.name || "—";
               return (
-                <div key={p.id} onClick={() => setDetailProduct(p)} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer">
+                <div key={p.id} onClick={() => setDetailProduct(p)} className="bg-white border border-border rounded-xl p-3 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                       <input type="checkbox" checked={bulkIds.has(p.id)} onChange={(e) => { e.stopPropagation(); const next = new Set(bulkIds); if (next.has(p.id)) next.delete(p.id); else next.add(p.id); setBulkIds(next); }}
                         className="rounded border-border shrink-0" onClick={(e) => e.stopPropagation()} />
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium text-secondary text-sm truncate">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">{catName}{p.brand ? ` • ${p.brand}` : ""}</p>
+                        <p className="text-xs text-muted-foreground truncate">{catName}{p.brand ? ` • ${p.brand}` : ""}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isActive", !p.isActive); }}
-                        className={`p-1.5 rounded ${p.isActive ? "text-green-600" : "text-muted-foreground"}`}
-                        title={p.isActive ? "Active" : "Inactive"}>
-                        {p.isActive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === p.id ? null : p.id); }} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                        <MoreVertical className="h-4 w-4" />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isFeatured", !p.isFeatured); }}
-                        className={`p-1.5 rounded ${p.isFeatured ? "text-amber-500" : "text-muted-foreground"}`}
-                        title={p.isFeatured ? "Featured" : "Not featured"}>
-                        <Star className={`h-3.5 w-3.5 ${p.isFeatured ? "fill-amber-500" : ""}`} />
-                      </button>
-                       <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isOnSale", !p.isOnSale); }}
-                         className={`p-1.5 rounded ${p.isOnSale ? "text-red-500" : "text-muted-foreground"}`}
-                         title={p.isOnSale ? "On Sale" : "Not on sale"}>
-                         <Tag className={`h-3.5 w-3.5 ${p.isOnSale ? "fill-red-500" : ""}`} />
-                       </button>
-                       <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "showOnWebsite", !p.showOnWebsite); }}
-                         className={`p-1.5 rounded ${p.showOnWebsite ? "text-sky-500" : "text-muted-foreground"}`}
-                         title={p.showOnWebsite ? "Visible on website" : "Hidden on website"}>
-                         <Globe className={`h-3.5 w-3.5 ${p.showOnWebsite ? "fill-sky-500" : ""}`} />
-                       </button>
-                       <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                         <Edit2 className="h-3.5 w-3.5" />
-                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id, p.name); }} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {openMenuId === p.id && (
+                        <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-lg shadow-lg py-1 w-36"
+                          onMouseLeave={() => setOpenMenuId(null)}>
+                          <button onClick={() => { openEdit(p); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
+                            <Edit2 className="h-3.5 w-3.5 text-muted-foreground" /> Edit
+                          </button>
+                          <button onClick={() => { handleDelete(p.id, p.name); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600">
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                  <div className="flex items-center gap-2.5 text-xs">
                     <span className="font-semibold text-secondary">{formatCurrency(p.price)}</span>
-                    {p.shortCode && <span className="font-mono text-primary font-medium">{p.shortCode}</span>}
-                    {p.baseMaterial && <span className="text-muted-foreground">{p.baseMaterial}</span>}
-                    {p.plating && <span className="text-muted-foreground">{p.plating}</span>}
+                    <span className="text-muted-foreground">•</span>
                     <span className={p.quantityInStock <= 3 ? "text-red-600 font-medium" : "text-muted-foreground"}>
                       Stock: {p.quantityInStock}
                     </span>
-                    {p.showOnWebsite && (
-                      <span className="bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded text-[10px] font-medium">Website</span>
+                    {p.shortCode && (
+                      <>
+                        <span className="text-muted-foreground">•</span>
+                        <span className="font-mono text-primary font-medium">{p.shortCode}</span>
+                      </>
                     )}
-                    {p.isOnSale && (
-                      <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-medium">Sale</span>
-                    )}
-                    {p.comboItems?.length ? (
-                      <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-medium">{p.comboItems.length} items</span>
-                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-1.5 pb-1">
+                    {p.showOnWebsite && <span className="bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded text-[10px] font-medium">Website</span>}
+                    {p.isOnSale && <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-medium">Sale</span>}
+                    {p.comboItems?.length ? <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-medium">{p.comboItems.length} items</span> : null}
                     {p.badge && p.badge !== "none" && (
-                      <span className="bg-muted px-1.5 py-0.5 rounded">
+                      <span className="bg-muted px-1.5 py-0.5 rounded text-[10px]">
                         {{limited_stock:"Limited",out_of_stock:"OOS",price_dropped:"Price ↓",offer:"Offer"}[p.badge]}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 border-t border-border pt-2">
+                    <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isActive", !p.isActive); }}
+                      className={`p-1 rounded ${p.isActive ? "text-green-600 bg-green-50" : "text-muted-foreground"}`}
+                      title={p.isActive ? "Active" : "Inactive"}>
+                      {p.isActive ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isFeatured", !p.isFeatured); }}
+                      className={`p-1 rounded ${p.isFeatured ? "text-amber-500 bg-amber-50" : "text-muted-foreground"}`}
+                      title={p.isFeatured ? "Featured" : "Not featured"}>
+                      <Star className={`h-3.5 w-3.5 ${p.isFeatured ? "fill-amber-500" : ""}`} />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isOnSale", !p.isOnSale); }}
+                      className={`p-1 rounded ${p.isOnSale ? "text-red-500 bg-red-50" : "text-muted-foreground"}`}
+                      title={p.isOnSale ? "On Sale" : "Not on sale"}>
+                      <Tag className={`h-3.5 w-3.5 ${p.isOnSale ? "fill-red-500" : ""}`} />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "showOnWebsite", !p.showOnWebsite); }}
+                      className={`p-1 rounded ${p.showOnWebsite ? "text-sky-500 bg-sky-50" : "text-muted-foreground"}`}
+                      title={p.showOnWebsite ? "Visible on website" : "Hidden on website"}>
+                      <Globe className={`h-3.5 w-3.5 ${p.showOnWebsite ? "fill-sky-500" : ""}`} />
+                    </button>
+                    {(p.baseMaterial || p.plating) && (
+                      <span className="ml-auto text-[10px] text-muted-foreground truncate max-w-[120px]">
+                        {[p.baseMaterial, p.plating].filter(Boolean).join(" • ")}
                       </span>
                     )}
                   </div>
