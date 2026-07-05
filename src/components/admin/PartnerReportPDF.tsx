@@ -126,7 +126,7 @@ export default function PartnerReportPDF(data: PartnerReportPDFProps) {
           </View>
           {data.inventoryByCategory.slice(0, 10).map((c, i) => (
             <View key={c.name} style={i % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
-              <Text style={[styles.tableCell, styles.colLabel]} numberOfLines={1}>{c.name}</Text>
+              <Text style={[styles.tableCell, styles.colLabel]}>{c.name}</Text>
               <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(c.value)}</Text>
               <Text style={[styles.tableCell, styles.colRight]}>{((c.value / (data.inventoryValue || 1)) * 100).toFixed(1)}%</Text>
             </View>
