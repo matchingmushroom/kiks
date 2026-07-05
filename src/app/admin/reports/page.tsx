@@ -717,16 +717,12 @@ function InventoryAgingSection({
         else { buckets[4] += qty; bucketVals[4] += val; }
       });
 
-      const row: {
-        productId: string; name: string; sku: string; categoryId: string; categoryName: string;
-        totalQty: number; totalVal: number; buckets: number[]; bucketVals: number[];
-      } = {
+      return {
         productId, name: product.name, sku: product.sku, categoryId: product.categoryId,
         categoryName: catMap[product.categoryId] || product.categoryId?.slice(0, 8) || "—",
         totalQty, totalVal, buckets, bucketVals,
       };
-      return row;
-    }).filter(Boolean) as any[];
+    }).filter(Boolean) as { productId: string; name: string; sku: string; categoryId: string; categoryName: string; totalQty: number; totalVal: number; buckets: number[]; bucketVals: number[] }[];
   }, [activeLayers, productMap, catMap]);
 
   const sortedRows = useMemo(() => {
@@ -773,7 +769,7 @@ function InventoryAgingSection({
         <SummaryCard label="Products in Stock" value={String(agingRows.length)} count="with active stock" />
         <SummaryCard label="Total Units" value={formatNumber(totals.qty)} count="items in stock" />
         <SummaryCard label="Stock Value (Cost)" value={`Rs. ${formatNumber(totals.val)}`} count="at purchase cost" />
-        <SummaryCard label="Categories" value={String(uniqueCategories.length)} />
+        <SummaryCard label="Categories" value={String(uniqueCategories.length)} count="" />
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -891,16 +887,12 @@ function InventoryTurnoverSection({
       const ratio = stock > 0 ? sold / stock : (sold > 0 ? 99 : 0);
       const daysToSell = ratio > 0 ? Math.round(365 / ratio) : 999;
 
-      const row: {
-        productId: string; name: string; sku: string; categoryId: string; categoryName: string;
-        unitsSold: number; cogs: number; currentStock: number; turnoverRatio: number; daysToSell: number;
-      } = {
+      return {
         productId: pid, name: product.name, sku: product.sku, categoryId: product.categoryId,
         categoryName: catMap[product.categoryId] || product.categoryId?.slice(0, 8) || "—",
         unitsSold: sold, cogs, currentStock: stock, turnoverRatio: ratio, daysToSell,
       };
-      return row;
-    }).filter(Boolean) as any[];
+    }).filter(Boolean) as { productId: string; name: string; sku: string; categoryId: string; categoryName: string; unitsSold: number; cogs: number; currentStock: number; turnoverRatio: number; daysToSell: number }[];
 
     return rows;
   }, [products, sales, fromMs, toMs, catMap]);
@@ -939,7 +931,7 @@ function InventoryTurnoverSection({
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <SummaryCard label="Products Tracked" value={String(turnoverRows.length)} />
+        <SummaryCard label="Products Tracked" value={String(turnoverRows.length)} count="" />
         <SummaryCard label="Fast Movers (Ratio > 2)" value={String(fastMovers)} count="selling quickly" />
         <SummaryCard label="Slow Movers (Ratio < 0.5)" value={String(slowMovers)} count="selling slowly" />
         <SummaryCard label="No Sales in Period" value={String(noSales)} count="zero units sold" />
