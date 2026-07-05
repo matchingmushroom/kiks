@@ -244,6 +244,7 @@ export interface PurchaseItem {
   unitCost: number;
   salesPrice: number;
   subtotal: number;
+  serialNo?: string;
 }
 
 export interface Purchase {

@@ -1,7 +1,7 @@
 import { getDocs, collection } from "firebase/firestore";
 import { db } from "./firebase";
 import JSZip from "jszip";
-import type { Sale, Purchase, Order, Product, Debtor, Creditor, Expense } from "@/types";
+import type { Sale, Purchase, Order, Product, Debtor, Creditor, Expense, Category, PurchaseItem } from "@/types";
 import { toDate } from "@/lib/utils";
 
 function fmt(n: unknown): string {
@@ -314,4 +314,34 @@ export function exportExpensesCSV(expenses: Expense[]): string {
     esc(e.recordedBy),
   ].join(",")).join("\n");
   return `${headers}\n${rows}`;
+}
+
+export function exportPurchaseItemsCSV(purchase: Purchase, products: Product[], categories: Category[]): string {
+  const prodMap = new Map(products.map((p) => [p.id, p]));
+  const catMap = new Map(categories.map((c) => [c.id, c.shortCode]));
+  const boolStr = (v: unknown): string => v === true ? "yes" : v === false ? "no" : "";
+  const headers = "SN,productName,quantity,unitCost,salesPrice,sku,category,subcategory,baseMaterial,plating,color,description,warranty,featured,active,SKUcode,Shortcode";
+  const rows = (purchase.items || []).map((item) => {
+    const prod = prodMap.get(item.productId);
+    return [
+      esc(item.serialNo || ""),
+      esc(item.productName),
+      String(item.quantity),
+      fmt(item.unitCost),
+      fmt(item.salesPrice),
+      esc(item.sku),
+      esc(prod ? catMap.get(prod.categoryId) || "" : ""),
+      esc(prod?.productType || ""),
+      esc(prod?.baseMaterial || ""),
+      esc(prod?.plating || ""),
+      esc(prod?.color || ""),
+      esc(prod?.description || ""),
+      esc(prod?.warranty || ""),
+      boolStr(prod?.isFeatured),
+      boolStr(prod?.isActive),
+      esc(prod?.sku || ""),
+      esc(prod?.shortCode || ""),
+    ].join(",");
+  }).join("\n");
+  return headers + "\n" + rows;
 }

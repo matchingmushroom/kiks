@@ -18,7 +18,7 @@ import {
   addDoc, collection, updateDoc, doc, Timestamp, getDoc, deleteDoc, setDoc, getDocs, query, where, arrayUnion, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { exportPurchasesCSV, downloadBlob } from "@/lib/export";
+import { exportPurchasesCSV, exportPurchaseItemsCSV, downloadBlob } from "@/lib/export";
 import { Button } from "@/components/ui/button";
 import PrintLabelsDialog from "@/components/admin/PrintLabelsDialog";
 import { Plus, Search, X, Save, Trash2, Undo2, PackagePlus, Tags, LayoutGrid, List, AlertTriangle, CheckCircle, Eye, RotateCcw, ChevronDown, PlusCircle, Download, Mail, Upload, Loader2, FileImage, ExternalLink, Printer } from "lucide-react";
@@ -94,6 +94,7 @@ function PurchasesContent() {
   const [purchaseSaved, setPurchaseSaved] = useState(false);
   const [purchaseError, setPurchaseError] = useState<string | null>(null);
   const [printLabelsData, setPrintLabelsData] = useState<{ items: { productName: string; sku: string; barcodeId?: string; shortCode?: string; price: number; quantity: number }[] } | null>(null);
+  const [lastPurchaseForCsv, setLastPurchaseForCsv] = useState<{ id: string; items: { productId: string; productName: string; sku: string; quantity: number; unitCost: number; salesPrice: number; subtotal: number; serialNo?: string }[] } | null>(null);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [printLabelsPurchase, setPrintLabelsPurchase] = useState<{ items: { productName: string; sku: string; barcodeId?: string; shortCode?: string; price: number; quantity: number }[] } | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -124,7 +125,7 @@ function PurchasesContent() {
     productName: string; quantity: number; unitCost: number; salesPrice: number;
     categoryShortCode?: string; categoryId?: string; match: Product | null; error?: string;
     productType?: string; baseMaterial?: string; plating?: string; color?: string;
-    description?: string; warranty?: string; isFeatured?: boolean; isActive?: boolean;
+    description?: string; warranty?: string; isFeatured?: boolean; isActive?: boolean; serialNo?: string;
   }[]>([]);
   const [csvSupplier, setCsvSupplier] = useState("");
   const [csvSupplierPhone, setCsvSupplierPhone] = useState("");
@@ -156,6 +157,7 @@ function PurchasesContent() {
     const warrantyIdx = headers.findIndex((h) => h === "warranty");
     const featuredIdx = headers.findIndex((h) => h === "featured" || h === "isfeatured");
     const activeIdx = headers.findIndex((h) => h === "active" || h === "isactive" || h === "status");
+    const snIdx = headers.findIndex((h) => h === "sn" || h === "serialno" || h === "serial" || h === "s.no" || h === "serial no");
     if (nameIdx === -1 && skuIdx === -1) { alert("CSV must have a 'productName' or 'sku' column."); return; }
     const parsed: typeof csvRows = [];
     for (let i = 1; i < lines.length; i++) {
@@ -183,13 +185,14 @@ function PurchasesContent() {
       const rawActive = activeIdx >= 0 ? cols[activeIdx]?.toLowerCase() : "";
       const isFeatured = featuredIdx >= 0 ? (rawFeatured === "yes" || rawFeatured === "true" || rawFeatured === "1" || rawFeatured === "featured") : undefined;
       const isActive = activeIdx >= 0 ? !(rawActive === "no" || rawActive === "false" || rawActive === "0" || rawActive === "inactive") : undefined;
+      const serialNo = snIdx >= 0 ? cols[snIdx] || "" : "";
       const match = products.find((p) =>
         (name && (p.name.toLowerCase() === name.toLowerCase() || p.name.toLowerCase().includes(name.toLowerCase()))) ||
         (sku && (p.sku?.toLowerCase() === sku.toLowerCase() || p.shortCode?.toLowerCase() === sku.toLowerCase() || p.barcodeId?.toLowerCase() === sku.toLowerCase()))
       );
       if (!match) {
         const errMsg = catId ? "New product (will be created)" : "Product not found — add category column to create new";
-        parsed.push({ productName: name || sku, quantity: qty, unitCost: cost, salesPrice: price, categoryShortCode: catShortCode, categoryId: catId, match: null, error: errMsg, productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive });
+        parsed.push({ productName: name || sku, quantity: qty, unitCost: cost, salesPrice: price, categoryShortCode: catShortCode, categoryId: catId, match: null, error: errMsg, productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive, serialNo });
       } else {
         parsed.push({
           productName: match.name,
@@ -199,7 +202,7 @@ function PurchasesContent() {
           categoryShortCode: catShortCode,
           categoryId: catId,
           match,
-          productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive,
+          productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive, serialNo,
         });
       }
     }
@@ -279,7 +282,7 @@ function PurchasesContent() {
         items.push({
           productId: prodId, productName: r.productName, sku: prodSku,
           quantity: r.quantity, unitCost: r.unitCost, salesPrice: r.salesPrice,
-          subtotal: r.quantity * r.unitCost,
+          subtotal: r.quantity * r.unitCost, serialNo: r.serialNo || "",
         });
       }
       const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
@@ -328,6 +331,7 @@ function PurchasesContent() {
       setCsvManualSupplier(false);
       setPurchaseSaved(true);
       setPrintLabelsData({ items: items.map((i) => ({ productName: i.productName, sku: i.sku, barcodeId: products.find((p) => p.id === i.productId)?.barcodeId, shortCode: products.find((p) => p.id === i.productId)?.shortCode, price: i.salesPrice, quantity: i.quantity })) });
+      setLastPurchaseForCsv({ id: csvPurchaseId, items });
       setTimeout(() => setPurchaseSaved(false), 6000);
     } catch (e: any) {
       setPurchaseError(e?.message || "CSV import failed.");
@@ -603,6 +607,7 @@ function PurchasesContent() {
         } else if (!txSnap.empty) {
           await deleteDoc(doc(db, "accountTransactions", txSnap.docs[0].id));
         }
+        setLastPurchaseForCsv({ id: editingId, items: form.items });
       } else {
         const purchaseId = await generateId("PURC");
         await setDoc(doc(db, "purchases", purchaseId), purchaseData);
@@ -660,6 +665,7 @@ function PurchasesContent() {
             await upsertCreditor(form.supplierName, form.supplierPhone, balanceChange, purchaseId);
           }
         }
+        setLastPurchaseForCsv({ id: purchaseId, items: form.items });
       }
 
       setForm({ ...emptyForm });
@@ -986,6 +992,18 @@ function PurchasesContent() {
     downloadBlob(blob, `purchases-${new Date().toISOString().slice(0, 10)}.csv`);
   };
 
+  const handleDownloadItemsCSV = (purchase: Purchase) => {
+    const csv = exportPurchaseItemsCSV(purchase, products, categories);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    downloadBlob(blob, `purchase-items-${purchase.id || "export"}.csv`);
+  };
+
+  const handleDownloadLastCsv = () => {
+    if (!lastPurchaseForCsv) return;
+    const purchase = { id: lastPurchaseForCsv.id, items: lastPurchaseForCsv.items } as Purchase;
+    handleDownloadItemsCSV(purchase);
+  };
+
   const handleSendEmail = async () => {
     setSendingEmail(true);
     try {
@@ -1060,7 +1078,12 @@ function PurchasesContent() {
             <CheckCircle className="h-5 w-5 shrink-0" /> Purchase recorded successfully!
             {printLabelsData && (
               <Button onClick={() => setShowPrintDialog(true)} variant="accent" size="sm" className="ml-auto">
-                <Printer className="h-4 w-4" /> Print Price Labels
+                <Printer className="h-4 w-4" /> Print Labels
+              </Button>
+            )}
+            {lastPurchaseForCsv && (
+              <Button onClick={handleDownloadLastCsv} variant="outline" size="sm">
+                <Download className="h-4 w-4" /> CSV
               </Button>
             )}
           </div>
@@ -1080,7 +1103,6 @@ function PurchasesContent() {
               </h2>
               <button onClick={() => setShowForm(false)} className="p-1 hover:bg-muted rounded">
                 <X className="h-5 w-5" />
-              </button>
             </div>
 
             <div className="space-y-6">
@@ -1755,9 +1777,15 @@ function PurchasesContent() {
                   {detailPurchaseData.supplierName}
                   {purchaseArchived && <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 font-normal">Archived</span>}
                 </h2>
-                <button onClick={() => setDetailPurchaseId(null)} className="p-1 hover:bg-muted rounded">
-                  <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleDownloadItemsCSV(detailPurchaseData)}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted font-medium flex items-center gap-1">
+                    <Download className="h-3.5 w-3.5" /> CSV
+                  </button>
+                  <button onClick={() => setDetailPurchaseId(null)} className="p-1 hover:bg-muted rounded">
+                    <X className="h-5 w-5" />
+                    </button>
+                </div>
               </div>
               <div className="p-6 space-y-6">
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1872,7 +1900,6 @@ function PurchasesContent() {
                 <h2 className="text-lg font-semibold text-secondary">Purchase Return</h2>
                 <button onClick={() => setReturnModal(null)} className="p-1 hover:bg-muted rounded">
                   <X className="h-5 w-5" />
-                </button>
               </div>
               <p className="text-sm text-muted-foreground mb-4">Supplier: {returnModal.supplierName}</p>
               <div className="space-y-3 mb-4">
@@ -1988,7 +2015,6 @@ function PurchasesContent() {
               <h2 className="text-lg font-semibold text-secondary">Archived Purchases</h2>
               <button onClick={() => { setShowArchive(false); setArchiveResults(null); }} className="p-1 hover:bg-muted rounded">
                 <X className="h-5 w-5" />
-              </button>
             </div>
             <div className="p-4">
               {archiveLoading ? (
@@ -2021,14 +2047,13 @@ function PurchasesContent() {
               <h2 className="text-lg font-semibold text-secondary">Upload CSV — Bulk Purchase Import</h2>
               <button onClick={() => { if (!csvImporting) setShowCsvModal(false); }} className="p-1 hover:bg-muted rounded">
                 <X className="h-5 w-5" />
-              </button>
             </div>
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               <p className="text-xs text-muted-foreground">
-                CSV columns: <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code>, <code className="bg-muted px-1 rounded">category</code> (category shortCode), <code className="bg-muted px-1 rounded">subcategory</code>, <code className="bg-muted px-1 rounded">baseMaterial</code>, <code className="bg-muted px-1 rounded">plating</code>, <code className="bg-muted px-1 rounded">color</code>, <code className="bg-muted px-1 rounded">warranty</code>. Header row required. Supports comma or tab delimiters.
+                CSV columns: <code className="bg-muted px-1 rounded">SN</code>, <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code>, <code className="bg-muted px-1 rounded">category</code> (category shortCode), <code className="bg-muted px-1 rounded">subcategory</code>, <code className="bg-muted px-1 rounded">baseMaterial</code>, <code className="bg-muted px-1 rounded">plating</code>, <code className="bg-muted px-1 rounded">color</code>, <code className="bg-muted px-1 rounded">warranty</code>. Header row required. Supports comma or tab delimiters.
               </p>
               <button type="button" onClick={() => {
-                const sample = "productName,quantity,unitCost,salesPrice,category,subcategory,baseMaterial,plating,color,warranty\nSample Ring,10,500,1200,R,Gold,Gold,Gold,Yellow,1 year\nSample Necklace,5,1500,3500,HC,Necklace..Silver,Rhodium,Silver,0";
+                const sample = "SN,productName,quantity,unitCost,salesPrice,category,subcategory,baseMaterial,plating,color,warranty\n001,Sample Ring,10,500,1200,R,Gold,Gold,Gold,Yellow,1 year\n002,Sample Necklace,5,1500,3500,HC,Necklace..Silver,Rhodium,Silver,0";
                 downloadBlob(new Blob([sample], { type: "text/csv" }), "sample-import.csv");
               }} className="text-xs text-primary hover:underline inline-flex items-center gap-1">
                 <Download className="h-3 w-3" /> Download Sample CSV
@@ -2134,6 +2159,7 @@ function PurchasesContent() {
                       <table className="w-full text-xs">
                         <thead>
                           <tr className="bg-muted text-left">
+                            <th className="px-3 py-2 font-medium text-muted-foreground">SN</th>
                             <th className="px-3 py-2 font-medium text-muted-foreground">Product</th>
                             <th className="px-3 py-2 font-medium text-muted-foreground">Category</th>
                             <th className="px-3 py-2 font-medium text-muted-foreground">Qty</th>
@@ -2146,6 +2172,7 @@ function PurchasesContent() {
                         <tbody className="divide-y divide-border">
                           {csvRows.map((r, i) => (
                             <tr key={i} className={r.error ? "bg-red-50" : ""}>
+                              <td className="px-3 py-2 text-muted-foreground text-xs">{r.serialNo || "\u2014"}</td>
                               <td className="px-3 py-2 font-medium">{r.productName}</td>
                               <td className="px-3 py-2">
                                 {r.categoryShortCode ? (
