@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { Sale, Purchase, Expense, InventoryLog } from "@/types";
+import { Sale, Purchase, Expense, InventoryLog, Product, Category, FifoLayer } from "@/types";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/utils";
 import { downloadBlob } from "@/lib/export";
 import { pdf, Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-type ReportTab = "sales" | "purchases" | "expenses" | "inventory" | "trial" | "aging";
+type ReportTab = "sales" | "purchases" | "expenses" | "inventory" | "trial" | "aging" | "inventory-aging" | "inventory-turnover";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -47,6 +47,18 @@ export default function ReportsPage() {
     realtime: true,
   });
   const { data: inventoryLogs } = useFirestore<InventoryLog>("inventoryLogs", {
+    constraints: [],
+    realtime: true,
+  });
+  const { data: products } = useFirestore<Product>("products", {
+    constraints: [],
+    realtime: true,
+  });
+  const { data: categories } = useFirestore<Category>("categories", {
+    constraints: [],
+    realtime: true,
+  });
+  const { data: fifoLayers } = useFirestore<FifoLayer>("fifo_layers", {
     constraints: [],
     realtime: true,
   });
@@ -151,6 +163,8 @@ export default function ReportsPage() {
         esc(e.amount), esc(e.paymentMethod), esc(e.description), esc(e.recordedBy),
       ].join(","));
       csv = `${reportHeader}\n${headers}\n${rows.join("\n")}\n\n${reportFooter}`;
+    } else if (activeTab === "inventory-aging" || activeTab === "inventory-turnover") {
+      csv = `${reportHeader}\n\nCSV export is not available for this report view. Use category filters and screenshot instead.`;
     } else {
       const headers = "Log ID,Product ID,Type,Quantity Change,Reason,Date";
       const rows = filteredLogs.map((l) => [
@@ -163,6 +177,10 @@ export default function ReportsPage() {
 
   // ── PDF Export ──
   const exportPDF = async () => {
+    if (activeTab === "inventory-aging" || activeTab === "inventory-turnover") {
+      alert("PDF export is not available for this report view.");
+      return;
+    }
     const cols = activeTab === "sales"
       ? ["Sale ID", "Date", "Customer", "Type", "Items", "Subtotal", "Discount", "Grand Total"]
       : activeTab === "purchases"
@@ -248,10 +266,12 @@ export default function ReportsPage() {
           <TabButton tab="inventory" label="Inventory" />
           <TabButton tab="trial" label="Trial Balance" />
           <TabButton tab="aging" label="Aging" />
+          <TabButton tab="inventory-aging" label="Inv. Aging" />
+          <TabButton tab="inventory-turnover" label="Inv. Turnover" />
         </div>
 
         {/* Filters */}
-        {!["trial", "aging"].includes(activeTab) && (
+        {!["trial", "aging", "inventory-aging"].includes(activeTab) && (
           <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
             <div>
               <label className="block text-xs text-muted-foreground mb-1">From</label>
@@ -272,7 +292,7 @@ export default function ReportsPage() {
         )}
 
         {/* Summary */}
-        {!["trial", "aging"].includes(activeTab) && (
+        {!["trial", "aging", "inventory-aging"].includes(activeTab) && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {activeTab === "sales" && <SummaryCard label="Total Sales" value={formatNumber(salesTotal)} count={`${filteredSales.length} transactions`} />}
             {activeTab === "purchases" && <SummaryCard label="Total Purchases" value={formatNumber(purchasesTotal)} count={`${filteredPurchases.length} transactions`} />}
@@ -282,9 +302,11 @@ export default function ReportsPage() {
         )}
 
         {/* Report Header */}
-        <div className="text-xs text-muted-foreground italic">
-          Report Period: {dateFrom} to {dateTo}
-        </div>
+        {activeTab !== "inventory-aging" && (
+          <div className="text-xs text-muted-foreground italic">
+            Report Period: {dateFrom} to {dateTo}
+          </div>
+        )}
 
         {/* Table */}
         {activeTab === "sales" && (
@@ -421,6 +443,8 @@ export default function ReportsPage() {
 
         {activeTab === "trial" && <FinancialReportSection type="trial" user={user} />}
         {activeTab === "aging" && <FinancialReportSection type="aging" user={user} />}
+        {activeTab === "inventory-aging" && <InventoryAgingSection products={products} fifoLayers={fifoLayers} categories={categories} settings={settings} />}
+        {activeTab === "inventory-turnover" && <InventoryTurnoverSection products={products} sales={sales} categories={categories} fromMs={fromMs} toMs={toMs} settings={settings} />}
 
         {/* Report Footer */}
         <div className="text-[11px] text-muted-foreground border-t border-border pt-3">
@@ -632,6 +656,349 @@ function FinancialReportSection({ type, user }: { type: string; user: any }) {
           </div>
         </DetailModal>
       )}
+    </div>
+  );
+}
+
+function InventoryAgingSection({
+  products, fifoLayers, categories, settings,
+}: {
+  products: Product[] | null; fifoLayers: FifoLayer[] | null; categories: Category[] | null; settings: any;
+}) {
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sortCol, setSortCol] = useState<string>("value");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const activeLayers = useMemo(() => {
+    if (!fifoLayers) return [];
+    return fifoLayers.filter((l) => (l.remainingQty as number) > 0);
+  }, [fifoLayers]);
+
+  const catMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    if (categories) categories.forEach((c) => { m[c.id || ""] = c.name; });
+    return m;
+  }, [categories]);
+
+  const productMap = useMemo(() => {
+    const m: Record<string, Product> = {};
+    if (products) products.forEach((p) => { m[p.id] = p; });
+    return m;
+  }, [products]);
+
+  const agingRows = useMemo(() => {
+    const now = Date.now();
+    const layerByProduct: Record<string, FifoLayer[]> = {};
+    activeLayers.forEach((l) => {
+      if (!layerByProduct[l.productId]) layerByProduct[l.productId] = [];
+      layerByProduct[l.productId].push(l);
+    });
+
+    return Object.entries(layerByProduct).map(([productId, layers]) => {
+      const product = productMap[productId];
+      if (!product || product.quantityInStock <= 0) return null;
+
+      const buckets = [0, 0, 0, 0, 0, 0]; // 0-30, 31-60, 61-90, 91-180, 180+
+      const bucketVals = [0, 0, 0, 0, 0, 0];
+      let totalQty = 0;
+      let totalVal = 0;
+
+      layers.forEach((l) => {
+        const ageDays = (now - (l.purchaseDate as number)) / 86400000;
+        const qty = l.remainingQty as number;
+        const val = qty * (l.unitCost as number);
+        totalQty += qty;
+        totalVal += val;
+
+        if (ageDays <= 30) { buckets[0] += qty; bucketVals[0] += val; }
+        else if (ageDays <= 60) { buckets[1] += qty; bucketVals[1] += val; }
+        else if (ageDays <= 90) { buckets[2] += qty; bucketVals[2] += val; }
+        else if (ageDays <= 180) { buckets[3] += qty; bucketVals[3] += val; }
+        else { buckets[4] += qty; bucketVals[4] += val; }
+      });
+
+      const row: {
+        productId: string; name: string; sku: string; categoryId: string; categoryName: string;
+        totalQty: number; totalVal: number; buckets: number[]; bucketVals: number[];
+      } = {
+        productId, name: product.name, sku: product.sku, categoryId: product.categoryId,
+        categoryName: catMap[product.categoryId] || product.categoryId?.slice(0, 8) || "—",
+        totalQty, totalVal, buckets, bucketVals,
+      };
+      return row;
+    }).filter(Boolean) as any[];
+  }, [activeLayers, productMap, catMap]);
+
+  const sortedRows = useMemo(() => {
+    const filtered = categoryFilter === "all" ? agingRows : agingRows.filter((r) => r.categoryId === categoryFilter);
+    return [...filtered].sort((a, b) => {
+      const av = sortCol === "name" ? a.name : sortCol === "qty" ? a.totalQty : a.totalVal;
+      const bv = sortCol === "name" ? b.name : sortCol === "qty" ? b.totalQty : b.totalVal;
+      if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
+      return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+  }, [agingRows, categoryFilter, sortCol, sortDir]);
+
+  const totals = useMemo(() => {
+    return sortedRows.reduce(
+      (s, r) => ({
+        qty: s.qty + r.totalQty,
+        val: s.val + r.totalVal,
+        b0: s.b0 + r.buckets[0], b1: s.b1 + r.buckets[1], b2: s.b2 + r.buckets[2], b3: s.b3 + r.buckets[3], b4: s.b4 + r.buckets[4],
+      }),
+      { qty: 0, val: 0, b0: 0, b1: 0, b2: 0, b3: 0, b4: 0 },
+    );
+  }, [sortedRows]);
+
+  const uniqueCategories = useMemo(() => {
+    const ids = new Set(agingRows.map((r) => r.categoryId));
+    return [...ids].map((id) => ({ id, name: catMap[id] || id?.slice(0, 8) || "—" })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [agingRows, catMap]);
+
+  const toggleSort = (col: string) => {
+    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir(col === "name" ? "asc" : "desc"); }
+  };
+
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortCol !== col) return null;
+    return <span className="ml-1">{sortDir === "asc" ? "▲" : "▼"}</span>;
+  };
+
+  if (!products || !fifoLayers) return <p className="text-sm text-muted-foreground py-8 text-center">Loading inventory data...</p>;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <SummaryCard label="Products in Stock" value={String(agingRows.length)} count="with active stock" />
+        <SummaryCard label="Total Units" value={formatNumber(totals.qty)} count="items in stock" />
+        <SummaryCard label="Stock Value (Cost)" value={`Rs. ${formatNumber(totals.val)}`} count="at purchase cost" />
+        <SummaryCard label="Categories" value={String(uniqueCategories.length)} />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => setCategoryFilter("all")}
+          className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${categoryFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-secondary hover:bg-muted/80"}`}>
+          All Categories
+        </button>
+        {uniqueCategories.map((c) => (
+          <button key={c.id} onClick={() => setCategoryFilter(c.id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${categoryFilter === c.id ? "bg-primary text-primary-foreground" : "bg-muted text-secondary hover:bg-muted/80"}`}>
+            {c.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted text-left text-xs text-muted-foreground">
+                <th className="px-3 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("name")}>Product<SortIcon col="name" /></th>
+                <th className="px-3 py-3 font-medium">SKU</th>
+                <th className="px-3 py-3 font-medium">Category</th>
+                <th className="px-3 py-3 font-medium text-right cursor-pointer select-none" onClick={() => toggleSort("qty")}>Qty<SortIcon col="qty" /></th>
+                <th className="px-3 py-3 font-medium text-right cursor-pointer select-none" onClick={() => toggleSort("value")}>Value<SortIcon col="value" /></th>
+                <th className="px-3 py-3 font-medium text-right">0–30d</th>
+                <th className="px-3 py-3 font-medium text-right">31–60d</th>
+                <th className="px-3 py-3 font-medium text-right">61–90d</th>
+                <th className="px-3 py-3 font-medium text-right">91–180d</th>
+                <th className="px-3 py-3 font-medium text-right">180d+</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {sortedRows.length === 0 ? (
+                <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground text-sm">No products with active stock</td></tr>
+              ) : sortedRows.map((r) => (
+                <tr key={r.productId} className="hover:bg-muted/50 transition-colors">
+                  <td className="px-3 py-2.5 font-medium max-w-[180px] truncate" title={r.name}>{r.name}</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground">{r.sku}</td>
+                  <td className="px-3 py-2.5 text-xs text-muted-foreground">{r.categoryName}</td>
+                  <td className="px-3 py-2.5 text-right font-medium">{formatNumber(r.totalQty)}</td>
+                  <td className="px-3 py-2.5 text-right font-medium">{formatNumber(r.totalVal)}</td>
+                  {r.buckets.map((b, i) => (
+                    <td key={i} className={`px-3 py-2.5 text-right ${b > 0 && i >= 3 ? "text-red-600 font-medium" : ""}`}>
+                      {b > 0 ? formatNumber(b) : "—"}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+              {sortedRows.length > 0 && (
+                <tr className="bg-muted/30 font-semibold text-xs">
+                  <td className="px-3 py-3" colSpan={3}>Total ({sortedRows.length} products)</td>
+                  <td className="px-3 py-3 text-right">{formatNumber(totals.qty)}</td>
+                  <td className="px-3 py-3 text-right">{formatNumber(totals.val)}</td>
+                  <td className="px-3 py-3 text-right">{totals.b0 > 0 ? formatNumber(totals.b0) : "—"}</td>
+                  <td className="px-3 py-3 text-right">{totals.b1 > 0 ? formatNumber(totals.b1) : "—"}</td>
+                  <td className="px-3 py-3 text-right">{totals.b2 > 0 ? formatNumber(totals.b2) : "—"}</td>
+                  <td className="px-3 py-3 text-right">{totals.b3 > 0 ? formatNumber(totals.b3) : "—"}</td>
+                  <td className="px-3 py-3 text-right">{totals.b4 > 0 ? formatNumber(totals.b4) : "—"}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InventoryTurnoverSection({
+  products, sales, categories, fromMs, toMs, settings,
+}: {
+  products: Product[] | null; sales: Sale[] | null; categories: Category[] | null; fromMs: number; toMs: number; settings: any;
+}) {
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [sortCol, setSortCol] = useState("ratio");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const catMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    if (categories) categories.forEach((c) => { m[c.id || ""] = c.name; });
+    return m;
+  }, [categories]);
+
+  const turnoverRows = useMemo(() => {
+    if (!products || !sales) return [];
+
+    const productMap: Record<string, Product> = {};
+    products.forEach((p) => { productMap[p.id] = p; });
+
+    const salesInRange = sales.filter((s) => {
+      const d = new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).getTime();
+      return d >= fromMs && d < toMs;
+    });
+
+    const unitsSold: Record<string, number> = {};
+    const cogsTotal: Record<string, number> = {};
+
+    salesInRange.forEach((s) => {
+      (s.items || []).forEach((item) => {
+        const pid = item.productId;
+        if (!pid) return;
+        unitsSold[pid] = (unitsSold[pid] || 0) + item.quantity;
+        cogsTotal[pid] = (cogsTotal[pid] || 0) + (item.costPriceAtSale || 0) * item.quantity;
+      });
+    });
+
+    const allPids = new Set([...Object.keys(unitsSold), ...products.filter((p) => p.quantityInStock > 0).map((p) => p.id)]);
+    const rows = [...allPids].map((pid) => {
+      const product = productMap[pid];
+      if (!product) return null;
+      const sold = unitsSold[pid] || 0;
+      const cogs = cogsTotal[pid] || 0;
+      const stock = product.quantityInStock || 0;
+      const ratio = stock > 0 ? sold / stock : (sold > 0 ? 99 : 0);
+      const daysToSell = ratio > 0 ? Math.round(365 / ratio) : 999;
+
+      const row: {
+        productId: string; name: string; sku: string; categoryId: string; categoryName: string;
+        unitsSold: number; cogs: number; currentStock: number; turnoverRatio: number; daysToSell: number;
+      } = {
+        productId: pid, name: product.name, sku: product.sku, categoryId: product.categoryId,
+        categoryName: catMap[product.categoryId] || product.categoryId?.slice(0, 8) || "—",
+        unitsSold: sold, cogs, currentStock: stock, turnoverRatio: ratio, daysToSell,
+      };
+      return row;
+    }).filter(Boolean) as any[];
+
+    return rows;
+  }, [products, sales, fromMs, toMs, catMap]);
+
+  const sortedRows = useMemo(() => {
+    const filtered = categoryFilter === "all" ? turnoverRows : turnoverRows.filter((r) => r.categoryId === categoryFilter);
+    return [...filtered].sort((a, b) => {
+      const av = sortCol === "name" ? a.name : sortCol === "sold" ? a.unitsSold : sortCol === "stock" ? a.currentStock : sortCol === "days" ? a.daysToSell : a.turnoverRatio;
+      const bv = sortCol === "name" ? b.name : sortCol === "sold" ? b.unitsSold : sortCol === "stock" ? b.currentStock : sortCol === "days" ? b.daysToSell : b.turnoverRatio;
+      if (typeof av === "string") return sortDir === "asc" ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
+      return sortDir === "asc" ? (av as number) - (bv as number) : (bv as number) - (av as number);
+    });
+  }, [turnoverRows, categoryFilter, sortCol, sortDir]);
+
+  const toggleSort = (col: string) => {
+    if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortCol(col); setSortDir(col === "name" ? "asc" : "desc"); }
+  };
+
+  const SortIcon = ({ col }: { col: string }) => {
+    if (sortCol !== col) return null;
+    return <span className="ml-1">{sortDir === "asc" ? "▲" : "▼"}</span>;
+  };
+
+  const uniqueCategories = useMemo(() => {
+    const ids = new Set(turnoverRows.map((r) => r.categoryId));
+    return [...ids].map((id) => ({ id, name: catMap[id] || id?.slice(0, 8) || "—" })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [turnoverRows, catMap]);
+
+  if (!products || !sales) return <p className="text-sm text-muted-foreground py-8 text-center">Loading turnover data...</p>;
+
+  const fastMovers = sortedRows.filter((r) => r.turnoverRatio > 2).length;
+  const slowMovers = sortedRows.filter((r) => r.turnoverRatio > 0 && r.turnoverRatio < 0.5).length;
+  const noSales = sortedRows.filter((r) => r.unitsSold === 0).length;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <SummaryCard label="Products Tracked" value={String(turnoverRows.length)} />
+        <SummaryCard label="Fast Movers (Ratio > 2)" value={String(fastMovers)} count="selling quickly" />
+        <SummaryCard label="Slow Movers (Ratio < 0.5)" value={String(slowMovers)} count="selling slowly" />
+        <SummaryCard label="No Sales in Period" value={String(noSales)} count="zero units sold" />
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => setCategoryFilter("all")}
+          className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${categoryFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-secondary hover:bg-muted/80"}`}>
+          All Categories
+        </button>
+        {uniqueCategories.map((c) => (
+          <button key={c.id} onClick={() => setCategoryFilter(c.id)}
+            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${categoryFilter === c.id ? "bg-primary text-primary-foreground" : "bg-muted text-secondary hover:bg-muted/80"}`}>
+            {c.name}
+          </button>
+        ))}
+      </div>
+
+      <div className="bg-white border border-border rounded-xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted text-left text-xs text-muted-foreground">
+                <th className="px-3 py-3 font-medium cursor-pointer select-none" onClick={() => toggleSort("name")}>Product<SortIcon col="name" /></th>
+                <th className="px-3 py-3 font-medium">SKU</th>
+                <th className="px-3 py-3 font-medium">Category</th>
+                <th className="px-3 py-3 font-medium text-right cursor-pointer select-none" onClick={() => toggleSort("sold")}>Sold<SortIcon col="sold" /></th>
+                <th className="px-3 py-3 font-medium text-right cursor-pointer select-none" onClick={() => toggleSort("stock")}>In Stock<SortIcon col="stock" /></th>
+                <th className="px-3 py-3 font-medium text-right cursor-pointer select-none" onClick={() => toggleSort("ratio")}>Ratio<SortIcon col="ratio" /></th>
+                <th className="px-3 py-3 font-medium text-right cursor-pointer select-none" onClick={() => toggleSort("days")}>Days to Sell<SortIcon col="days" /></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {sortedRows.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-8 text-center text-muted-foreground text-sm">No data in this period</td></tr>
+              ) : sortedRows.slice(0, 200).map((r) => (
+                <tr key={r.productId} className="hover:bg-muted/50 transition-colors">
+                  <td className="px-3 py-2.5 font-medium max-w-[180px] truncate" title={r.name}>{r.name}</td>
+                  <td className="px-3 py-2.5 text-xs font-mono text-muted-foreground">{r.sku}</td>
+                  <td className="px-3 py-2.5 text-xs text-muted-foreground">{r.categoryName}</td>
+                  <td className={`px-3 py-2.5 text-right font-medium ${r.unitsSold > 0 ? "text-green-700" : "text-muted-foreground"}`}>
+                    {r.unitsSold > 0 ? formatNumber(r.unitsSold) : "—"}
+                  </td>
+                  <td className="px-3 py-2.5 text-right">{formatNumber(r.currentStock)}</td>
+                  <td className={`px-3 py-2.5 text-right font-medium ${r.turnoverRatio > 2 ? "text-green-700" : r.turnoverRatio < 0.5 && r.turnoverRatio > 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                    {r.unitsSold > 0 ? r.turnoverRatio.toFixed(2) : "—"}
+                  </td>
+                  <td className={`px-3 py-2.5 text-right font-medium ${r.daysToSell <= 90 ? "text-green-700" : r.daysToSell >= 365 ? "text-red-600" : ""}`}>
+                    {r.daysToSell < 999 ? `${r.daysToSell}d` : "—"}
+                  </td>
+                </tr>
+              ))}
+              {sortedRows.length > 200 && (
+                <tr><td colSpan={7} className="px-4 py-3 text-center text-xs text-muted-foreground">Showing top 200 of {sortedRows.length} products. Use category filter to narrow.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
