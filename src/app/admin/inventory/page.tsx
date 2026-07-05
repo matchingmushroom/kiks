@@ -13,7 +13,7 @@ import {
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import BarcodeScannerDialog from "@/components/admin/BarcodeScannerDialog";
-import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package, LayoutGrid, List, Download, Mail, Camera, MoreVertical } from "lucide-react";
+import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package, LayoutGrid, List, Download, Mail, Camera, Eye, MoreVertical } from "lucide-react";
 import { exportInventoryCSV, downloadBlob } from "@/lib/export";
 
 export default function AdminInventoryPage() {
