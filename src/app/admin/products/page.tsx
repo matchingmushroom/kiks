@@ -24,7 +24,7 @@ import { generateSkuV2, generateModelCode, findExistingModelCodes, generateShort
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
 import PrintLabelsDialog from "@/components/admin/PrintLabelsDialog";
-import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, Tag, LayoutGrid, List, Loader2, AlertTriangle, Upload, Package, Check, ShoppingBag, Printer } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, X, Eye, EyeOff, Star, Tag, LayoutGrid, List, Loader2, AlertTriangle, Upload, Package, Check, ShoppingBag, Printer, Globe } from "lucide-react";
 
 const BASE_MATERIALS = ["", "Brass", "Alloy", "Copper", "Stainless Steel", "Silver", "Gold", "Plastic", "Steel", "Wood", "Bone", "Fabric", "Resin", "Polymer"];
 const PLATING_OPTIONS = ["", "Gold-plated", "Silver-plated", "Rhodium", "Rose Gold-plated", "Sterling Silver", "Antique", "Matte", "Polished", "None"];
@@ -228,7 +228,7 @@ export default function AdminProductsPage() {
     setSeeding(false);
   };
 
-  const toggleField = async (id: string, field: "isActive" | "isFeatured" | "isOnSale", value: boolean) => {
+  const toggleField = async (id: string, field: "isActive" | "isFeatured" | "isOnSale" | "showOnWebsite", value: boolean) => {
     await updateDoc(doc(db, "products", id), { [field]: value, updatedAt: Timestamp.fromDate(new Date()) });
   };
 
@@ -854,14 +854,19 @@ export default function AdminProductsPage() {
                         title={p.isFeatured ? "Featured" : "Not featured"}>
                         <Star className={`h-3.5 w-3.5 ${p.isFeatured ? "fill-amber-500" : ""}`} />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isOnSale", !p.isOnSale); }}
-                        className={`p-1.5 rounded ${p.isOnSale ? "text-red-500" : "text-muted-foreground"}`}
-                        title={p.isOnSale ? "On Sale" : "Not on sale"}>
-                        <Tag className={`h-3.5 w-3.5 ${p.isOnSale ? "fill-red-500" : ""}`} />
-                      </button>
-                      <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </button>
+                       <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "isOnSale", !p.isOnSale); }}
+                         className={`p-1.5 rounded ${p.isOnSale ? "text-red-500" : "text-muted-foreground"}`}
+                         title={p.isOnSale ? "On Sale" : "Not on sale"}>
+                         <Tag className={`h-3.5 w-3.5 ${p.isOnSale ? "fill-red-500" : ""}`} />
+                       </button>
+                       <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "showOnWebsite", !p.showOnWebsite); }}
+                         className={`p-1.5 rounded ${p.showOnWebsite ? "text-sky-500" : "text-muted-foreground"}`}
+                         title={p.showOnWebsite ? "Visible on website" : "Hidden on website"}>
+                         <Globe className={`h-3.5 w-3.5 ${p.showOnWebsite ? "fill-sky-500" : ""}`} />
+                       </button>
+                       <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
+                         <Edit2 className="h-3.5 w-3.5" />
+                       </button>
                       <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id, p.name); }} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -875,6 +880,9 @@ export default function AdminProductsPage() {
                     <span className={p.quantityInStock <= 3 ? "text-red-600 font-medium" : "text-muted-foreground"}>
                       Stock: {p.quantityInStock}
                     </span>
+                    {p.showOnWebsite && (
+                      <span className="bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded text-[10px] font-medium">Website</span>
+                    )}
                     {p.isOnSale && (
                       <span className="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[10px] font-medium">Sale</span>
                     )}
@@ -950,6 +958,10 @@ export default function AdminProductsPage() {
                             className={`p-1.5 rounded ${p.isOnSale ? "text-red-500" : "text-muted-foreground"}`} title={p.isOnSale ? "On Sale" : "Not on sale"}>
                             <Tag className={`h-3.5 w-3.5 ${p.isOnSale ? "fill-red-500" : ""}`} />
                           </button>
+                          <button onClick={(e) => { e.stopPropagation(); toggleField(p.id, "showOnWebsite", !p.showOnWebsite); }}
+                            className={`p-1.5 rounded ${p.showOnWebsite ? "text-sky-500" : "text-muted-foreground"}`} title={p.showOnWebsite ? "Visible on website" : "Hidden on website"}>
+                            <Globe className={`h-3.5 w-3.5 ${p.showOnWebsite ? "fill-sky-500" : ""}`} />
+                          </button>
                           <button onClick={(e) => { e.stopPropagation(); openEdit(p); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded"><Edit2 className="h-3.5 w-3.5" /></button>
                           <button onClick={(e) => { e.stopPropagation(); handleDelete(p.id, p.name); }} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded"><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
@@ -982,6 +994,7 @@ export default function AdminProductsPage() {
               <Row label="Status" value={detailProduct.isActive ? "Active" : "Inactive"} />
               <Row label="Featured" value={detailProduct.isFeatured ? "Yes" : "No"} />
               <Row label="On Sale" value={detailProduct.isOnSale ? "Yes" : "No"} />
+              <Row label="Show on Website" value={detailProduct.showOnWebsite ? "Yes" : "No"} />
               {detailProduct.description && <Row label="Description" value={detailProduct.description} />}
               {detailProduct.images.filter(Boolean).length > 0 && (
                 <div>
