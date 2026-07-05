@@ -49,6 +49,12 @@ export default function ConnectPage() {
     (ch) => settings[ch.key] && !hidden.includes(ch.key)
   );
 
+  const websiteUrl = settings.website
+    ? settings.website.match(/^https?:\/\//)
+      ? settings.website
+      : `https://${settings.website}`
+    : null;
+
   const whatsappLink = settings.whatsappNumber
     ? `https://wa.me/${cleanPhone(settings.whatsappNumber)}?text=Hi%20${encodeURIComponent(settings.shopName)}`
     : null;
@@ -87,7 +93,7 @@ export default function ConnectPage() {
 
               <div className="space-y-3">
                 <a
-                  href={settings.website || "#"}
+                  href={websiteUrl || "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2.5 w-full h-12 bg-accent text-secondary font-semibold rounded-full hover:bg-accent/90 transition-colors active:scale-[0.98]"
