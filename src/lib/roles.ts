@@ -104,6 +104,7 @@ export function canAccessRoute(role: UserRole | undefined, route: string, userPe
     invoices: ["manage_invoices"],
     coupons: ["manage_coupons"],
     debtors: ["manage_debtors"],
+    morning: ["manage_inventory"],
     inventory: ["manage_inventory"],
     reconciliation: ["manage_reconciliation", "manage_inventory"],
     homepage: ["manage_homepage"],

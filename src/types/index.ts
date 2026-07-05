@@ -64,6 +64,7 @@ export interface Product {
   comboItems?: string[];
   comboPrice?: number;
   isOnSale?: boolean;
+  collection?: string;
   createdAt: number;
   updatedAt: number;
 }

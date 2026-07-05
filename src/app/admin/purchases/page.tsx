@@ -47,7 +47,7 @@ interface NewProductForm {
   costPrice: number; salesPrice: number;
   weight: number; purity: string; metalType: string;
   stoneType: string; stoneWeight: number; makingCharge: number;
-  warranty: string;
+  warranty: string; collection: string;
 }
 
 const emptyForm = {
@@ -247,7 +247,8 @@ function PurchasesContent() {
             badge: "", originalPrice: 0, brand: "", modelNo: "",
             baseMaterial: r.baseMaterial || "", plating: r.plating || "", color: r.color || "",
             productType: r.productType || "", idealFor: [], netQuantity: 1,
-            occasion: [], createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
+            occasion: [], collection: "",
+            createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
           });
           prodId = prodId_;
           prodSku = sku;
@@ -352,7 +353,7 @@ function PurchasesContent() {
 
   // Inline product creation
   const [showNewProduct, setShowNewProduct] = useState(false);
-  const [newProductForm, setNewProductForm] = useState<NewProductForm>({ name: "", categoryId: "", sku: "", brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], occasion: [], netQuantity: 1, costPrice: 0, salesPrice: 0, weight: 0, purity: "", metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "" });
+  const [newProductForm, setNewProductForm] = useState<NewProductForm>({ name: "", categoryId: "", sku: "", brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], occasion: [], netQuantity: 1, costPrice: 0, salesPrice: 0, weight: 0, purity: "", metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "", collection: "" });
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [manualSupplier, setManualSupplier] = useState(false);
@@ -489,6 +490,7 @@ function PurchasesContent() {
       badge: "", brand: f.brand, baseMaterial: f.baseMaterial,
       plating: f.plating, color: f.color, productType: f.productType,
       idealFor: f.idealFor, netQuantity: f.netQuantity, occasion: f.occasion,
+      collection: f.collection || "",
       createdAt: Timestamp.fromDate(new Date()),
       updatedAt: Timestamp.fromDate(new Date()),
     };
@@ -1494,6 +1496,13 @@ function PurchasesContent() {
                           <label className="block text-xs text-muted-foreground mb-1">Warranty</label>
                           <input type="text" value={newProductForm.warranty}
                             onChange={(e) => setNewProductForm({ ...newProductForm, warranty: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                        <div className="mt-3">
+                          <label className="block text-xs text-muted-foreground mb-1">Collection / Season</label>
+                          <input type="text" value={newProductForm.collection}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, collection: e.target.value })}
+                            placeholder="e.g. Summer 2026, Holiday Party"
                             className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                         </div>
                       </details>

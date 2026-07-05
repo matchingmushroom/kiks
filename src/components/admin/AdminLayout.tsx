@@ -35,6 +35,7 @@ const navItems: NavItem[] = [
   { label: "Testimonials", href: "/admin/testimonials", icon: <MessageSquare className="h-4 w-4" />, permission: "manage_homepage" },
   { label: "Debtors", href: "/admin/debtors", icon: <Users className="h-4 w-4" />, permission: "manage_debtors" },
   { divider: true, section: "INVENTORY" },
+  { label: "Morning Dashboard", href: "/admin/morning", icon: <BarChart3 className="h-4 w-4" />, permission: "manage_inventory" },
   { label: "Products", href: "/admin/products", icon: <Package className="h-4 w-4" />, permission: "manage_products" },
   { label: "Categories", href: "/admin/categories", icon: <Tags className="h-4 w-4" />, permission: "manage_categories" },
   { label: "Inventory", href: "/admin/inventory", icon: <BarChart3 className="h-4 w-4" />, permission: "manage_inventory" },
