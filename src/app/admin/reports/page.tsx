@@ -847,6 +847,7 @@ function InventoryTurnoverSection({
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortCol, setSortCol] = useState("ratio");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const rangeDays = Math.max(1, (toMs - fromMs) / 86400000);
 
   const catMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -884,7 +885,6 @@ function InventoryTurnoverSection({
       const sold = unitsSold[pid] || 0;
       const cogs = cogsTotal[pid] || 0;
       const stock = product.quantityInStock || 0;
-      const rangeDays = Math.max(1, (toMs - fromMs) / 86400000);
       const ratio = stock > 0 ? sold / stock : (sold > 0 ? 99 : 0);
       const daysToSell = ratio > 0 ? Math.round(rangeDays / ratio) : 999;
 
@@ -980,7 +980,7 @@ function InventoryTurnoverSection({
                   <td className={`px-3 py-2.5 text-right font-medium ${r.turnoverRatio > 2 ? "text-green-700" : r.turnoverRatio < 0.5 && r.turnoverRatio > 0 ? "text-red-600" : "text-muted-foreground"}`}>
                     {r.unitsSold > 0 ? r.turnoverRatio.toFixed(2) : "—"}
                   </td>
-                  <td className={`px-3 py-2.5 text-right font-medium ${r.daysToSell <= 90 ? "text-green-700" : r.daysToSell >= 365 ? "text-red-600" : ""}`}>
+                  <td className={`px-3 py-2.5 text-right font-medium ${r.daysToSell <= rangeDays ? "text-green-700" : r.daysToSell >= rangeDays * 3 ? "text-red-600" : ""}`}>
                     {r.daysToSell < 999 ? `${r.daysToSell}d` : "—"}
                   </td>
                 </tr>
