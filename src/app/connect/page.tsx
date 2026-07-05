@@ -1,15 +1,17 @@
-"use client";
+﻿"use client";
 
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { downloadVCard } from "@/lib/vcard";
-import { Globe, Phone, MessageCircle, MapPin, UserPlus, Facebook, Instagram, Youtube, Twitter, Music2 } from "lucide-react";
+import { Globe, Phone, MessageCircle, MapPin, UserPlus } from "lucide-react";
+import { FaFacebook, FaInstagram, FaYoutube, FaTwitter } from "react-icons/fa";
+import { FaTiktok } from "react-icons/fa6";
 
 const socialChannels = [
-  { key: "facebook" as const, icon: Facebook, label: "Facebook" },
-  { key: "instagram" as const, icon: Instagram, label: "Instagram" },
-  { key: "youtube" as const, icon: Youtube, label: "YouTube" },
-  { key: "twitter" as const, icon: Twitter, label: "Twitter / X" },
-  { key: "tiktok" as const, icon: Music2, label: "TikTok" },
+  { key: "facebook" as const, icon: FaFacebook, label: "Facebook" },
+  { key: "instagram" as const, icon: FaInstagram, label: "Instagram" },
+  { key: "youtube" as const, icon: FaYoutube, label: "YouTube" },
+  { key: "twitter" as const, icon: FaTwitter, label: "Twitter / X" },
+  { key: "tiktok" as const, icon: FaTiktok, label: "TikTok" },
 ];
 
 function cleanPhone(phone: string): string {
@@ -85,7 +87,7 @@ export default function ConnectPage() {
 
               <div className="space-y-3">
                 <a
-                  href="https://www.panchakanyacollections.com.np"
+                  href={settings.website || "#"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2.5 w-full h-12 bg-accent text-secondary font-semibold rounded-full hover:bg-accent/90 transition-colors active:scale-[0.98]"
