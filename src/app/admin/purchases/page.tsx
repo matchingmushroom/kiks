@@ -1103,6 +1103,7 @@ function PurchasesContent() {
               </h2>
               <button onClick={() => setShowForm(false)} className="p-1 hover:bg-muted rounded">
                 <X className="h-5 w-5" />
+              </button>
             </div>
 
             <div className="space-y-6">
@@ -1900,6 +1901,7 @@ function PurchasesContent() {
                 <h2 className="text-lg font-semibold text-secondary">Purchase Return</h2>
                 <button onClick={() => setReturnModal(null)} className="p-1 hover:bg-muted rounded">
                   <X className="h-5 w-5" />
+                </button>
               </div>
               <p className="text-sm text-muted-foreground mb-4">Supplier: {returnModal.supplierName}</p>
               <div className="space-y-3 mb-4">
@@ -2015,8 +2017,9 @@ function PurchasesContent() {
               <h2 className="text-lg font-semibold text-secondary">Archived Purchases</h2>
               <button onClick={() => { setShowArchive(false); setArchiveResults(null); }} className="p-1 hover:bg-muted rounded">
                 <X className="h-5 w-5" />
-            </div>
-            <div className="p-4">
+              </button>
+              </div>
+              <div className="p-4">
               {archiveLoading ? (
                 <p className="text-center text-muted-foreground py-8">Loading archived purchases...</p>
               ) : !archiveResults || archiveResults.length === 0 ? (
@@ -2047,6 +2050,7 @@ function PurchasesContent() {
               <h2 className="text-lg font-semibold text-secondary">Upload CSV — Bulk Purchase Import</h2>
               <button onClick={() => { if (!csvImporting) setShowCsvModal(false); }} className="p-1 hover:bg-muted rounded">
                 <X className="h-5 w-5" />
+              </button>
             </div>
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               <p className="text-xs text-muted-foreground">
