@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Product, InventoryLog, Category } from "@/types";
@@ -13,7 +13,7 @@ import {
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import BarcodeScannerDialog from "@/components/admin/BarcodeScannerDialog";
-import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package, LayoutGrid, List, Download, Mail, Camera } from "lucide-react";
+import { Search, Plus, Minus, X, Save, ClipboardList, AlertTriangle, Package, LayoutGrid, List, Download, Mail, Camera, MoreVertical } from "lucide-react";
 import { exportInventoryCSV, downloadBlob } from "@/lib/export";
 
 export default function AdminInventoryPage() {
@@ -42,7 +42,10 @@ export default function AdminInventoryPage() {
   const [tab, setTab] = useState<"stock" | "log">("stock");
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
+
+  useEffect(() => { if (openMenuId) { const handler = () => setOpenMenuId(null); window.addEventListener("click", handler); return () => window.removeEventListener("click", handler); } }, [openMenuId]);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -300,18 +303,27 @@ export default function AdminInventoryPage() {
             {viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {filtered.map((p) => (
-                  <div key={p.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer" onClick={() => setDetailProduct(p)}>
-                    <div className="flex items-start justify-between gap-2">
+                  <div key={p.id} className="bg-white border border-border rounded-xl p-3 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
+                    <div onClick={() => setDetailProduct(p)} className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-secondary text-sm truncate">{p.name}</p>
                         <p className="text-xs text-muted-foreground">{categoryMap.get(p.categoryId) || "—"} · {p.sku || "—"}</p>
                       </div>
-                      <button onClick={(ev) => { ev.stopPropagation(); startAdjust(p); }}
-                        className="text-xs px-2.5 py-1.5 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-secondary transition-colors shrink-0">
-                        Adjust
-                      </button>
+                      <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === p.id ? null : p.id); }} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                        {openMenuId === p.id && (
+                          <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-lg shadow-lg py-1 w-36"
+                            onMouseLeave={() => setOpenMenuId(null)}>
+                            <button onClick={() => { setDetailProduct(p); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
+                              <Eye className="h-3.5 w-3.5 text-muted-foreground" /> View Details
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div onClick={() => setDetailProduct(p)} className="flex items-center justify-between">
                       <span className={`font-bold text-lg ${
                         p.quantityInStock <= 0 ? "text-red-500" :
                         p.quantityInStock <= 3 ? "text-amber-500" :
@@ -328,6 +340,12 @@ export default function AdminInventoryPage() {
                       ) : (
                         <span className="text-xs text-green-600">In Stock</span>
                       )}
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-border">
+                      <button onClick={(ev) => { ev.stopPropagation(); startAdjust(p); }}
+                        className="text-xs px-2.5 py-1.5 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-secondary transition-colors">
+                        Adjust
+                      </button>
                     </div>
                   </div>
                 ))}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
@@ -11,7 +11,7 @@ import { updateDoc, doc, Timestamp, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Search, ChevronDown, ChevronUp, ExternalLink, MessageCircle, X, LayoutGrid, List, Edit2, Save, Download, Mail } from "lucide-react";
+import { Search, ChevronDown, ChevronUp, ExternalLink, MessageCircle, X, LayoutGrid, List, Edit2, Save, Download, Mail, MoreVertical } from "lucide-react";
 import Link from "next/link";
 import { exportOrdersCSV, downloadBlob } from "@/lib/export";
 import { openWhatsApp } from "@/lib/whatsapp";
@@ -38,7 +38,10 @@ export default function AdminOrdersPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [couponOrder, setCouponOrder] = useState<Order | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  useEffect(() => { if (openMenuId) { const handler = () => setOpenMenuId(null); window.addEventListener("click", handler); return () => window.removeEventListener("click", handler); } }, [openMenuId]);
   const [editOrder, setEditOrder] = useState<Order | null>(null);
   const [editForm, setEditForm] = useState({ customerName: "", customerPhone: "", customerAddress: "", notes: "" });
   const [editSaving, setEditSaving] = useState(false);
@@ -265,24 +268,35 @@ export default function AdminOrdersPage() {
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {filtered.map((order) => (
-              <div key={order.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-                <div onClick={() => setSelectedOrder(order)} className="cursor-pointer space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-secondary text-sm">{order.orderNumber}</p>
-                      <p className="text-xs text-muted-foreground truncate">{order.customer?.name} • {order.customer?.phone}</p>
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full border capitalize shrink-0 ${STATUS_COLORS[order.status] || ""}`}>
+              <div key={order.id} className="bg-white border border-border rounded-xl p-3 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
+                <div onClick={() => setSelectedOrder(order)} className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-secondary text-sm">{order.orderNumber}</p>
+                    <p className="text-xs text-muted-foreground truncate">{order.customer?.name} • {order.customer?.phone}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${STATUS_COLORS[order.status] || ""}`}>
                       {order.status}
                     </span>
+                    <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === order.id ? null : order.id); }} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                      {openMenuId === order.id && (
+                        <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-lg shadow-lg py-1 w-36"
+                          onMouseLeave={() => setOpenMenuId(null)}>
+                          <button onClick={() => { openEdit(order); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
+                            <Edit2 className="h-3.5 w-3.5 text-muted-foreground" /> Edit
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-lg font-bold text-secondary">{formatCurrency(order.totalAmount)}</p>
-                  <p className="text-xs text-muted-foreground">{formatDateTime(order.createdAt)}</p>
                 </div>
-                <button onClick={() => openEdit(order)}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
-                  <Edit2 className="h-3 w-3" /> Edit
-                </button>
+                <div onClick={() => setSelectedOrder(order)} className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="font-semibold text-secondary">{formatCurrency(order.totalAmount)}</span>
+                  <span>{formatDateTime(order.createdAt)}</span>
+                </div>
               </div>
             ))}
           </div>

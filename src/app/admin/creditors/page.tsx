@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
 import { Creditor } from "@/types";
@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, Eye, LayoutGrid, List, AlertTriangle, Download, Mail } from "lucide-react";
+import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, Eye, LayoutGrid, List, AlertTriangle, Download, Mail, MoreVertical } from "lucide-react";
 import { exportCreditorsCSV, downloadBlob } from "@/lib/export";
 
 export default function AdminCreditorsPage() {
@@ -30,7 +30,10 @@ export default function AdminCreditorsPage() {
   const [paymentForm, setPaymentForm] = useState<{ amount: string; method: string; notes: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [selectedCreditor, setSelectedCreditor] = useState<Creditor | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+
+  useEffect(() => { if (openMenuId) { const handler = () => setOpenMenuId(null); window.addEventListener("click", handler); return () => window.removeEventListener("click", handler); } }, [openMenuId]);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [reportRange, setReportRange] = useState<"all" | "ytd" | "mtd" | "custom">("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -242,21 +245,36 @@ export default function AdminCreditorsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {filtered.map((creditor) => (
               <div key={creditor.id} onClick={() => setSelectedCreditor(creditor)}
-                className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
+                className="bg-white border border-border rounded-xl p-3 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-secondary text-sm truncate">{creditor.supplierName}</p>
                     <p className="text-xs text-muted-foreground">{creditor.supplierPhone}</p>
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                  <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === creditor.id ? null : creditor.id); }} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                    {openMenuId === creditor.id && (
+                      <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-lg shadow-lg py-1 w-36"
+                        onMouseLeave={() => setOpenMenuId(null)}>
+                        <button onClick={() => { setSelectedCreditor(creditor); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
+                          <Eye className="h-3.5 w-3.5 text-muted-foreground" /> View Details
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span className="font-semibold text-secondary">{formatCurrency(creditor.balanceDue)}</span>
+                  <span>of {formatCurrency(creditor.totalAmount)}</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${
                     creditor.status === "active" ? "bg-red-50 text-red-700" : "bg-green-50 text-green-700"
                   }`}>
                     {creditor.status}
                   </span>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-secondary">{formatCurrency(creditor.balanceDue)}</p>
-                  <p className="text-xs text-muted-foreground">of {formatCurrency(creditor.totalAmount)}</p>
                 </div>
               </div>
             ))}

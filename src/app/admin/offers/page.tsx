@@ -13,7 +13,7 @@ import {
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
-  Plus, X, Save, Trash2, Edit2, Search, AlertCircle, CheckCircle, LayoutGrid, List,
+  Plus, X, Save, Trash2, Edit2, Search, AlertCircle, CheckCircle, LayoutGrid, List, MoreVertical,
 } from "lucide-react";
 
 const emptyForm = {
@@ -47,7 +47,10 @@ export default function AdminOffersPage() {
   const [prodSearch, setProdSearch] = useState("");
   const [expiredBanner, setExpiredBanner] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [detailOffer, setDetailOffer] = useState<Offer | null>(null);
+
+  useEffect(() => { if (openMenuId) { const handler = () => setOpenMenuId(null); window.addEventListener("click", handler); return () => window.removeEventListener("click", handler); } }, [openMenuId]);
 
   // Auto-expire offers on page load
   useEffect(() => {
@@ -439,30 +442,40 @@ export default function AdminOffersPage() {
                   const status = getStatus(offer);
                   const affectedCount = getAffectedProductIds(offer).length;
                   return (
-                    <div key={offer.id} onClick={() => setDetailOffer(offer)}
-                      className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between gap-2">
+                    <div key={offer.id} className="bg-white border border-border rounded-xl p-3 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
+                      <div onClick={() => setDetailOffer(offer)} className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-secondary text-sm truncate">{offer.title}</p>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize border shrink-0 ${status.color}`}>
-                              {status.label}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          <p className="font-medium text-secondary text-sm truncate">{offer.title}</p>
+                          <p className="text-xs text-muted-foreground">
                             {offer.discountType === "percentage" ? `${offer.discountValue}% off` : `${formatCurrency(offer.discountValue)} off`}
                           </p>
                         </div>
+                        <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === offer.id ? null : offer.id); }} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                          {openMenuId === offer.id && (
+                            <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-lg shadow-lg py-1 w-36"
+                              onMouseLeave={() => setOpenMenuId(null)}>
+                              <button onClick={() => { openEdit(offer); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
+                                <Edit2 className="h-3.5 w-3.5 text-muted-foreground" /> Edit
+                              </button>
+                              <button onClick={() => { handleDelete(offer.id, offer); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600">
+                                <Trash2 className="h-3.5 w-3.5" /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">{formatDate(offer.startDate)} → {formatDate(offer.endDate)}</span>
-                        <span className="text-muted-foreground">{affectedCount} product(s)</span>
+                      <div onClick={() => setDetailOffer(offer)} className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                        <span>{formatDate(offer.startDate)} → {formatDate(offer.endDate)}</span>
+                        <span>{affectedCount} product(s)</span>
+                        <span className="capitalize">{offer.badgeType.replace("_", " ")} · {offer.scope === "all" ? "All" : offer.scope}</span>
                       </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="capitalize text-muted-foreground">{offer.badgeType.replace("_", " ")} · {offer.scope === "all" ? "All" : offer.scope}</span>
-                        <Button onClick={(e) => { e.stopPropagation(); handleDelete(offer.id, offer); }} size="sm" variant="outline" className="text-xs text-red-500">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                      <div className="flex flex-wrap gap-1">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full capitalize border ${status.color}`}>
+                          {status.label}
+                        </span>
                       </div>
                     </div>
                   );

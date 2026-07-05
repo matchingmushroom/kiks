@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Category } from "@/types";
@@ -16,7 +16,7 @@ import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { generateId } from "@/lib/id-generator";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, X, LayoutGrid, List, Eye, EyeOff } from "lucide-react";
+import { Plus, Edit2, Trash2, ArrowUp, ArrowDown, X, LayoutGrid, List, Eye, EyeOff, MoreVertical } from "lucide-react";
 
 export default function AdminCategoriesPage() {
   const { data: categories, loading } = useFirestore<Category>("categories", {
@@ -35,7 +35,10 @@ export default function AdminCategoriesPage() {
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [detailCat, setDetailCat] = useState<Category | null>(null);
+
+  useEffect(() => { if (openMenuId) { const handler = () => setOpenMenuId(null); window.addEventListener("click", handler); return () => window.removeEventListener("click", handler); } }, [openMenuId]);
 
   const openAdd = () => {
     setName(""); setShortCode(""); setSubCategories(""); setDescription(""); setImage("");
@@ -181,42 +184,51 @@ export default function AdminCategoriesPage() {
             {viewMode === "grid" ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {categories.map((cat, i) => (
-                  <div key={cat.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2 cursor-pointer" onClick={() => setDetailCat(cat)}>
-                    <div className="flex items-start justify-between gap-2">
+                  <div key={cat.id} className="bg-white border border-border rounded-xl p-3 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
+                    <div onClick={() => setDetailCat(cat)} className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p className="font-medium text-secondary text-sm truncate">{cat.name}</p>
-                        {cat.shortCode && <span className="text-xs font-mono text-primary mr-2">{cat.shortCode}</span>}
-                        {cat.description && <p className="text-xs text-muted-foreground truncate">{cat.description}</p>}
+                        <p className="text-xs text-muted-foreground">{cat.shortCode ? `${cat.shortCode} · ${cat.description || "—"}` : cat.description || "—"}</p>
                       </div>
-                      <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${cat.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-muted-foreground"}`}>
+                      <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === cat.id ? null : cat.id); }} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                        {openMenuId === cat.id && (
+                          <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-lg shadow-lg py-1 w-36"
+                            onMouseLeave={() => setOpenMenuId(null)}>
+                            <button onClick={() => { openEdit(cat); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
+                              <Edit2 className="h-3.5 w-3.5 text-muted-foreground" /> Edit
+                            </button>
+                            <button onClick={() => { handleDelete(cat.id, cat.name); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600">
+                              <Trash2 className="h-3.5 w-3.5" /> Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div onClick={() => setDetailCat(cat)} className="flex flex-wrap gap-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${cat.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-muted-foreground"}`}>
                         {cat.isActive ? "Active" : "Inactive"}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between pt-2 border-t border-border">
                       <div className="flex items-center gap-1">
                         <button onClick={(e) => { e.stopPropagation(); moveOrder(cat.id, cat.order - 1); }}
                           disabled={i === 0}
                           className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
                           <ArrowUp className="h-3.5 w-3.5" />
                         </button>
-                        <span className="text-xs text-muted-foreground">Order {cat.order}</span>
+                        <span className="text-xs text-muted-foreground">{cat.order}</span>
                         <button onClick={(e) => { e.stopPropagation(); moveOrder(cat.id, cat.order + 1); }}
                           disabled={i === categories.length - 1}
                           className="p-1 text-muted-foreground hover:text-primary disabled:opacity-30">
                           <ArrowDown className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); toggleHomepage(cat); }} className={`p-1.5 rounded ${cat.showOnHomepage ?? true ? "text-green-600 hover:text-green-700" : "text-muted-foreground hover:text-primary"}`} title={cat.showOnHomepage ?? true ? "Visible on homepage" : "Hidden from homepage"}>
-                          {(cat.showOnHomepage ?? true) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); openEdit(cat); }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(cat.id, cat.name); }} className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); toggleHomepage(cat); }} className={`p-1.5 rounded ${cat.showOnHomepage ?? true ? "text-green-600 hover:text-green-700" : "text-muted-foreground hover:text-primary"}`} title={cat.showOnHomepage ?? true ? "Visible on homepage" : "Hidden from homepage"}>
+                        {(cat.showOnHomepage ?? true) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                      </button>
                     </div>
                   </div>
                 ))}

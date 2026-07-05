@@ -12,7 +12,7 @@ import {
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List, Eye } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List, Eye, MoreVertical } from "lucide-react";
 
 const emptyForm = {
   name: "", shortCode: "", phone: "", landline: "", address: "", contactPerson: "",
@@ -30,7 +30,10 @@ export default function AdminSuppliersPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [detailSupplierId, setDetailSupplierId] = useState<string | null>(null);
+
+  useEffect(() => { if (openMenuId) { const handler = () => setOpenMenuId(null); window.addEventListener("click", handler); return () => window.removeEventListener("click", handler); } }, [openMenuId]);
   const [detailSupplierData, setDetailSupplierData] = useState<Supplier | null>(null);
 
   useEffect(() => {
@@ -217,37 +220,40 @@ export default function AdminSuppliersPage() {
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
             {filtered.map((s) => (
-              <div key={s.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
-                <button onClick={() => setDetailSupplierId(s.id)} className="block space-y-2 w-full text-left">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-secondary text-sm truncate">{s.name}</p>
-                      {s.shortCode && <span className="text-xs font-mono text-primary mr-2">{s.shortCode}</span>}
-                      {s.phone && <p className="text-xs text-muted-foreground">Mobile: {s.phone}</p>}
-                      {s.landline && <p className="text-xs text-muted-foreground">Landline: {s.landline}</p>}
-                    </div>
+              <div key={s.id} className="bg-white border border-border rounded-xl p-3 shadow-sm space-y-2 cursor-pointer hover:shadow-md transition-shadow">
+                <div onClick={() => setDetailSupplierId(s.id)} className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-secondary text-sm truncate">{s.name}</p>
+                    <p className="text-xs text-muted-foreground">{s.phone}{s.landline ? ` · ${s.landline}` : ""}</p>
                   </div>
-                  {s.contactPerson && (
-                    <p className="text-xs text-muted-foreground">Contact: {s.contactPerson}{s.contactPersonPhone ? ` (${s.contactPersonPhone})` : ""}</p>
-                  )}
-                  {s.address && <p className="text-xs text-muted-foreground truncate">{s.address}</p>}
-                  {s.website && <p className="text-xs text-blue-600 truncate">{s.website}</p>}
-                </button>
-                <div className="flex items-center justify-between pt-1">
+                  <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === s.id ? null : s.id); }} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                      <MoreVertical className="h-4 w-4" />
+                    </button>
+                    {openMenuId === s.id && (
+                      <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-lg shadow-lg py-1 w-36"
+                        onMouseLeave={() => setOpenMenuId(null)}>
+                        <button onClick={() => { openEdit(s); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
+                          <Edit2 className="h-3.5 w-3.5 text-muted-foreground" /> Edit
+                        </button>
+                        <button onClick={() => { handleDelete(s.id, s.name); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600">
+                          <Trash2 className="h-3.5 w-3.5" /> Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div onClick={() => setDetailSupplierId(s.id)} className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  {s.shortCode && <span className="font-mono text-primary font-medium">{s.shortCode}</span>}
+                  {s.contactPerson && <span>Contact: {s.contactPerson}</span>}
+                  {s.address && <span className="truncate">{s.address}</span>}
+                  {s.website && <span className="text-blue-600 truncate">{s.website}</span>}
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t border-border">
                   <button onClick={() => setDetailSupplierId(s.id)}
                     className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                     <Eye className="h-3 w-3" /> View Details
                   </button>
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => openEdit(s)}
-                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
-                      <Edit2 className="h-3 w-3" /> Edit
-                    </button>
-                    <button onClick={() => handleDelete(s.id, s.name)}
-                      className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
-                      <Trash2 className="h-3 w-3" /> Delete
-                    </button>
-                  </div>
                 </div>
               </div>
             ))}

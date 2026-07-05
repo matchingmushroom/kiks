@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy } from "@/hooks/useFirestore";
 import { Coupon } from "@/types";
@@ -11,7 +11,7 @@ import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import BulkCouponDialog from "@/components/admin/BulkCouponDialog";
 import CouponCardPrint from "@/components/admin/CouponCardPrint";
-import { Plus, Edit2, Trash2, X, Save, Copy, CheckCircle, Search, LayoutGrid, List, Printer, CreditCard } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Copy, CheckCircle, Search, LayoutGrid, List, Printer, CreditCard, MoreVertical } from "lucide-react";
 
 const emptyForm = {
   code: "",
@@ -41,7 +41,10 @@ export default function AdminCouponsPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [detailCoupon, setDetailCoupon] = useState<Coupon | null>(null);
+
+  useEffect(() => { if (openMenuId) { const handler = () => setOpenMenuId(null); window.addEventListener("click", handler); return () => window.removeEventListener("click", handler); } }, [openMenuId]);
   const [showBulk, setShowBulk] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [printCards, setPrintCards] = useState<Coupon[] | null>(null);
@@ -332,7 +335,7 @@ export default function AdminCouponsPage() {
                   const validUntilMs = c.validUntil ? toDate(c.validUntil).getTime() : 0;
                   const expired = validUntilMs > 0 && now > validUntilMs;
                   return (
-                    <div key={c.id} className="bg-white border border-border rounded-xl p-4 shadow-sm space-y-2">
+                    <div key={c.id} className="bg-white border border-border rounded-xl p-3 shadow-sm space-y-2 hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <input type="checkbox" checked={selectedIds.includes(c.id)}
@@ -346,15 +349,24 @@ export default function AdminCouponsPage() {
                             </button>
                           </div>
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                          expired ? "bg-red-50 text-red-700" :
-                          !c.isActive ? "bg-gray-100 text-muted-foreground" :
-                          "bg-green-50 text-green-700"
-                        }`}>
-                          {expired ? "Expired" : !c.isActive ? "Inactive" : "Active"}
-                        </span>
+                        <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }} className="p-1 text-muted-foreground hover:bg-muted rounded">
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                          {openMenuId === c.id && (
+                            <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-lg shadow-lg py-1 w-36"
+                              onMouseLeave={() => setOpenMenuId(null)}>
+                              <button onClick={() => { openEdit(c); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
+                                <Edit2 className="h-3.5 w-3.5 text-muted-foreground" /> Edit
+                              </button>
+                              <button onClick={() => { handleDelete(c.id, c.code); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600">
+                                <Trash2 className="h-3.5 w-3.5" /> Delete
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs cursor-pointer" onClick={() => setDetailCoupon(c)}>
                         <span className="font-semibold text-secondary">
                           {c.discountType === "percentage" ? `${c.discountValue}%` : formatCurrency(c.discountValue)}
                         </span>
@@ -366,42 +378,31 @@ export default function AdminCouponsPage() {
                         <span className="text-muted-foreground">Used: {c.usedCount || 0}/{c.usageLimit || "∞"}</span>
                         {c.minPurchaseAmount > 0 && <span className="text-muted-foreground">Min: {formatCurrency(c.minPurchaseAmount)}</span>}
                       </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                        {c.validFrom && <span>From: {formatDate(c.validFrom)}</span>}
-                        {c.validUntil && <span>To: {formatDate(c.validUntil)}</span>}
+                      <div className="flex flex-wrap gap-1 cursor-pointer" onClick={() => setDetailCoupon(c)}>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${
+                          expired ? "bg-red-50 text-red-700" :
+                          !c.isActive ? "bg-gray-100 text-muted-foreground" :
+                          "bg-green-50 text-green-700"
+                        }`}>
+                          {expired ? "Expired" : !c.isActive ? "Inactive" : "Active"}
+                        </span>
                       </div>
-                      {c.issuedToCustomer?.name && (
-                        <div className="text-xs text-muted-foreground">
-                          Issued to: <span className="font-medium text-secondary">{c.issuedToCustomer.name}</span>
-                          {c.issuedToCustomer.phone ? ` (${c.issuedToCustomer.phone})` : ""}
+                      <div className="flex items-center justify-between pt-2 border-t border-border">
+                        <div className="flex items-center gap-1">
+                          <button onClick={(e) => { e.stopPropagation(); setPrintCards([c]); }}
+                            className="p-1.5 text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                            title="Print as Card">
+                            <CreditCard className="h-3.5 w-3.5" />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); toggleActive(c.id, c.isActive); }}
+                            className={`p-1.5 rounded ${c.isActive ? "text-amber-600 hover:bg-amber-50" : "text-green-600 hover:bg-green-50"}`}
+                            title={c.isActive ? "Deactivate" : "Activate"}>
+                            <CheckCircle className={`h-3.5 w-3.5 ${c.isActive ? "" : "opacity-40"}`} />
+                          </button>
                         </div>
-                      )}
-                      <div className="text-xs">
-                        {c.restrictedToPhones?.length ? (
-                          <span className="font-medium">{c.restrictedToPhones.join(", ")}</span>
-                        ) : (
-                          <span className="text-muted-foreground">Anyone</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 pt-1">
-                        <button onClick={(e) => { e.stopPropagation(); setPrintCards([c]); }}
-                          className="p-1.5 text-muted-foreground hover:text-indigo-600 hover:bg-indigo-50 rounded"
-                          title="Print as Card">
-                          <CreditCard className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); openEdit(c); }}
-                          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded">
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); toggleActive(c.id, c.isActive); }}
-                          className="p-1.5 text-muted-foreground hover:text-amber-600 hover:bg-amber-50 rounded"
-                          title={c.isActive ? "Deactivate" : "Activate"}>
-                          <CheckCircle className={`h-3.5 w-3.5 ${c.isActive ? "" : "opacity-40"}`} />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(c.id, c.code); }}
-                          className="p-1.5 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <span className="text-xs text-muted-foreground cursor-pointer" onClick={() => setDetailCoupon(c)}>
+                          {c.validFrom ? formatDate(c.validFrom) : ""}{c.validFrom && c.validUntil ? " → " : ""}{c.validUntil ? formatDate(c.validUntil) : ""}
+                        </span>
                       </div>
                     </div>
                   );
