@@ -698,8 +698,8 @@ function InventoryAgingSection({
       const product = productMap[productId];
       if (!product || product.quantityInStock <= 0) return null;
 
-      const buckets = [0, 0, 0, 0, 0, 0]; // 0-30, 31-60, 61-90, 91-180, 180+
-      const bucketVals = [0, 0, 0, 0, 0, 0];
+      const buckets = [0, 0, 0, 0, 0]; // 0-30, 31-60, 61-90, 91-180, 180+
+      const bucketVals = [0, 0, 0, 0, 0];
       let totalQty = 0;
       let totalVal = 0;
 
