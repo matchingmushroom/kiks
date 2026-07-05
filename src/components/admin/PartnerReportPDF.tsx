@@ -21,14 +21,14 @@ const styles = StyleSheet.create({
   title: { fontSize: 13, fontWeight: "bold", color: "#1e3a5f" },
   subtitle: { fontSize: 7, color: "#888", marginTop: 2 },
   sectionTitle: { fontSize: 10, fontWeight: "bold", color: "#1e3a5f", marginTop: 14, marginBottom: 5 },
-  table: { marginTop: 0, marginBottom: 4 },
-  tableHeader: { flexDirection: "row", backgroundColor: "#1e3a5f", padding: "5 8" },
+  table: { width: "100%", marginTop: 0, marginBottom: 4 },
+  tableHeader: { flexDirection: "row", backgroundColor: "#1e3a5f", padding: "5 8", width: "100%" },
   tableHeaderCell: { fontSize: 7, color: "#fff", fontWeight: "bold" },
-  tableRow: { flexDirection: "row", padding: "4 8", borderBottom: "1 solid #eee" },
-  tableRowAlt: { flexDirection: "row", padding: "4 8", borderBottom: "1 solid #eee", backgroundColor: "#f8f9fa" },
+  tableRow: { flexDirection: "row", padding: "4 8", borderBottom: "1 solid #eee", width: "100%" },
+  tableRowAlt: { flexDirection: "row", padding: "4 8", borderBottom: "1 solid #eee", backgroundColor: "#f8f9fa", width: "100%" },
   tableCell: { fontSize: 7.5 },
-  colP: { width: "25%" },
-  colR: { width: "25%", textAlign: "right" },
+  colLabel: { flex: 1.5 },
+  colRight: { flex: 1, textAlign: "right" },
   netPositive: { color: "#16a34a", fontWeight: "bold" },
   netNegative: { color: "#dc2626", fontWeight: "bold" },
   chartImage: { width: "100%", height: 110, marginTop: 4 },
@@ -64,10 +64,10 @@ interface PartnerReportPDFProps {
 export default function PartnerReportPDF(data: PartnerReportPDFProps) {
   const netRow = (label: string, today: number, mtd: number, ytd: number) => (
     <View style={[styles.tableRow, styles.tableRowAlt]}>
-      <Text style={styles.tableCell}>{label}</Text>
-      <Text style={[styles.tableCell, styles.colR, today >= 0 ? styles.netPositive : styles.netNegative]}>Rs. {formatNumber(today)}</Text>
-      <Text style={[styles.tableCell, styles.colR, mtd >= 0 ? styles.netPositive : styles.netNegative]}>Rs. {formatNumber(mtd)}</Text>
-      <Text style={[styles.tableCell, styles.colR, ytd >= 0 ? styles.netPositive : styles.netNegative]}>Rs. {formatNumber(ytd)}</Text>
+      <Text style={[styles.tableCell, styles.colLabel]}>{label}</Text>
+      <Text style={[styles.tableCell, styles.colRight, today >= 0 ? styles.netPositive : styles.netNegative]}>Rs. {formatNumber(today)}</Text>
+      <Text style={[styles.tableCell, styles.colRight, mtd >= 0 ? styles.netPositive : styles.netNegative]}>Rs. {formatNumber(mtd)}</Text>
+      <Text style={[styles.tableCell, styles.colRight, ytd >= 0 ? styles.netPositive : styles.netNegative]}>Rs. {formatNumber(ytd)}</Text>
     </View>
   );
 
@@ -90,22 +90,22 @@ export default function PartnerReportPDF(data: PartnerReportPDFProps) {
 
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, styles.colP]}>Metric</Text>
-            <Text style={[styles.tableHeaderCell, styles.colR]}>Today</Text>
-            <Text style={[styles.tableHeaderCell, styles.colR]}>This Month</Text>
-            <Text style={[styles.tableHeaderCell, styles.colR]}>This Year</Text>
+            <Text style={[styles.tableHeaderCell, styles.colLabel]}>Metric</Text>
+            <Text style={[styles.tableHeaderCell, styles.colRight]}>Today</Text>
+            <Text style={[styles.tableHeaderCell, styles.colRight]}>This Month</Text>
+            <Text style={[styles.tableHeaderCell, styles.colRight]}>This Year</Text>
           </View>
           <View style={styles.tableRow}>
-            <Text style={styles.tableCell}>Sales</Text>
-            <Text style={[styles.tableCell, styles.colR]}>Rs. {formatNumber(data.todaySale)}</Text>
-            <Text style={[styles.tableCell, styles.colR]}>Rs. {formatNumber(data.mtdSale)}</Text>
-            <Text style={[styles.tableCell, styles.colR]}>Rs. {formatNumber(data.ytdSale)}</Text>
+      <Text style={[styles.tableCell, styles.colLabel]}>Sales</Text>
+      <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.todaySale)}</Text>
+      <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.mtdSale)}</Text>
+      <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.ytdSale)}</Text>
           </View>
           <View style={styles.tableRow}>
-            <Text style={styles.tableCell}>Purchases</Text>
-            <Text style={[styles.tableCell, styles.colR]}>Rs. {formatNumber(data.todayPurchase)}</Text>
-            <Text style={[styles.tableCell, styles.colR]}>Rs. {formatNumber(data.mtdPurchase)}</Text>
-            <Text style={[styles.tableCell, styles.colR]}>Rs. {formatNumber(data.ytdPurchase)}</Text>
+            <Text style={[styles.tableCell, styles.colLabel]}>Purchases</Text>
+            <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.todayPurchase)}</Text>
+            <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.mtdPurchase)}</Text>
+            <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.ytdPurchase)}</Text>
           </View>
           {netRow("Net", data.netToday, data.netMtd, data.netYtd)}
         </View>
@@ -120,21 +120,21 @@ export default function PartnerReportPDF(data: PartnerReportPDFProps) {
         <Text style={styles.sectionTitle}>Inventory by Category (at Cost)</Text>
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, styles.colP]}>Category</Text>
-            <Text style={[styles.tableHeaderCell, styles.colR]}>Value</Text>
-            <Text style={[styles.tableHeaderCell, styles.colR]}>Share</Text>
+            <Text style={[styles.tableHeaderCell, styles.colLabel]}>Category</Text>
+            <Text style={[styles.tableHeaderCell, styles.colRight]}>Value</Text>
+            <Text style={[styles.tableHeaderCell, styles.colRight]}>Share</Text>
           </View>
           {data.inventoryByCategory.slice(0, 10).map((c, i) => (
-            <View key={c.name} style={i % 2 === 1 ? { flexDirection: "row", padding: "4 8", borderBottom: "1 solid #eee", backgroundColor: "#f8f9fa" } : styles.tableRow}>
-              <Text style={styles.tableCell}>{c.name}</Text>
-              <Text style={[styles.tableCell, styles.colR]}>Rs. {formatNumber(c.value)}</Text>
-              <Text style={[styles.tableCell, styles.colR]}>{((c.value / (data.inventoryValue || 1)) * 100).toFixed(1)}%</Text>
+            <View key={c.name} style={i % 2 === 1 ? styles.tableRowAlt : styles.tableRow}>
+              <Text style={[styles.tableCell, styles.colLabel]} numberOfLines={1}>{c.name}</Text>
+              <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(c.value)}</Text>
+              <Text style={[styles.tableCell, styles.colRight]}>{((c.value / (data.inventoryValue || 1)) * 100).toFixed(1)}%</Text>
             </View>
           ))}
           <View style={[styles.tableRow, styles.tableRowAlt]}>
-            <Text style={[styles.tableCell, { fontWeight: "bold" }]}>Total</Text>
-            <Text style={[styles.tableCell, styles.colR, { fontWeight: "bold", color: "#16a34a" }]}>Rs. {formatNumber(data.inventoryValue)}</Text>
-            <Text style={[styles.tableCell, styles.colR, { fontWeight: "bold" }]}>100%</Text>
+            <Text style={[styles.tableCell, styles.colLabel, { fontWeight: "bold" }]}>Total</Text>
+            <Text style={[styles.tableCell, styles.colRight, { fontWeight: "bold", color: "#16a34a" }]}>Rs. {formatNumber(data.inventoryValue)}</Text>
+            <Text style={[styles.tableCell, styles.colRight, { fontWeight: "bold" }]}>100%</Text>
           </View>
         </View>
 
