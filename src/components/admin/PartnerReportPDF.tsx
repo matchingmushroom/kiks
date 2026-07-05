@@ -29,12 +29,22 @@ const styles = StyleSheet.create({
   tableCell: { fontSize: 7.5 },
   colLabel: { flex: 1.5 },
   colRight: { flex: 1, textAlign: "right" },
+  colChange: { flex: 0.8, textAlign: "right" },
   netPositive: { color: "#16a34a", fontWeight: "bold" },
   netNegative: { color: "#dc2626", fontWeight: "bold" },
-  chartImage: { width: "100%", height: 110, marginTop: 4 },
-  pieImage: { width: 280, height: 150, alignSelf: "center", marginTop: 6 },
+  cardRow: { flexDirection: "row", gap: 10, marginTop: 8, marginBottom: 4 },
+  card: { flex: 1, padding: "8 10", border: "1 solid #e5e7eb", borderRadius: 4 },
+  cardLabel: { fontSize: 6.5, color: "#6b7280", marginBottom: 2 },
+  cardValue: { fontSize: 11, fontWeight: "bold", color: "#1e3a5f" },
+  cardSub: { fontSize: 6.5, color: "#9ca3af", marginTop: 1 },
   footer: { position: "absolute", bottom: 30, left: 35, right: 35, borderTop: "1 solid #ccc", paddingTop: 6, fontSize: 7, color: "#999", textAlign: "center" },
 });
+
+interface DailySale {
+  date: string;
+  sales: number;
+  change: number;
+}
 
 interface InvCategory {
   name: string;
@@ -57,8 +67,15 @@ interface PartnerReportPDFProps {
   netYtd: number;
   inventoryValue: number;
   inventoryByCategory: InvCategory[];
-  barChartUrl?: string;
-  pieChartUrl?: string;
+  dailySales: DailySale[];
+  avg7Days: number;
+  avg30Days: number;
+}
+
+function Arrow({ value }: { value: number }) {
+  if (value === 0) return <Text>—</Text>;
+  if (value > 0) return <Text style={{ color: "#16a34a" }}>▲</Text>;
+  return <Text style={{ color: "#dc2626" }}>▼</Text>;
 }
 
 export default function PartnerReportPDF(data: PartnerReportPDFProps) {
@@ -70,6 +87,11 @@ export default function PartnerReportPDF(data: PartnerReportPDFProps) {
       <Text style={[styles.tableCell, styles.colRight, ytd >= 0 ? styles.netPositive : styles.netNegative]}>Rs. {formatNumber(ytd)}</Text>
     </View>
   );
+
+  const changeLabel = (change: number) => {
+    if (change === 0) return "—";
+    return `${change > 0 ? "+" : ""}Rs. ${formatNumber(Math.abs(change))}`;
+  };
 
   return (
     <Document>
@@ -96,10 +118,10 @@ export default function PartnerReportPDF(data: PartnerReportPDFProps) {
             <Text style={[styles.tableHeaderCell, styles.colRight]}>This Year</Text>
           </View>
           <View style={styles.tableRow}>
-      <Text style={[styles.tableCell, styles.colLabel]}>Sales</Text>
-      <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.todaySale)}</Text>
-      <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.mtdSale)}</Text>
-      <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.ytdSale)}</Text>
+            <Text style={[styles.tableCell, styles.colLabel]}>Sales</Text>
+            <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.todaySale)}</Text>
+            <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.mtdSale)}</Text>
+            <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(data.ytdSale)}</Text>
           </View>
           <View style={styles.tableRow}>
             <Text style={[styles.tableCell, styles.colLabel]}>Purchases</Text>
@@ -110,12 +132,36 @@ export default function PartnerReportPDF(data: PartnerReportPDFProps) {
           {netRow("Net", data.netToday, data.netMtd, data.netYtd)}
         </View>
 
-        {data.barChartUrl && (
-          <>
-            <Text style={styles.sectionTitle}>Sales Trend (Last 30 Days)</Text>
-            <Image src={data.barChartUrl} style={styles.chartImage} />
-          </>
-        )}
+        <Text style={styles.sectionTitle}>Daily Sales (Last 7 Days)</Text>
+        <View style={styles.table}>
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Date</Text>
+            <Text style={[styles.tableHeaderCell, styles.colRight]}>Sales</Text>
+            <Text style={[styles.tableHeaderCell, styles.colChange]}>Change</Text>
+          </View>
+          {data.dailySales.map((d, i) => (
+            <View key={i} style={i % 2 === 0 ? styles.tableRow : styles.tableRowAlt}>
+              <Text style={[styles.tableCell, { flex: 1 }]}>{d.date}</Text>
+              <Text style={[styles.tableCell, styles.colRight]}>Rs. {formatNumber(d.sales)}</Text>
+              <Text style={[styles.tableCell, styles.colChange, d.change > 0 ? styles.netPositive : d.change < 0 ? styles.netNegative : {}]}>
+                {d.change !== 0 && <Arrow value={d.change} />} {changeLabel(d.change)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.cardRow}>
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Avg Daily Sales (7 Days)</Text>
+            <Text style={styles.cardValue}>Rs. {formatNumber(data.avg7Days)}</Text>
+            <Text style={styles.cardSub}>Last 7 days average</Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={styles.cardLabel}>Avg Daily Sales (30 Days)</Text>
+            <Text style={styles.cardValue}>Rs. {formatNumber(data.avg30Days)}</Text>
+            <Text style={styles.cardSub}>Last 30 days average</Text>
+          </View>
+        </View>
 
         <Text style={styles.sectionTitle}>Inventory by Category (at Cost)</Text>
         <View style={styles.table}>
@@ -137,8 +183,6 @@ export default function PartnerReportPDF(data: PartnerReportPDFProps) {
             <Text style={[styles.tableCell, styles.colRight, { fontWeight: "bold" }]}>100%</Text>
           </View>
         </View>
-
-        {data.pieChartUrl && <Image src={data.pieChartUrl} style={styles.pieImage} />}
 
         <Text style={styles.footer}>
           Generated on {new Date().toLocaleString("en-IN")} | {data.shopName}

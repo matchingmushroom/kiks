@@ -1,9 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { pdf } from "@react-pdf/renderer";
-import { Chart, BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend } from "chart.js";
-import ChartDataLabels from "chartjs-plugin-datalabels";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
@@ -12,8 +10,6 @@ import { formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Send, Loader2, X, Download } from "lucide-react";
 import PartnerReportPDF from "./PartnerReportPDF";
-
-Chart.register(BarController, BarElement, CategoryScale, LinearScale, PieController, ArcElement, Tooltip, Legend, ChartDataLabels);
 
 function getMonthStart(): number {
   const d = new Date();
@@ -55,12 +51,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
-  const [barChartUrl, setBarChartUrl] = useState<string | null>(null);
-  const [pieChartUrl, setPieChartUrl] = useState<string | null>(null);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
-  const chartRef = useRef<HTMLCanvasElement>(null);
-  const pieRef = useRef<HTMLCanvasElement>(null);
-  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -94,9 +85,8 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   }, []);
 
   useEffect(() => {
-    if (loading) return;
-    renderCharts();
-  }, [loading, sales, purchases, products]);
+    if (!loading) generatePdfBlob();
+  }, [loading]);
 
   const computeSaleTotal = (s: Sale[]) =>
     s.reduce((sum, sale) => sum + (sale.items || []).reduce((s2, it) => s2 + (it.subtotal || it.unitPrice * it.quantity || 0), 0), 0);
@@ -157,82 +147,30 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   const netMtd = mtdSaleTotal - mtdPurchaseTotal;
   const netYtd = ytdSaleTotal - ytdPurchaseTotal;
 
-  const captureCharts = useCallback(() => {
-    if (!barChartUrl && chartRef.current) {
-      setBarChartUrl(chartRef.current.toDataURL("image/png"));
+  const dailySales = (() => {
+    const now = new Date();
+    const days: { date: string; sales: number; change: number }[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      const dayEnd = dayStart + 86400000;
+      const daySales = sales.filter((s) => {
+        const t = s.createdAt as number;
+        return t >= dayStart && t < dayEnd;
+      });
+      const total = computeSaleTotal(daySales);
+      const label = d.toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short" });
+      days.push({ date: label, sales: total, change: 0 });
     }
-    if (!pieChartUrl && pieRef.current) {
-      setPieChartUrl(pieRef.current.toDataURL("image/png"));
+    for (let i = days.length - 1; i >= 1; i--) {
+      days[i].change = days[i].sales - days[i - 1].sales;
     }
-  }, [barChartUrl, pieChartUrl]);
+    return days;
+  })();
 
-  useEffect(() => {
-    if (barChartUrl && pieChartUrl) {
-      generatePdfBlob();
-    }
-  }, [barChartUrl, pieChartUrl]);
-
-  function renderCharts() {
-    setTimeout(() => {
-      if (chartRef.current) {
-        const ctx = chartRef.current.getContext("2d");
-        if (ctx) {
-          new Chart(ctx, {
-            type: "bar",
-            data: {
-              labels: dayLabels.filter((_, i) => i % 5 === 0 || i === dayLabels.length - 1),
-              datasets: [{
-                label: "Daily Sales (Rs.)",
-                data: dailySalesData.filter((_, i) => i % 5 === 0 || i === dayLabels.length - 1),
-                backgroundColor: "#3b82f6",
-                borderRadius: 4,
-              }],
-            },
-              options: {
-              responsive: true,
-              maintainAspectRatio: true,
-              animation: false,
-              plugins: {
-                legend: { display: false },
-                datalabels: {
-                  anchor: "end",
-                  align: "end",
-                  color: "#1e3a5f",
-                  font: { weight: "bold", size: 9 },
-                  formatter: (v) => "Rs. " + formatNumber(v),
-                },
-              },
-              scales: { y: { beginAtZero: true, ticks: { callback: (v) => "Rs." + formatNumber(v as number) } } },
-            },
-          });
-        }
-      }
-      if (pieRef.current) {
-        const ctx = pieRef.current.getContext("2d");
-        if (ctx) {
-          new Chart(ctx, {
-            type: "pie",
-            data: {
-              labels: inventoryByCategory.slice(0, 8).map((c) => c.name),
-              datasets: [{
-                data: inventoryByCategory.slice(0, 8).map((c) => c.value),
-                backgroundColor: inventoryByCategory.slice(0, 8).map((c) => c.color),
-              }],
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: true,
-              animation: false,
-              plugins: {
-                legend: { position: "bottom", labels: { boxWidth: 12, padding: 8, font: { size: 9 } } },
-              },
-            },
-          });
-        }
-      }
-      setTimeout(captureCharts, 200);
-    }, 300);
-  }
+  const avg7Days = dailySales.reduce((s, d) => s + d.sales, 0) / 7;
+  const avg30Days = dailySalesData.reduce((s, v) => s + v, 0) / 30;
 
   const pdfDocProps = {
     logoUrl: settings.logoUrl || "/logo.svg",
@@ -250,8 +188,9 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
     netYtd,
     inventoryValue,
     inventoryByCategory: inventoryByCategory.map((c) => ({ name: c.name, value: c.value })),
-    barChartUrl: barChartUrl || undefined,
-    pieChartUrl: pieChartUrl || undefined,
+    dailySales,
+    avg7Days,
+    avg30Days,
   };
 
   async function generatePdfBlob() {
@@ -266,10 +205,8 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   const handleDownload = async () => {
     let blob = pdfBlob;
     if (!blob) {
-      if (barChartUrl && pieChartUrl) {
-        blob = await pdf(<PartnerReportPDF {...pdfDocProps} />).toBlob();
-        setPdfBlob(blob);
-      }
+      blob = await pdf(<PartnerReportPDF {...pdfDocProps} />).toBlob();
+      setPdfBlob(blob);
     }
     if (!blob) return;
     const url = URL.createObjectURL(blob);
@@ -283,10 +220,8 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
   const handleSend = async () => {
     let blob = pdfBlob;
     if (!blob) {
-      if (barChartUrl && pieChartUrl) {
-        blob = await pdf(<PartnerReportPDF {...pdfDocProps} />).toBlob();
-        setPdfBlob(blob);
-      }
+      blob = await pdf(<PartnerReportPDF {...pdfDocProps} />).toBlob();
+      setPdfBlob(blob);
     }
     if (!blob || partnerEmails.length === 0) return;
     setSending(true);
@@ -372,15 +307,47 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
                 </table>
               </div>
 
-              <div ref={reportRef} className="space-y-4">
-                <div className="bg-white border border-border rounded-xl p-4">
-                  <p className="text-sm font-semibold text-secondary mb-3">Sales Trend (Last 30 Days)</p>
-                  <canvas ref={chartRef} height="160" />
+              <div className="space-y-4">
+                <div className="bg-white border border-border rounded-xl overflow-hidden">
+                  <p className="text-sm font-semibold text-secondary px-4 pt-4 pb-2">Daily Sales (Last 7 Days)</p>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-muted/50">
+                        <th className="text-left px-3 py-1.5 font-medium text-muted-foreground">Date</th>
+                        <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Sales</th>
+                        <th className="text-right px-3 py-1.5 font-medium text-muted-foreground">Change</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dailySales.map((d, i) => (
+                        <tr key={i} className="border-t border-border">
+                          <td className="px-3 py-1.5 font-medium">{d.date}</td>
+                          <td className="px-3 py-1.5 text-right font-semibold">Rs. {formatNumber(d.sales)}</td>
+                          <td className={`px-3 py-1.5 text-right font-medium ${d.change > 0 ? "text-green-700" : d.change < 0 ? "text-red-600" : "text-muted-foreground"}`}>
+                            {d.change === 0 ? "—" : `${d.change > 0 ? "▲ +" : "▼ "}Rs. ${formatNumber(Math.abs(d.change))}`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white border border-border rounded-xl p-4">
+                    <p className="text-xs text-muted-foreground">Avg Daily Sales (7 Days)</p>
+                    <p className="text-lg font-bold text-secondary mt-1">Rs. {formatNumber(avg7Days)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Last 7 days average</p>
+                  </div>
+                  <div className="bg-white border border-border rounded-xl p-4">
+                    <p className="text-xs text-muted-foreground">Avg Daily Sales (30 Days)</p>
+                    <p className="text-lg font-bold text-secondary mt-1">Rs. {formatNumber(avg30Days)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Last 30 days average</p>
+                  </div>
                 </div>
 
                 <div className="bg-white border border-border rounded-xl p-4">
                   <p className="text-sm font-semibold text-secondary mb-3">Inventory by Category (at Cost)</p>
-                  <div className="overflow-x-auto mb-3">
+                  <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="bg-muted/50">
@@ -392,10 +359,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
                       <tbody>
                         {inventoryByCategory.slice(0, 10).map((c) => (
                           <tr key={c.name} className="border-t border-border">
-                            <td className="px-2 py-1.5">
-                              <span className="inline-block w-2 h-2 rounded-full mr-1.5 align-middle" style={{ backgroundColor: c.color }} />
-                              {c.name}
-                            </td>
+                            <td className="px-2 py-1.5">{c.name}</td>
                             <td className="px-2 py-1.5 text-right font-medium">Rs. {formatNumber(c.value)}</td>
                             <td className="px-2 py-1.5 text-right text-muted-foreground">{((c.value / (inventoryValue || 1)) * 100).toFixed(1)}%</td>
                           </tr>
@@ -408,7 +372,6 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
                       </tbody>
                     </table>
                   </div>
-                  <canvas ref={pieRef} height="180" />
                 </div>
               </div>
 
