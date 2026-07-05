@@ -413,7 +413,7 @@ function ComboSection({ products }: { products: ProductType[] }) {
                 </div>
               </div>
               <div className="p-4">
-                <h3 className="font-semibold text-secondary truncate">{product.name}</h3>
+                <h3 className="font-semibold text-secondary truncate">{product.websiteName || product.name}</h3>
                 <div className="flex items-center gap-2 mt-2">
                   <p className="text-sm text-muted-foreground line-through">Rs. {formatNumber(computeOriginalTotal(product))}</p>
                   <p className="text-primary font-bold text-lg">Rs. {formatNumber(product.comboPrice || product.price)}</p>

@@ -36,13 +36,14 @@ export default function ProductCard({ product }: ProductCardProps) {
   const badge = product.badge || "none";
   const style = BADGE_STYLES[badge];
   const showBadge = badge !== "none";
+  const displayName = product.websiteName || product.name;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     addItem({
       productId: product.id,
-      name: product.name,
+      name: displayName,
       image: imgUrl(product.images?.[0] || ""),
       price: product.price,
       weight: product.weight,
@@ -64,7 +65,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         {imageSrc ? (
           <img
             src={imageSrc}
-            alt={product.name}
+            alt={displayName}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
@@ -85,7 +86,7 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
       <div className="p-4">
         <h3 className="font-semibold text-secondary group-hover:text-primary transition-colors truncate">
-          {product.name}
+          {displayName}
         </h3>
 
         {(Array.isArray(product.idealFor) ? product.idealFor : [product.idealFor].filter(Boolean)).length > 0 && (

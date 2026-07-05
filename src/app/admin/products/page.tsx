@@ -52,7 +52,7 @@ export default function AdminProductsPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, isOnSale: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", modelCode: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
+  const [form, setForm] = useState({ name: "", websiteName: "", description: "", design: "", categoryId: "", images: [""], videoUrl: "", price: 0, costPrice: 0, weight: 0, metalType: "Gold", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "0", sku: "", quantityInStock: 1, isActive: true, isFeatured: false, isOnSale: false, badge: "none" as ProductBadge, originalPrice: 0, brand: "", modelNo: "", modelCode: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [] as string[], netQuantity: 1, occasion: [] as string[] });
   const [saving, setSaving] = useState(false);
   const [existingModelCodes, setExistingModelCodes] = useState<string[]>([]);
   const [generateNewModelCode, setGenerateNewModelCode] = useState(true);
@@ -89,7 +89,7 @@ export default function AdminProductsPage() {
 
   const openEdit = (p: Product) => {
     setForm({
-      name: p.name, description: p.description, design: p.design,
+      name: p.name, websiteName: p.websiteName || "", description: p.description, design: p.design,
       categoryId: p.categoryId, images: p.images.length ? p.images : [""],
       videoUrl: p.videoUrl, price: p.price, costPrice: p.costPrice ?? Math.round(p.price * 0.5),
       weight: p.weight,
@@ -497,6 +497,11 @@ export default function AdminProductsPage() {
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Name *</label>
                     <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Website Name</label>
+                    <input type="text" value={form.websiteName} onChange={(e) => setForm({ ...form, websiteName: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Display name for website (optional)" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-muted-foreground mb-1">Category</label>

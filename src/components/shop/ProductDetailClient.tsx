@@ -35,11 +35,12 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const images = product.images?.map(imgUrl) || [];
+  const displayName = product.websiteName || product.name;
 
   const handleAddToCart = () => {
     addItem({
       productId: product.id,
-      name: product.name,
+      name: displayName,
       image: images[0] || "",
       price: product.price,
       weight: product.weight,
@@ -83,7 +84,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 <>
                   <img
                     src={images[selectedImage]}
-                    alt={product.name}
+                    alt={displayName}
                     className="w-full h-full object-cover"
                   />
                   {images.length > 1 && (
@@ -164,7 +165,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           <div className="flex flex-col">
             <div className="bg-white rounded-2xl border border-border p-5 sm:p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4 mb-3">
-                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-secondary leading-tight">{product.name}</h1>
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-secondary leading-tight">{displayName}</h1>
               </div>
 
               {product.badge === "price_dropped" || product.badge === "offer" ? (

@@ -40,7 +40,7 @@ const DEFAULT_FIELD_OPTIONS: FieldOptions = {
 };
 
 interface NewProductForm {
-  name: string; categoryId: string; sku: string;
+  name: string; websiteName?: string; categoryId: string; sku: string;
   brand: string; modelNo: string; baseMaterial: string;
   plating: string; color: string; productType: string;
   idealFor: string[]; occasion: string[]; netQuantity: number;
@@ -125,7 +125,7 @@ function PurchasesContent() {
     productName: string; quantity: number; unitCost: number; salesPrice: number;
     categoryShortCode?: string; categoryId?: string; match: Product | null; error?: string;
     productType?: string; baseMaterial?: string; plating?: string; color?: string;
-    description?: string; warranty?: string; isFeatured?: boolean; isActive?: boolean; serialNo?: string;
+    description?: string; warranty?: string; isFeatured?: boolean; isActive?: boolean; serialNo?: string; websiteName?: string;
   }[]>([]);
   const [csvSupplier, setCsvSupplier] = useState("");
   const [csvSupplierPhone, setCsvSupplierPhone] = useState("");
@@ -158,6 +158,7 @@ function PurchasesContent() {
     const featuredIdx = headers.findIndex((h) => h === "featured" || h === "isfeatured");
     const activeIdx = headers.findIndex((h) => h === "active" || h === "isactive" || h === "status");
     const snIdx = headers.findIndex((h) => h === "sn" || h === "serialno" || h === "serial" || h === "s.no" || h === "serial no");
+    const websiteNameIdx = headers.findIndex((h) => h === "websitename" || h === "website name" || h === "displayname" || h === "display name");
     if (nameIdx === -1 && skuIdx === -1) { alert("CSV must have a 'productName' or 'sku' column."); return; }
     const parsed: typeof csvRows = [];
     for (let i = 1; i < lines.length; i++) {
@@ -186,13 +187,14 @@ function PurchasesContent() {
       const isFeatured = featuredIdx >= 0 ? (rawFeatured === "yes" || rawFeatured === "true" || rawFeatured === "1" || rawFeatured === "featured") : undefined;
       const isActive = activeIdx >= 0 ? !(rawActive === "no" || rawActive === "false" || rawActive === "0" || rawActive === "inactive") : undefined;
       const serialNo = snIdx >= 0 ? cols[snIdx] || "" : "";
+      const websiteName = websiteNameIdx >= 0 ? cols[websiteNameIdx] || "" : "";
       const match = products.find((p) =>
         (name && (p.name.toLowerCase() === name.toLowerCase() || p.name.toLowerCase().includes(name.toLowerCase()))) ||
         (sku && (p.sku?.toLowerCase() === sku.toLowerCase() || p.shortCode?.toLowerCase() === sku.toLowerCase() || p.barcodeId?.toLowerCase() === sku.toLowerCase()))
       );
       if (!match) {
         const errMsg = catId ? "New product (will be created)" : "Product not found — add category column to create new";
-        parsed.push({ productName: name || sku, quantity: qty, unitCost: cost, salesPrice: price, categoryShortCode: catShortCode, categoryId: catId, match: null, error: errMsg, productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive, serialNo });
+        parsed.push({ productName: name || sku, quantity: qty, unitCost: cost, salesPrice: price, categoryShortCode: catShortCode, categoryId: catId, match: null, error: errMsg, productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive, serialNo, websiteName });
       } else {
         parsed.push({
           productName: match.name,
@@ -202,7 +204,7 @@ function PurchasesContent() {
           categoryShortCode: catShortCode,
           categoryId: catId,
           match,
-          productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive, serialNo,
+          productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive, serialNo, websiteName,
         });
       }
     }
@@ -241,7 +243,7 @@ function PurchasesContent() {
           const sku = generateSku(barcodeId, cp, supCode, qty);
           const modelCode = await generateModelCode(cat?.shortCode || "XX");
           await setDoc(doc(db, "products", prodId_), {
-            name: r.productName, description: r.description || "", design: "", categoryId: r.categoryId,
+            name: r.productName, websiteName: r.websiteName || "", description: r.description || "", design: "", categoryId: r.categoryId,
             images: [], videoUrl: "", price: r.salesPrice, costPrice: r.unitCost,
             weight: 0, metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0,
             warranty: r.warranty || "", sku, shortCode, barcodeId, modelCode, quantityInStock: 0,
@@ -272,6 +274,7 @@ function PurchasesContent() {
           if (r.warranty) updateData.warranty = r.warranty;
           if (r.isFeatured !== undefined) updateData.isFeatured = r.isFeatured;
           if (r.isActive !== undefined) updateData.isActive = r.isActive;
+          if (r.websiteName) updateData.websiteName = r.websiteName;
           await updateDoc(prodRef, updateData);
         }
         await createLayer(prodId, csvPurchaseId, Date.now(), r.quantity, r.unitCost);
@@ -357,7 +360,7 @@ function PurchasesContent() {
 
   // Inline product creation
   const [showNewProduct, setShowNewProduct] = useState(false);
-  const [newProductForm, setNewProductForm] = useState<NewProductForm>({ name: "", categoryId: "", sku: "", brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], occasion: [], netQuantity: 1, costPrice: 0, salesPrice: 0, weight: 0, purity: "", metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "", collection: "" });
+  const [newProductForm, setNewProductForm] = useState<NewProductForm>({ name: "", websiteName: "", categoryId: "", sku: "", brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], occasion: [], netQuantity: 1, costPrice: 0, salesPrice: 0, weight: 0, purity: "", metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "", collection: "" });
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [manualSupplier, setManualSupplier] = useState(false);
@@ -483,7 +486,7 @@ function PurchasesContent() {
     const sku = generateSku(barcodeId, f.costPrice, supCode, 1);
     const modelCode = await generateModelCode(cat?.shortCode || "XX");
     const prodData: Record<string, any> = {
-      name: f.name, description: "", design: "", categoryId: f.categoryId,
+      name: f.name, websiteName: f.websiteName || "", description: "", design: "", categoryId: f.categoryId,
       images: [""], videoUrl: "",
       price: f.salesPrice || f.costPrice, costPrice: f.costPrice,
       weight: f.weight, purity: f.purity, metalType: f.metalType,
@@ -510,7 +513,7 @@ function PurchasesContent() {
     addItem(newProduct);
     setProductSearch("");
     setShowNewProduct(false);
-    setNewProductForm({ ...newProductForm, name: "", categoryId: "", sku: "", brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], occasion: [], netQuantity: 1, costPrice: 0, salesPrice: 0, weight: 0, purity: "", metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "" });
+    setNewProductForm({ ...newProductForm, name: "", websiteName: "", categoryId: "", sku: "", brand: "", modelNo: "", baseMaterial: "", plating: "", color: "", productType: "", idealFor: [], occasion: [], netQuantity: 1, costPrice: 0, salesPrice: 0, weight: 0, purity: "", metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0, warranty: "" });
   };
 
   const upsertCreditor = async (supplierName: string, supplierPhone: string | undefined, balanceChange: number, purchaseId?: string) => {
@@ -1228,6 +1231,12 @@ function PurchasesContent() {
                           <input type="text" value={newProductForm.name}
                             onChange={(e) => setNewProductForm({ ...newProductForm, name: e.target.value })}
                             className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-muted-foreground mb-1">Website Name</label>
+                          <input type="text" value={newProductForm.websiteName || ""}
+                            onChange={(e) => setNewProductForm({ ...newProductForm, websiteName: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Display name for website" />
                         </div>
                         <div>
                           <label className="block text-xs text-muted-foreground mb-1">Category *</label>
@@ -2054,10 +2063,10 @@ function PurchasesContent() {
             </div>
             <div className="p-4 space-y-4 overflow-y-auto flex-1">
               <p className="text-xs text-muted-foreground">
-                CSV columns: <code className="bg-muted px-1 rounded">SN</code>, <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code>, <code className="bg-muted px-1 rounded">category</code> (category shortCode), <code className="bg-muted px-1 rounded">subcategory</code>, <code className="bg-muted px-1 rounded">baseMaterial</code>, <code className="bg-muted px-1 rounded">plating</code>, <code className="bg-muted px-1 rounded">color</code>, <code className="bg-muted px-1 rounded">warranty</code>. Header row required. Supports comma or tab delimiters.
+                CSV columns: <code className="bg-muted px-1 rounded">SN</code>, <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">websiteName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code>, <code className="bg-muted px-1 rounded">category</code> (category shortCode), <code className="bg-muted px-1 rounded">subcategory</code>, <code className="bg-muted px-1 rounded">baseMaterial</code>, <code className="bg-muted px-1 rounded">plating</code>, <code className="bg-muted px-1 rounded">color</code>, <code className="bg-muted px-1 rounded">warranty</code>. Header row required. Supports comma or tab delimiters.
               </p>
               <button type="button" onClick={() => {
-                const sample = "SN,productName,quantity,unitCost,salesPrice,category,subcategory,baseMaterial,plating,color,warranty\n001,Sample Ring,10,500,1200,R,Gold,Gold,Gold,Yellow,1 year\n002,Sample Necklace,5,1500,3500,HC,Necklace..Silver,Rhodium,Silver,0";
+                const sample = "SN,productName,websiteName,quantity,unitCost,salesPrice,category,subcategory,baseMaterial,plating,color,warranty\n001,Sample Ring,,10,500,1200,R,Gold,Gold,Gold,Yellow,1 year\n002,Sample Necklace,,5,1500,3500,HC,Necklace..Silver,Rhodium,Silver,0";
                 downloadBlob(new Blob([sample], { type: "text/csv" }), "sample-import.csv");
               }} className="text-xs text-primary hover:underline inline-flex items-center gap-1">
                 <Download className="h-3 w-3" /> Download Sample CSV

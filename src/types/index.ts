@@ -28,6 +28,7 @@ export type ProductBadge = "none" | "limited_stock" | "out_of_stock" | "price_dr
 export interface Product {
   id: string;
   name: string;
+  websiteName?: string;
   description: string;
   design: string;
   categoryId: string;
