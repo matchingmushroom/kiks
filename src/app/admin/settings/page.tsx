@@ -6,7 +6,7 @@ import { doc, getDoc, setDoc, addDoc, collection, getDocs, deleteDoc, query, whe
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Save, Image, Download, Mail, Database, Calendar, FileText, UserPlus } from "lucide-react";
+import { Save, Image, Download, Mail, Database, Calendar, FileText, UserPlus, Plus, X, TrendingUp } from "lucide-react";
 import { getPreviousFYRange } from "@/lib/nepaliDate";
 import { createJournalEntry } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -733,30 +733,63 @@ export default function SettingsPage() {
   );
 }
 
+interface InvestmentRecord {
+  amount: number;
+  date: number;
+  note?: string;
+}
+
 interface PartnerEntry {
   id: string;
   name: string;
   email: string;
+  designation: string;
   amount: number;
   addedAt: number;
+  investments: InvestmentRecord[];
 }
 
 function PartnershipSection() {
   const { user, profile } = useAuth();
   const [partners, setPartners] = useState<PartnerEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [amount, setAmount] = useState(0);
-  const [saving, setSaving] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
   const [showReport, setShowReport] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedPartner, setSelectedPartner] = useState<PartnerEntry | null>(null);
+  const [showAddInvestment, setShowAddInvestment] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Add partner form
+  const [formName, setFormName] = useState("");
+  const [formEmail, setFormEmail] = useState("");
+  const [formDesignation, setFormDesignation] = useState("");
+  const [formAmount, setFormAmount] = useState(0);
+
+  // Add investment form
+  const [invAmount, setInvAmount] = useState(0);
+  const [invDate, setInvDate] = useState(new Date().toISOString().split("T")[0]);
+  const [invNote, setInvNote] = useState("");
 
   const load = async () => {
     setLoading(true);
-    const snap = await getDocs(collection(db, "partnerCapitals"));
-    const list: PartnerEntry[] = snap.docs.map((d) => ({ id: d.id, ...d.data() } as PartnerEntry));
-    setPartners(list.sort((a, b) => b.addedAt - a.addedAt));
+    try {
+      const snap = await getDocs(collection(db, "partnerCapitals"));
+      const list: PartnerEntry[] = snap.docs.map((d) => {
+        const data = d.data() as any;
+        return {
+          id: d.id,
+          name: data.name || "",
+          email: data.email || "",
+          designation: data.designation || "",
+          amount: data.amount || 0,
+          addedAt: data.addedAt || Date.now(),
+          investments: data.investments || (data.amount ? [{ amount: data.amount, date: data.addedAt || Date.now(), note: "Initial contribution" }] : []),
+        } as PartnerEntry;
+      });
+      setPartners(list.sort((a, b) => b.addedAt - a.addedAt));
+    } catch (e) {
+      console.error("Failed to load partners", e);
+    }
     setLoading(false);
   };
 
@@ -765,51 +798,90 @@ function PartnershipSection() {
   const totalCapital = partners.reduce((s, p) => s + p.amount, 0);
   const partnerEmails = partners.flatMap((p) => (p.email || "").split(";").map((e) => e.trim()).filter(Boolean));
 
-  const handleAdd = async () => {
-    if (!name.trim() || amount <= 0) return;
+  const resetAddForm = () => {
+    setFormName(""); setFormEmail(""); setFormDesignation(""); setFormAmount(0);
+  };
+
+  const handleAddPartner = async () => {
+    if (!formName.trim() || formAmount <= 0) return;
     setSaving(true);
     try {
-      if (editId) {
-        const prev = partners.find((p) => p.id === editId);
-        await setDoc(doc(db, "partnerCapitals", editId), { name: name.trim(), email: email.trim(), amount, addedAt: Date.now() });
-        if (prev && prev.amount !== amount) {
-          const jeSnap = await getDocs(query(collection(db, "journalEntries"), where("referenceType", "==", "capital"), where("referenceId", "==", editId)));
-          for (const je of jeSnap.docs) await deleteDoc(doc(db, "journalEntries", je.id));
-        }
-        setEditId(null);
-      } else {
-        const addedAt = Date.now();
-        const docRef = await addDoc(collection(db, "partnerCapitals"), { name: name.trim(), email: email.trim(), amount, addedAt });
-        await createJournalEntry({
-          entryDate: addedAt,
-          description: `Capital contribution - ${name.trim()}`,
-          lines: [
-            { accountCode: "1.1.2", accountName: "Bank Account", debit: amount, credit: 0 },
-            { accountCode: "3.1.1", accountName: "Owner's Capital", debit: 0, credit: amount },
-          ],
-          referenceType: "capital",
-          referenceId: docRef.id,
-          recordedBy: user?.uid || "",
-          recordedByName: profile?.displayName || "System",
-        });
-        await addDoc(collection(db, "accountTransactions"), {
-          accountId: "bank_account", type: "credit", amount,
-          description: `Capital contribution - ${name.trim()}`,
-          date: Timestamp.fromDate(new Date()),
-          referenceType: "capital", referenceId: docRef.id,
-          recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
-        });
-      }
-      setName(""); setEmail(""); setAmount(0);
+      const now = Date.now();
+      const inv = [{ amount: formAmount, date: now, note: "Initial contribution" }];
+      const docRef = await addDoc(collection(db, "partnerCapitals"), {
+        name: formName.trim(), email: formEmail.trim(), designation: formDesignation.trim(),
+        amount: formAmount, addedAt: now, investments: inv,
+      });
+      await createJournalEntry({
+        entryDate: now,
+        description: `Capital contribution - ${formName.trim()}`,
+        lines: [
+          { accountCode: "1.1.2", accountName: "Bank Account", debit: formAmount, credit: 0 },
+          { accountCode: "3.1.1", accountName: "Owner's Capital", debit: 0, credit: formAmount },
+        ],
+        referenceType: "capital",
+        referenceId: docRef.id,
+        recordedBy: user?.uid || "",
+        recordedByName: profile?.displayName || "System",
+      });
+      await addDoc(collection(db, "accountTransactions"), {
+        accountId: "bank_account", type: "credit", amount: formAmount,
+        description: `Capital contribution - ${formName.trim()}`,
+        date: Timestamp.fromDate(new Date()),
+        referenceType: "capital", referenceId: docRef.id,
+        recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
+      });
+      resetAddForm();
+      setShowAddModal(false);
       await load();
     } catch (e) {
-      console.error("Capital save failed", e);
+      console.error("Add partner failed", e);
     }
     setSaving(false);
   };
 
-  const handleEdit = (p: PartnerEntry) => {
-    setName(p.name); setEmail(p.email || ""); setAmount(p.amount); setEditId(p.id);
+  const handleAddInvestment = async () => {
+    if (!selectedPartner || invAmount <= 0) return;
+    setSaving(true);
+    try {
+      const newInv = { amount: invAmount, date: new Date(invDate).getTime(), note: invNote.trim() || undefined };
+      const updatedInvestments = [...(selectedPartner.investments || []), newInv];
+      const updatedAmount = updatedInvestments.reduce((s, i) => s + i.amount, 0);
+      await setDoc(doc(db, "partnerCapitals", selectedPartner.id), {
+        name: selectedPartner.name, email: selectedPartner.email,
+        designation: selectedPartner.designation,
+        amount: updatedAmount, addedAt: selectedPartner.addedAt,
+        investments: updatedInvestments,
+      });
+      await createJournalEntry({
+        entryDate: newInv.date,
+        description: `Additional capital contribution - ${selectedPartner.name}`,
+        lines: [
+          { accountCode: "1.1.2", accountName: "Bank Account", debit: invAmount, credit: 0 },
+          { accountCode: "3.1.1", accountName: "Owner's Capital", debit: 0, credit: invAmount },
+        ],
+        referenceType: "capital",
+        referenceId: selectedPartner.id,
+        recordedBy: user?.uid || "",
+        recordedByName: profile?.displayName || "System",
+      });
+      await addDoc(collection(db, "accountTransactions"), {
+        accountId: "bank_account", type: "credit", amount: invAmount,
+        description: `Additional capital contribution - ${selectedPartner.name}`,
+        date: Timestamp.fromDate(new Date()),
+        referenceType: "capital", referenceId: selectedPartner.id,
+        recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
+      });
+      setShowAddInvestment(false);
+      setInvAmount(0); setInvNote(""); setInvDate(new Date().toISOString().split("T")[0]);
+      await load();
+      // Re-select partner with updated data
+      const updated = partners.find((p) => p.id === selectedPartner.id);
+      if (updated) setSelectedPartner(updated);
+    } catch (e) {
+      console.error("Add investment failed", e);
+    }
+    setSaving(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -819,71 +891,218 @@ function PartnershipSection() {
     for (const je of jeSnap.docs) await deleteDoc(doc(db, "journalEntries", je.id));
     const atSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "capital"), where("referenceId", "==", id)));
     for (const at of atSnap.docs) await deleteDoc(doc(db, "accountTransactions", at.id));
+    setSelectedPartner(null);
     await load();
   };
+
+  const fmtDate = (ts: number) => new Date(ts).toLocaleDateString("en-NP", { year: "numeric", month: "short", day: "numeric" });
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Partners & Capital</h3>
-        {partnerEmails.length > 0 && (
-          <Button onClick={() => setShowReport(true)} size="sm" variant="outline" className="text-xs">
-            <FileText className="h-3.5 w-3.5" /> Send Report
+        <div className="flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-primary" />
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Partners & Capital</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          {partnerEmails.length > 0 && (
+            <Button onClick={() => setShowReport(true)} size="sm" variant="outline" className="text-xs">
+              <FileText className="h-3.5 w-3.5" /> Send Report
+            </Button>
+          )}
+          <Button onClick={() => { resetAddForm(); setShowAddModal(true); }} size="sm" variant="accent" className="text-xs">
+            <Plus className="h-3.5 w-3.5" /> Add Partner
           </Button>
-        )}
+        </div>
       </div>
+
       {loading ? (
         <p className="text-sm text-muted-foreground">Loading...</p>
       ) : partners.length === 0 ? (
-        <p className="text-sm text-muted-foreground italic">No partners added yet. Add the first partner below.</p>
+        <p className="text-sm text-muted-foreground italic">No partners added yet. Click "Add Partner" to get started.</p>
       ) : (
-        <div className="border border-border rounded-lg divide-y divide-border">
-          {partners.map((p) => (
-            <div key={p.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
+        <div className="border border-border rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted text-left text-xs text-muted-foreground">
+                <th className="px-4 py-3 font-medium">Name</th>
+                <th className="px-4 py-3 font-medium">Designation</th>
+                <th className="px-4 py-3 font-medium text-right">% Ownership</th>
+                <th className="px-4 py-3 font-medium text-right">Total Capital</th>
+                <th className="px-4 py-3 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {partners.map((p) => (
+                <tr key={p.id} className="hover:bg-muted/50 transition-colors">
+                  <td className="px-4 py-3">
+                    <button onClick={() => setSelectedPartner(p)} className="font-medium text-primary hover:underline text-left">
+                      {p.name}
+                    </button>
+                    {p.email && <span className="block text-xs text-muted-foreground mt-0.5">{p.email.split(";").join(", ")}</span>}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">{p.designation || "—"}</td>
+                  <td className="px-4 py-3 text-right font-medium">
+                    {totalCapital > 0 ? `${((p.amount / totalCapital) * 100).toFixed(1)}%` : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right font-medium">Rs. {p.amount.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-right">
+                    <button onClick={() => handleDelete(p.id)} className="p-1 hover:bg-red-50 rounded text-xs text-red-500">Remove</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-muted/30 font-semibold text-xs">
+                <td className="px-4 py-3" colSpan={2}>Total ({partners.length} partner{partners.length !== 1 ? "s" : ""})</td>
+                <td className="px-4 py-3 text-right">100%</td>
+                <td className="px-4 py-3 text-right">Rs. {totalCapital.toLocaleString()}</td>
+                <td className="px-4 py-3 text-right" />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+
+      {showReport && (
+        <PartnerReport partnerEmails={partnerEmails} onClose={() => setShowReport(false)} />
+      )}
+
+      {/* ── Add Partner Modal ── */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-sm font-bold text-secondary">Add Partner</h2>
+              <button onClick={() => setShowAddModal(false)} className="p-1 hover:bg-muted rounded-lg"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="p-4 space-y-4">
               <div>
-                <span className="font-medium text-secondary">{p.name}</span>
-                <span className="text-muted-foreground ml-2">Rs. {p.amount.toLocaleString()}</span>
-                {p.email && <span className="text-muted-foreground/50 ml-2 text-xs">{p.email.split(";").join(", ")}</span>}
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Partner Name *</label>
+                <input type="text" value={formName} onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. Ram Sharma" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => handleEdit(p)} className="p-1 hover:bg-muted rounded text-xs text-muted-foreground">Edit</button>
-                <button onClick={() => handleDelete(p.id)} className="p-1 hover:bg-red-50 rounded text-xs text-red-500">Remove</button>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Designation</label>
+                <input type="text" value={formDesignation} onChange={(e) => setFormDesignation(e.target.value)}
+                  placeholder="e.g. Managing Partner" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Email (use ; for multiple)</label>
+                <input type="text" value={formEmail} onChange={(e) => setFormEmail(e.target.value)}
+                  placeholder="ram@email.com; sita@email.com" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Initial Capital (Rs.) *</label>
+                <input type="number" value={formAmount || ""} onChange={(e) => setFormAmount(Number(e.target.value))}
+                  min={0} step={1000} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
               </div>
             </div>
-          ))}
-          <div className="flex items-center justify-between px-4 py-2.5 text-sm font-semibold bg-muted/30">
-            <span>Total Capital</span>
-            <span>Rs. {totalCapital.toLocaleString()}</span>
+            <div className="flex justify-end gap-2 p-4 border-t border-border">
+              <Button onClick={() => setShowAddModal(false)} variant="ghost" size="sm">Cancel</Button>
+              <Button onClick={handleAddPartner} disabled={saving || !formName.trim() || formAmount <= 0} variant="accent" size="sm">
+                {saving ? "Saving..." : "Add Partner"}
+              </Button>
+            </div>
           </div>
         </div>
       )}
 
-      <div className="flex items-end gap-2 pt-2 border-t border-border flex-wrap">
-        <div className="flex-1 min-w-[150px]">
-          <label className="block text-xs text-muted-foreground mb-1">Partner Name</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)}
-            placeholder="Enter partner name" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
-        </div>
-        <div className="flex-1 min-w-[180px]">
-          <label className="block text-xs text-muted-foreground mb-1">Email</label>
-            <input type="text" value={email} onChange={(e) => setEmail(e.target.value)}
-              placeholder="partner@email.com; partner2@email.com" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
-        </div>
-        <div className="w-32">
-          <label className="block text-xs text-muted-foreground mb-1">Capital (Rs.)</label>
-          <input type="number" value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))}
-            min={0} step={1000} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
-        </div>
-        <Button onClick={handleAdd} disabled={saving || !name.trim() || amount <= 0} variant="accent" size="sm">
-          {editId ? "Update" : "Add"}
-        </Button>
-        {editId && (
-          <Button onClick={() => { setName(""); setEmail(""); setAmount(0); setEditId(null); }} variant="ghost" size="sm">Cancel</Button>
-        )}
-      </div>
+      {/* ── Partner Detail Modal ── */}
+      {selectedPartner && !showAddInvestment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setSelectedPartner(null)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-sm font-bold text-secondary">{selectedPartner.name}</h2>
+              <button onClick={() => setSelectedPartner(null)} className="p-1 hover:bg-muted rounded-lg"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div><span className="text-muted-foreground">Designation:</span> <span className="font-medium">{selectedPartner.designation || "—"}</span></div>
+                <div><span className="text-muted-foreground">Email:</span> <span className="font-medium">{selectedPartner.email || "—"}</span></div>
+                <div><span className="text-muted-foreground">Total Capital:</span> <span className="font-medium">Rs. {selectedPartner.amount.toLocaleString()}</span></div>
+                <div><span className="text-muted-foreground">Partner Since:</span> <span className="font-medium">{fmtDate(selectedPartner.addedAt)}</span></div>
+              </div>
 
-      {showReport && (
-        <PartnerReport partnerEmails={partnerEmails} onClose={() => setShowReport(false)} />
+              <div className="border-t border-border pt-3">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Investment History</h4>
+                {(selectedPartner.investments || []).length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">No investment records</p>
+                ) : (
+                  <div className="border border-border rounded-lg overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-muted text-left text-muted-foreground">
+                          <th className="px-3 py-2 font-medium">Date</th>
+                          <th className="px-3 py-2 font-medium text-right">Amount</th>
+                          <th className="px-3 py-2 font-medium">Note</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {(selectedPartner.investments || []).map((inv, i) => (
+                          <tr key={i}>
+                            <td className="px-3 py-2">{fmtDate(inv.date)}</td>
+                            <td className="px-3 py-2 text-right font-medium">Rs. {inv.amount.toLocaleString()}</td>
+                            <td className="px-3 py-2 text-muted-foreground">{inv.note || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex justify-between items-center gap-2 p-4 border-t border-border">
+              <Button onClick={() => handleDelete(selectedPartner.id)} size="sm" variant="outline" className="text-xs text-red-500 border-red-200 hover:bg-red-50">
+                Remove Partner
+              </Button>
+              <div className="flex gap-2">
+                <Button onClick={() => { setInvAmount(0); setInvNote(""); setInvDate(new Date().toISOString().split("T")[0]); setShowAddInvestment(true); }} size="sm" variant="accent" className="text-xs">
+                  <Plus className="h-3.5 w-3.5" /> Add Investment
+                </Button>
+                <Button onClick={() => setSelectedPartner(null)} size="sm" variant="ghost" className="text-xs">Close</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Investment Modal ── */}
+      {selectedPartner && showAddInvestment && (
+        <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/70 p-4" onClick={() => setShowAddInvestment(false)}>
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h2 className="text-sm font-bold text-secondary">Add Investment — {selectedPartner.name}</h2>
+              <button onClick={() => setShowAddInvestment(false)} className="p-1 hover:bg-muted rounded-lg"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Amount (Rs.) *</label>
+                <input type="number" value={invAmount || ""} onChange={(e) => setInvAmount(Number(e.target.value))}
+                  min={0} step={1000} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Date</label>
+                <input type="date" value={invDate} onChange={(e) => setInvDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Note (optional)</label>
+                <input type="text" value={invNote} onChange={(e) => setInvNote(e.target.value)}
+                  placeholder="e.g. Q2 2026 additional capital" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This will create a journal entry and update the total capital for {selectedPartner.name}.
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 p-4 border-t border-border">
+              <Button onClick={() => setShowAddInvestment(false)} variant="ghost" size="sm">Cancel</Button>
+              <Button onClick={handleAddInvestment} disabled={saving || invAmount <= 0} variant="accent" size="sm">
+                {saving ? "Saving..." : "Add Investment"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
