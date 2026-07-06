@@ -70,6 +70,10 @@ interface Settings {
   mapLat?: number;
   mapLng?: number;
   mapEmbedUrl?: string;
+  loyaltyEnabled?: boolean;
+  pointsPerRupee?: number;
+  pointValue?: number;
+  minRedemptionPoints?: number;
 }
 
 interface EmailBackupConfig {

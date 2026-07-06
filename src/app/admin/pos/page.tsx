@@ -14,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Button } from "@/components/ui/button";
 import {
-  addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc,
+  addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc, query, where, getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import BarcodeScannerDialog from "@/components/admin/BarcodeScannerDialog";
