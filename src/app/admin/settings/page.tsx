@@ -6,13 +6,44 @@ import { doc, getDoc, setDoc, addDoc, collection, getDocs, deleteDoc, query, whe
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Save, Image, Download, Mail, Database, Calendar, FileText, UserPlus, Plus, X, TrendingUp, MessageSquare } from "lucide-react";
+import { Save, Image, Download, Mail, Database, Calendar, FileText, UserPlus, Plus, X, TrendingUp, MessageSquare, Smartphone, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
 import { getPreviousFYRange } from "@/lib/nepaliDate";
 import { createJournalEntry } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
 import PartnerReport from "@/components/admin/PartnerReport";
 import { generateVCard, downloadVCard } from "@/lib/vcard";
 import type { ShopSettings, SmsConfig as SmsConfigType } from "@/types";
+
+const settingNavItems = [
+  { label: "Dashboard", href: "/admin" },
+  { label: "POS", href: "/admin/pos" },
+  { label: "Sales", href: "/admin/sales" },
+  { label: "Invoices", href: "/admin/invoices" },
+  { label: "Orders", href: "/admin/orders" },
+  { label: "Coupons", href: "/admin/coupons" },
+  { label: "Offers", href: "/admin/offers" },
+  { label: "Testimonials", href: "/admin/testimonials" },
+  { label: "Debtors", href: "/admin/debtors" },
+  { label: "Morning Dashboard", href: "/admin/morning" },
+  { label: "Products", href: "/admin/products" },
+  { label: "Categories", href: "/admin/categories" },
+  { label: "Inventory", href: "/admin/inventory" },
+  { label: "Reconciliation", href: "/admin/reconciliation" },
+  { label: "Purchases", href: "/admin/purchases" },
+  { label: "Suppliers", href: "/admin/suppliers" },
+  { label: "Creditors", href: "/admin/creditors" },
+  { label: "Expenses", href: "/admin/expenses" },
+  { label: "Reports", href: "/admin/reports" },
+  { label: "Finance", href: "/admin/finance" },
+  { label: "Accounting", href: "/admin/accounting" },
+  { label: "Customers", href: "/admin/customers" },
+  { label: "Staff", href: "/admin/staff" },
+  { label: "Homepage", href: "/admin/homepage" },
+  { label: "Access Control", href: "/admin/access-control" },
+  { label: "Backup", href: "/admin/backup" },
+  { label: "Settings", href: "/admin/settings" },
+  { label: "Setup", href: "/admin/setup" },
+];
 
 interface Settings {
   shopName: string;
@@ -317,6 +348,25 @@ export default function SettingsPage() {
   };
 
   const [activePill, setActivePill] = useState<"general" | "partners" | "backup">("general");
+  const [bottomNavHrefs, setBottomNavHrefs] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("pc_bottom_nav");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) setBottomNavHrefs(parsed.slice(0, 5));
+        else setBottomNavHrefs(["/admin/pos", "/admin/sales", "/admin", "/admin/products", "/admin/purchases"]);
+      } else {
+        setBottomNavHrefs(["/admin/pos", "/admin/sales", "/admin", "/admin/products", "/admin/purchases"]);
+      }
+    } catch { setBottomNavHrefs(["/admin/pos", "/admin/sales", "/admin", "/admin/products", "/admin/purchases"]); }
+  }, []);
+
+  const saveBottomNav = (hrefs: string[]) => {
+    const items = hrefs.slice(0, 5);
+    setBottomNavHrefs(items);
+    localStorage.setItem("pc_bottom_nav", JSON.stringify(items));
+  };
 
   const renderPill = (tab: "general" | "partners" | "backup", label: string, icon: ReactNode) => (
     <button key={tab} onClick={() => setActivePill(tab)}
@@ -693,6 +743,64 @@ export default function SettingsPage() {
                 {smsSaved && <span className="text-xs text-green-600">Saved!</span>}
                 {smsTestStatus && <span className={`text-xs ${smsTestStatus.startsWith("Test SMS sent") ? "text-green-600" : "text-red-600"}`}>{smsTestStatus}</span>}
               </div>
+            </div>
+
+            {/* Mobile Bottom Nav */}
+            <div className="pt-4 border-t border-border space-y-3">
+              <div className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5 text-primary" />
+                <h3 className="text-sm font-semibold text-secondary">Mobile Navigation (Personal)</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">Choose up to 5 modules to show in the mobile bottom nav bar. Drag or use arrows to reorder.</p>
+              <div className="space-y-1 max-h-72 overflow-y-auto pr-1">
+                {settingNavItems.map((item, idx) => {
+                  const selectedIndex = bottomNavHrefs.indexOf(item.href!);
+                  const isSelected = selectedIndex !== -1;
+                  return (
+                    <div key={item.href} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${isSelected ? "bg-accent/5 border border-accent/20" : "bg-muted/20 border border-transparent"}`}>
+                      <GripVertical className="h-4 w-4 text-muted-foreground/40 shrink-0" />
+                      <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                        <input type="checkbox" checked={isSelected}
+                          onChange={() => {
+                            if (isSelected) {
+                              saveBottomNav(bottomNavHrefs.filter((h) => h !== item.href));
+                            } else if (bottomNavHrefs.length < 5) {
+                              saveBottomNav([...bottomNavHrefs, item.href!]);
+                            }
+                          }}
+                          className="accent-primary w-4 h-4 shrink-0" />
+                        <span className="font-medium truncate">{item.label}</span>
+                      </label>
+                      {isSelected && (
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button disabled={selectedIndex === 0}
+                            onClick={() => { const a = [...bottomNavHrefs]; [a[selectedIndex - 1], a[selectedIndex]] = [a[selectedIndex], a[selectedIndex - 1]]; saveBottomNav(a); }}
+                            className="p-1 hover:bg-muted rounded disabled:opacity-20">
+                            <ArrowUp className="h-3.5 w-3.5" />
+                          </button>
+                          <button disabled={selectedIndex === bottomNavHrefs.length - 1}
+                            onClick={() => { const a = [...bottomNavHrefs]; [a[selectedIndex], a[selectedIndex + 1]] = [a[selectedIndex + 1], a[selectedIndex]]; saveBottomNav(a); }}
+                            className="p-1 hover:bg-muted rounded disabled:opacity-20">
+                            <ArrowDown className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">{bottomNavHrefs.length}/5 selected</p>
+              {bottomNavHrefs.length > 0 && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-muted-foreground">Preview:</span>
+                  <div className="flex gap-1.5">
+                    {bottomNavHrefs.map((h) => {
+                      const ni = settingNavItems.find((n) => n.href === h);
+                      return ni ? <span key={h} className="px-2 py-0.5 bg-accent/10 text-accent rounded text-xs font-medium">{ni.label}</span> : null;
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3 pt-4 border-t border-border">

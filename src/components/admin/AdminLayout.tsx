@@ -59,13 +59,89 @@ const navItems: NavItem[] = [
   { label: "Setup", href: "/admin/setup", icon: <Rocket className="h-4 w-4" />, permission: "manage_settings" },
 ];
 
-const bottomNavItems = [
-  { label: "POS", href: "/admin/pos", icon: <Zap className="h-5 w-5" />, permission: "manage_sales" },
-  { label: "Sales", href: "/admin/sales", icon: <ShoppingCart className="h-5 w-5" />, permission: "manage_sales" },
-  { label: "Home", href: "/admin", icon: <LayoutDashboard className="h-5 w-5" /> },
-  { label: "Products", href: "/admin/products", icon: <Package className="h-5 w-5" />, permission: "manage_products" },
-  { label: "Purchases", href: "/admin/purchases", icon: <DollarSign className="h-5 w-5" />, permission: "manage_purchases" },
-];
+// Icon map for bottom nav (uses larger h-5 w-5 icons)
+const bottomNavIconMap: Record<string, ReactNode> = {
+  "/admin": <LayoutDashboard className="h-5 w-5" />,
+  "/admin/pos": <Zap className="h-5 w-5" />,
+  "/admin/sales": <ShoppingCart className="h-5 w-5" />,
+  "/admin/invoices": <FileText className="h-5 w-5" />,
+  "/admin/orders": <Truck className="h-5 w-5" />,
+  "/admin/coupons": <Tags className="h-5 w-5" />,
+  "/admin/offers": <Sparkles className="h-5 w-5" />,
+  "/admin/testimonials": <MessageSquare className="h-5 w-5" />,
+  "/admin/debtors": <Users className="h-5 w-5" />,
+  "/admin/morning": <BarChart3 className="h-5 w-5" />,
+  "/admin/products": <Package className="h-5 w-5" />,
+  "/admin/categories": <Tags className="h-5 w-5" />,
+  "/admin/inventory": <BarChart3 className="h-5 w-5" />,
+  "/admin/reconciliation": <ClipboardList className="h-5 w-5" />,
+  "/admin/purchases": <DollarSign className="h-5 w-5" />,
+  "/admin/suppliers": <Truck className="h-5 w-5" />,
+  "/admin/creditors": <Users className="h-5 w-5" />,
+  "/admin/expenses": <CreditCard className="h-5 w-5" />,
+  "/admin/reports": <FileText className="h-5 w-5" />,
+  "/admin/finance": <Wallet className="h-5 w-5" />,
+  "/admin/accounting": <FileText className="h-5 w-5" />,
+  "/admin/customers": <Users className="h-5 w-5" />,
+  "/admin/staff": <Shield className="h-5 w-5" />,
+  "/admin/homepage": <Home className="h-5 w-5" />,
+  "/admin/access-control": <Shield className="h-5 w-5" />,
+  "/admin/backup": <Receipt className="h-5 w-5" />,
+  "/admin/settings": <Settings className="h-5 w-5" />,
+  "/admin/setup": <Rocket className="h-5 w-5" />,
+};
+
+// Default bottom nav items (hrefs)
+const defaultBottomNavHrefs = ["/admin/pos", "/admin/sales", "/admin", "/admin/products", "/admin/purchases"];
+
+function loadBottomNavHrefs(): string[] {
+  if (typeof window === "undefined") return defaultBottomNavHrefs;
+  try {
+    const stored = localStorage.getItem("pc_bottom_nav");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed.slice(0, 5);
+    }
+  } catch {}
+  return defaultBottomNavHrefs;
+}
+
+function BottomNav({ profile, pathname }: { profile: any; pathname: string }) {
+  const [hrefs, setHrefs] = useState<string[]>(loadBottomNavHrefs);
+
+  useEffect(() => {
+    const handler = () => setHrefs(loadBottomNavHrefs());
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
+
+  const items = hrefs
+    .map((href) => {
+      const navItem = navItems.find((n) => n.href === href);
+      if (!navItem) return null;
+      if (navItem.permission && !hasPermission(profile?.role, navItem.permission as never, profile?.permissions)) return null;
+      return { href: navItem.href!, label: navItem.label!, icon: bottomNavIconMap[href] || navItem.icon, permission: navItem.permission };
+    })
+    .filter(Boolean) as { href: string; label: string; icon: ReactNode; permission?: string }[];
+
+  return (
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border flex justify-around items-center h-14 safe-area-bottom shadow-lg">
+      {items.map((item) => {
+        const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        return (
+          <Link key={item.href} href={item.href}
+            className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
+              isActive ? "text-accent" : "text-muted-foreground hover:text-secondary"
+            }`}
+          >
+            {item.icon}
+            <span className="text-[10px] font-medium">{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
 
 function getRoutePermission(href: string): string | undefined {
   const item = navItems.find((n) => n.href === href);
@@ -225,22 +301,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <main className="flex-1">{children}</main>
       </div>
 
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border flex justify-around items-center h-14 safe-area-bottom shadow-lg">
-        {bottomNavItems.map((item) => {
-          if (item.permission && !hasPermission(profile?.role, item.permission as never, profile?.permissions)) return null;
-          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-          return (
-            <Link key={item.href} href={item.href!}
-              className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-lg transition-colors ${
-                isActive ? "text-accent" : "text-muted-foreground hover:text-secondary"
-              }`}
-            >
-              {item.icon}
-              <span className="text-[10px] font-medium">{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+      <BottomNav profile={profile} pathname={pathname} />
       <div className="lg:hidden h-14" />
     </div>
     </DataCacheProvider>
