@@ -449,6 +449,7 @@ export interface ShopSettings {
   pointsPerRupee?: number;
   pointValue?: number;
   minRedemptionPoints?: number;
+  gasLoyaltyUrl?: string;
 }
 
 export interface SmsConfig {
@@ -525,4 +526,15 @@ export interface JournalEntry {
   recordedByName: string;
   isPosted: boolean;
   createdAt: number;
+}
+
+export interface LoyaltyTransaction {
+  txnId: string;
+  phone: string;
+  type: "earn" | "redeem" | "refund" | "adjust";
+  points: number;
+  referenceId: string;
+  refType: string;
+  note: string;
+  createdAt: string;
 }

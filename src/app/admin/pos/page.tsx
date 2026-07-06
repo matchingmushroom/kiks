@@ -75,15 +75,22 @@ export default function POSPage() {
   const [customerPoints, setCustomerPoints] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!settings.loyaltyEnabled || walkin || !customerPhone) { setCustomerPoints(null); setRedeemPoints(0); return; }
+    if (walkin || !customerPhone) { setCustomerName(""); setCustomerPoints(null); setRedeemPoints(0); return; }
     let cancelled = false;
     (async () => {
       const q = query(collection(db, "customers"), where("phone", "==", customerPhone));
       const snap = await getDocs(q);
-      if (!cancelled) setCustomerPoints(snap.docs[0]?.data()?.loyaltyPoints || 0);
+      if (cancelled) return;
+      const data = snap.docs[0]?.data();
+      if (data) {
+        setCustomerName(data.name || "");
+        setCustomerPoints(data.loyaltyPoints || 0);
+      } else {
+        setCustomerPoints(null);
+      }
     })();
     return () => { cancelled = true; };
-  }, [customerPhone, walkin, settings.loyaltyEnabled]);
+  }, [customerPhone, walkin]);
 
   useEffect(() => {
     if (success || error) {
@@ -438,25 +445,24 @@ export default function POSPage() {
         }
       } catch (e) { console.error("Coupon usage update failed", e); }
 
-      // Loyalty points: earn and redeem
+      // Loyalty points: earn, redeem, and log to GAS
       try {
         if (settings.loyaltyEnabled && !walkin && customerPhone) {
-          const custQuery = query(collection(db, "customers"), where("phone", "==", customerPhone));
-          const custSnap = await getDocs(custQuery);
           const earned = Math.floor(finalAmount * (settings.pointsPerRupee ?? 0.01));
-          if (custSnap.docs.length > 0) {
-            const custDoc = custSnap.docs[0];
-            const data = custDoc.data();
-            const currentPoints = data.loyaltyPoints || 0;
-            const deduction = Math.min(redeemPoints, currentPoints);
-            const netEarned = earned - deduction;
-            await updateDoc(doc(db, "customers", custDoc.id), {
-              loyaltyPoints: Math.max(0, currentPoints - deduction + earned),
-              lifetimePoints: (data.lifetimePoints || 0) + earned,
-              updatedAt: Timestamp.fromDate(new Date()),
-            });
-          } else if (customerName) {
-            if (earned > 0) {
+          if (earned > 0 || redeemPoints > 0) {
+            const custQuery = query(collection(db, "customers"), where("phone", "==", customerPhone));
+            const custSnap = await getDocs(custQuery);
+            if (custSnap.docs.length > 0) {
+              const custDoc = custSnap.docs[0];
+              const data = custDoc.data();
+              const currentPoints = data.loyaltyPoints || 0;
+              const deduction = Math.min(redeemPoints, currentPoints);
+              await updateDoc(doc(db, "customers", custDoc.id), {
+                loyaltyPoints: Math.max(0, currentPoints - deduction + earned),
+                lifetimePoints: (data.lifetimePoints || 0) + earned,
+                updatedAt: Timestamp.fromDate(new Date()),
+              });
+            } else if (customerName && earned > 0) {
               const custId = await generateId("CUST");
               await setDoc(doc(db, "customers", custId), {
                 name: customerName, phone: customerPhone, email: "", address: "", notes: "",
@@ -464,6 +470,11 @@ export default function POSPage() {
                 createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
               });
             }
+            // Fire-and-forget to GAS for history
+            import("@/lib/loyalty-gas").then((m) => {
+              if (earned > 0) m.addTransaction(customerPhone, "earn", earned, saleId, "sale", "POS sale");
+              if (redeemPoints > 0) m.addTransaction(customerPhone, "redeem", -redeemPoints, saleId, "sale", "Points redeemed");
+            });
           }
         }
       } catch (e) { console.error("Loyalty points update failed", e); }

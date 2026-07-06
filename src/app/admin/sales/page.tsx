@@ -551,9 +551,32 @@ function SalesContent() {
     }
     await deleteDoc(doc(db, "sales", id));
 
-
-
-
+    // Revert loyalty points
+    try {
+      const customerPhone = sale.customer?.phone;
+      const saleTotal = sale.finalAmount || 0;
+      if (customerPhone && saleTotal > 0) {
+        const settingsSnap = await getDoc(doc(db, "shop_settings", "config"));
+        const loyaltyEnabled = settingsSnap.data()?.loyaltyEnabled;
+        if (loyaltyEnabled) {
+          const earned = Math.floor(saleTotal * (settingsSnap.data()?.pointsPerRupee ?? 0.01));
+          const custQuery = query(collection(db, "customers"), where("phone", "==", customerPhone));
+          const custSnap = await getDocs(custQuery);
+          if (custSnap.docs.length > 0) {
+            const custDoc = custSnap.docs[0];
+            const data = custDoc.data();
+            const currentPoints = data.loyaltyPoints || 0;
+            await updateDoc(doc(db, "customers", custDoc.id), {
+              loyaltyPoints: Math.max(0, currentPoints - earned),
+              updatedAt: Timestamp.fromDate(new Date()),
+            });
+          }
+          import("@/lib/loyalty-gas").then((m) => {
+            m.addTransaction(customerPhone, "refund", -earned, id, "sale", "Sale deleted");
+          });
+        }
+      }
+    } catch (e) { console.error("Loyalty revert failed", e); }
   };
 
   const openReturn = (sale: Sale) => {

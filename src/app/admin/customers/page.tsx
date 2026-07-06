@@ -12,7 +12,7 @@ import {
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List, Eye, MoreVertical, TrendingUp, ShoppingCart } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List, Eye, MoreVertical, TrendingUp, ShoppingCart, Gift } from "lucide-react";
 
 const emptyForm = {
   name: "", phone: "", email: "", address: "", notes: "",
@@ -53,6 +53,18 @@ export default function AdminCustomersPage() {
       sales.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       setCustomerSales(sales.slice(0, 50));
     })();
+  }, [detailCustomerData?.phone]);
+
+  const [loyaltyTxns, setLoyaltyTxns] = useState<any[]>([]);
+  useEffect(() => {
+    if (!detailCustomerData?.phone) { setLoyaltyTxns([]); return; }
+    let cancelled = false;
+    (async () => {
+      const { getHistory } = await import("@/lib/loyalty-gas");
+      const res = await getHistory(detailCustomerData.phone!);
+      if (!cancelled && res.ok && res.data) setLoyaltyTxns(res.data);
+    })();
+    return () => { cancelled = true; };
   }, [detailCustomerData?.phone]);
 
   const filtered = useMemo(() => {
@@ -356,6 +368,43 @@ export default function AdminCustomersPage() {
                     </div>
                   )}
                 </div>
+
+                {loyaltyTxns.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide flex items-center gap-1.5">
+                      <Gift className="h-3.5 w-3.5" /> Loyalty History
+                    </h3>
+                    <div className="overflow-x-auto max-h-48 overflow-y-auto border border-border rounded-lg">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-white">
+                          <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                            <th className="px-3 py-2 font-medium">Date</th>
+                            <th className="px-3 py-2 font-medium">Type</th>
+                            <th className="px-3 py-2 font-medium text-right">Points</th>
+                            <th className="px-3 py-2 font-medium">Note</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {loyaltyTxns.map((txn: any) => (
+                            <tr key={txn.txnId} className="hover:bg-muted/30">
+                              <td className="px-3 py-2 text-xs">{new Date(txn.createdAt).toLocaleDateString("en-IN")}</td>
+                              <td className="px-3 py-2 text-xs capitalize">
+                                <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                  txn.type === "earn" ? "bg-green-100 text-green-700" :
+                                  txn.type === "redeem" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
+                                }`}>{txn.type}</span>
+                              </td>
+                              <td className={`px-3 py-2 text-xs text-right font-semibold ${txn.points > 0 ? "text-green-600" : "text-red-500"}`}>
+                                {txn.points > 0 ? "+" : ""}{txn.points}
+                              </td>
+                              <td className="px-3 py-2 text-xs text-muted-foreground">{txn.note || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
                   <p>Created: {detailCustomerData.createdAt ? formatDate(detailCustomerData.createdAt) : "—"}</p>

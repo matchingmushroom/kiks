@@ -74,6 +74,7 @@ interface Settings {
   pointsPerRupee?: number;
   pointValue?: number;
   minRedemptionPoints?: number;
+  gasLoyaltyUrl?: string;
 }
 
 interface EmailBackupConfig {
@@ -272,7 +273,11 @@ export default function SettingsPage() {
       try {
         const snap = await getDoc(doc(db, "shop_settings", "config"));
         if (snap.exists()) {
-          setForm({ ...defaults, ...snap.data() } as Settings);
+          const data = snap.data() as Settings;
+          setForm({ ...defaults, ...data } as Settings);
+          if (data.gasLoyaltyUrl) {
+            import("@/lib/loyalty-gas").then((m) => m.setGasUrl(data.gasLoyaltyUrl));
+          }
         }
         const emailSnap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
         if (emailSnap.exists()) {
@@ -300,6 +305,9 @@ export default function SettingsPage() {
     setSaved(false);
     try {
       await setDoc(doc(db, "shop_settings", "config"), form);
+      if (form.gasLoyaltyUrl) {
+        import("@/lib/loyalty-gas").then((m) => m.setGasUrl(form.gasLoyaltyUrl!));
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e) {
@@ -613,6 +621,25 @@ export default function SettingsPage() {
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
                     <p className="text-xs text-muted-foreground mt-0.5">Minimum points to redeem</p>
                   </div>
+                </div>
+              )}
+              {form.loyaltyEnabled && (
+                <div className="pl-6 pt-2">
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">GAS Loyalty Web App URL</label>
+                  <div className="flex gap-2">
+                    <input type="url" value={form.gasLoyaltyUrl ?? ""}
+                      onChange={(e) => setForm({ ...form, gasLoyaltyUrl: e.target.value })}
+                      placeholder="https://script.google.com/macros/s/.../exec"
+                      className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <Button onClick={async () => {
+                      if (!form.gasLoyaltyUrl) return;
+                      const { setGasUrl, ping } = await import("@/lib/loyalty-gas");
+                      setGasUrl(form.gasLoyaltyUrl);
+                      const res = await ping();
+                      alert(res.ok ? "Connected!" : `Failed: ${res.error}`);
+                    }} size="sm" variant="outline" type="button">Test</Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">Deploy the loyalty-gas.gs script and paste the web app URL here</p>
                 </div>
               )}
             </div>
