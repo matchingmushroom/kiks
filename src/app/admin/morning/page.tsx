@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import PageHeader from "@/components/admin/PageHeader";
 import { useFirestore } from "@/hooks/useFirestore";
-import { Product, FifoLayer, Creditor, Sale } from "@/types";
+import { Product, FifoLayer, Creditor, Sale, Category } from "@/types";
 import { formatCurrency, toDate } from "@/lib/utils";
 import { Package, AlertTriangle, TrendingUp, DollarSign, Clock, Shield, Users, Sun } from "lucide-react";
 
@@ -48,7 +48,10 @@ export default function MorningDashboardPage() {
   const { data: creditors } = useFirestore<Creditor>("creditors", { constraints: [], realtime: true });
   const { data: sales } = useFirestore<Sale>("sales", { constraints: [], realtime: true });
 
+  const { data: categories } = useFirestore<Category>("categories", { constraints: [], realtime: true });
+
   const [showAllStock, setShowAllStock] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [collectionFilter, setCollectionFilter] = useState("");
 
   const activeProducts = useMemo(() => products.filter((p) => p.isActive), [products]);
@@ -140,10 +143,11 @@ export default function MorningDashboardPage() {
         product: p,
         info: productLayerMap.get(p.id) || { oldestDays: 0, totalValue: 0, totalQty: p.quantityInStock || 0, layers: [] },
       }))
+      .filter((item) => categoryFilter === "all" || item.product.categoryId === categoryFilter)
       .filter((item) => collectionFilter ? (item.product.collection || "").toLowerCase().includes(collectionFilter.toLowerCase()) : true)
       .sort((a, b) => b.info.oldestDays - a.info.oldestDays);
     return showAllStock ? items : items.slice(0, 20);
-  }, [activeProducts, productLayerMap, showAllStock, collectionFilter]);
+  }, [activeProducts, productLayerMap, showAllStock, categoryFilter, collectionFilter]);
 
   const collections = useMemo(() => {
     const collSet = new Set<string>();
@@ -233,19 +237,32 @@ export default function MorningDashboardPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <div className="bg-white rounded-xl border border-border p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold text-secondary">Color-Coded Stock by Age</h2>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-primary" />
+                  <h2 className="text-sm font-semibold text-secondary">Color-Coded Stock by Age</h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input type="text" placeholder="Filter collection..." value={collectionFilter}
+                    onChange={(e) => setCollectionFilter(e.target.value)}
+                    className="w-36 px-2 py-1 border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <button onClick={() => setShowAllStock(!showAllStock)}
+                    className="text-xs text-primary hover:underline">{showAllStock ? "Top 20" : `Show All (${activeProducts.length})`}</button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input type="text" placeholder="Filter collection..." value={collectionFilter}
-                  onChange={(e) => setCollectionFilter(e.target.value)}
-                  className="w-36 px-2 py-1 border border-border rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary" />
-                <button onClick={() => setShowAllStock(!showAllStock)}
-                  className="text-xs text-primary hover:underline">{showAllStock ? "Top 20" : `Show All (${activeProducts.length})`}</button>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                <button onClick={() => setCategoryFilter("all")}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors ${categoryFilter === "all" ? "bg-primary text-primary-foreground" : "bg-muted text-secondary hover:bg-muted/80"}`}>All</button>
+                {categories.map((c) => (
+                  <button key={c.id} onClick={() => setCategoryFilter(c.id)}
+                    className={`px-2.5 py-1 text-xs font-medium rounded-full transition-colors ${categoryFilter === c.id ? "bg-primary text-primary-foreground" : "bg-muted text-secondary hover:bg-muted/80"}`}>{c.name}</button>
+                ))}
               </div>
-            </div>
+              {(categoryFilter !== "all") && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  Showing {stockWithAge.length} products in <strong>{categories.find((c) => c.id === categoryFilter)?.name || categoryFilter}</strong>
+                </p>
+              )}
             <div className="flex items-center gap-3 mb-3 text-xs">
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500" /> &le;120d (Keep)</span>
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500" /> 121-180d</span>
@@ -256,6 +273,7 @@ export default function MorningDashboardPage() {
                 <thead className="sticky top-0 bg-white">
                   <tr className="border-b border-border text-left text-xs text-muted-foreground">
                     <th className="pb-2 pr-2 font-medium">Product</th>
+                    <th className="pb-2 pr-2 font-medium">Category</th>
                     <th className="pb-2 pr-2 font-medium text-right">Stock</th>
                     <th className="pb-2 pr-2 font-medium text-right">Age</th>
                     <th className="pb-2 font-medium text-right">Suggestion</th>
@@ -264,9 +282,11 @@ export default function MorningDashboardPage() {
                 <tbody className="divide-y divide-border">
                   {stockWithAge.map(({ product, info }) => {
                     const suggestion = info.layers.length > 0 ? getSellSuggestion(info.oldestDays) : { label: "No layers", color: "text-gray-400 bg-gray-50" };
+                    const catName = categories.find((c) => c.id === product.categoryId)?.name || "";
                     return (
                       <tr key={product.id} className="hover:bg-muted/30">
                         <td className="py-2 pr-2 max-w-[200px] truncate">{product.name}</td>
+                        <td className="py-2 pr-2 text-xs text-muted-foreground">{catName}</td>
                         <td className="py-2 pr-2 text-right font-medium">{info.totalQty}</td>
                         <td className="py-2 pr-2 text-right">
                           {info.layers.length > 0 ? (
@@ -284,7 +304,7 @@ export default function MorningDashboardPage() {
                     );
                   })}
                   {stockWithAge.length === 0 && (
-                    <tr><td colSpan={4} className="py-8 text-center text-muted-foreground text-sm">No products found</td></tr>
+                    <tr><td colSpan={5} className="py-8 text-center text-muted-foreground text-sm">No products found</td></tr>
                   )}
                 </tbody>
               </table>
