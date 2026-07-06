@@ -15,8 +15,9 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
-import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, Eye, LayoutGrid, List, AlertTriangle, Download, Mail, MoreVertical } from "lucide-react";
+import { Search, X, Save, ChevronDown, ChevronUp, Plus, CheckCircle, Eye, LayoutGrid, List, AlertTriangle, Download, Mail, MessageSquare, MoreVertical } from "lucide-react";
 import { exportDebtorsCSV, downloadBlob } from "@/lib/export";
+import { sendSMS } from "@/lib/sms";
 
 function getDaysOverdue(dueDate: unknown): number {
   const d = toDate(dueDate);
@@ -44,6 +45,7 @@ export default function AdminDebtorsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [sendingSmsId, setSendingSmsId] = useState<string | null>(null);
   const canExport = profile?.role !== "staff";
 
   const filtered = useMemo(() => {
@@ -183,6 +185,18 @@ export default function AdminDebtorsPage() {
     setSendingEmail(false);
   };
 
+  const handleSendSms = async (debtor: Debtor) => {
+    if (!debtor.customerPhone) { alert("No phone number for this debtor."); return; }
+    setSendingSmsId(debtor.id);
+    try {
+      const days = debtor.dueDate ? getDaysOverdue(debtor.dueDate) : 0;
+      const msg = `Dear ${debtor.customerName}, your balance of Rs. ${debtor.balanceDue.toLocaleString("en-IN")} is overdue by ${days} days. Please pay at your earliest convenience. Thank you.`;
+      const result = await sendSMS(debtor.customerPhone, msg);
+      if (!result.ok) alert("SMS failed: " + (result.error || "Unknown error"));
+    } catch (e: any) { alert("SMS error: " + (e.message || e)); }
+    setSendingSmsId(null);
+  };
+
   return (
     <AdminLayout>
       <div className="p-6">
@@ -236,7 +250,22 @@ export default function AdminDebtorsPage() {
             </button>
             <button onClick={handleSendEmail} disabled={sendingEmail}
               className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5 disabled:opacity-50">
-              <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Send"}
+              <Mail className="h-4 w-4" /> {sendingEmail ? "Sending..." : "Email"}
+            </button>
+            <button onClick={async () => {
+              const active = filtered.filter((d) => d.status === "active" && d.customerPhone);
+              if (active.length === 0) { alert("No active debtors with phone numbers."); return; }
+              if (!confirm(`Send SMS reminder to ${active.length} debtor(s)?`)) return;
+              let sent = 0, failed = 0;
+              for (const d of active) {
+                const days = d.dueDate ? getDaysOverdue(d.dueDate) : 0;
+                const msg = `Dear ${d.customerName}, your balance of Rs. ${d.balanceDue.toLocaleString("en-IN")} is overdue by ${days} days. Please pay. Thank you.`;
+                const result = await sendSMS(d.customerPhone, msg);
+                if (result.ok) sent++; else failed++;
+              }
+              alert(`SMS sent to ${sent} debtor(s).${failed ? ` ${failed} failed.` : ""}`);
+            }} className="px-3 py-2 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted flex items-center gap-1.5">
+              <MessageSquare className="h-4 w-4" /> SMS All
             </button>
           </>)}
           <div className="flex items-center gap-1">
@@ -272,11 +301,16 @@ export default function AdminDebtorsPage() {
                         <MoreVertical className="h-4 w-4" />
                       </button>
                       {openMenuId === debtor.id && (
-                        <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-lg shadow-lg py-1 w-36"
+                        <div className="absolute right-0 top-8 z-20 bg-white border border-border rounded-lg shadow-lg py-1 w-40"
                           onMouseLeave={() => setOpenMenuId(null)}>
                           <button onClick={() => { setSelectedDebtor(debtor); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
                             <Eye className="h-3.5 w-3.5 text-muted-foreground" /> View Details
                           </button>
+                          {debtor.customerPhone && (
+                            <button onClick={() => { handleSendSms(debtor); setOpenMenuId(null); }} disabled={sendingSmsId === debtor.id} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
+                              <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" /> {sendingSmsId === debtor.id ? "Sending..." : "SMS Reminder"}
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -424,10 +458,18 @@ export default function AdminDebtorsPage() {
                               </div>
                             </div>
                           ) : (
-                            <button onClick={() => startPayment(debtor.id)}
-                              className="flex items-center gap-1 text-sm text-primary hover:underline">
-                              <Plus className="h-4 w-4" /> Record Payment
-                            </button>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <button onClick={() => startPayment(debtor.id)}
+                                className="flex items-center gap-1 text-sm text-primary hover:underline">
+                                <Plus className="h-4 w-4" /> Record Payment
+                              </button>
+                              {debtor.customerPhone && (
+                                <button onClick={() => handleSendSms(debtor)} disabled={sendingSmsId === debtor.id}
+                                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary hover:underline">
+                                  <MessageSquare className="h-4 w-4" /> {sendingSmsId === debtor.id ? "Sending..." : "SMS Reminder"}
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}

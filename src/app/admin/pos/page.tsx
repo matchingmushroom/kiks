@@ -11,12 +11,14 @@ import { resolveAccount } from "@/lib/accounts";
 import { createJournalEntry, buildSaleJournal, buildSaleCogsJournal } from "@/lib/journal";
 import { consumeFifo } from "@/lib/fifo";
 import { useAuth } from "@/contexts/AuthContext";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Button } from "@/components/ui/button";
 import {
   addDoc, collection, updateDoc, doc, setDoc, Timestamp, getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import BarcodeScannerDialog from "@/components/admin/BarcodeScannerDialog";
+import ReceiptPrint from "@/components/admin/ReceiptPrint";
 import {
   Search, X, Minus, Plus, Trash2, CheckCircle, Percent, Tag, User, Camera,
 } from "lucide-react";
@@ -38,6 +40,7 @@ export default function POSPage() {
 
   useEffect(() => { searchRef.current?.focus(); }, []);
   const { user, profile } = useAuth();
+  const { settings } = useShopSettings();
   const { data: products } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc"), limit(500)],
     realtime: true,
@@ -67,6 +70,20 @@ export default function POSPage() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [lastReceipt, setLastReceipt] = useState<any>(null);
+  const [redeemPoints, setRedeemPoints] = useState(0);
+  const [customerPoints, setCustomerPoints] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!settings.loyaltyEnabled || walkin || !customerPhone) { setCustomerPoints(null); setRedeemPoints(0); return; }
+    let cancelled = false;
+    (async () => {
+      const q = query(collection(db, "customers"), where("phone", "==", customerPhone));
+      const snap = await getDocs(q);
+      if (!cancelled) setCustomerPoints(snap.docs[0]?.data()?.loyaltyPoints || 0);
+    })();
+    return () => { cancelled = true; };
+  }, [customerPhone, walkin, settings.loyaltyEnabled]);
 
   useEffect(() => {
     if (success || error) {
@@ -88,8 +105,14 @@ export default function POSPage() {
     items.reduce((sum, i) => sum + i.subtotal, 0),
   [items]);
 
+  const redeemDiscount = useMemo(() => {
+    if (!settings.loyaltyEnabled || !customerPhone || redeemPoints <= 0) return 0;
+    const maxDiscount = redeemPoints * (settings.pointValue ?? 0.5);
+    return Math.min(maxDiscount, totalAmount * 0.5); // max 50% off via points
+  }, [settings.loyaltyEnabled, settings.pointValue, customerPhone, redeemPoints, totalAmount]);
+
   const discount = useMemo(() => {
-    let total = comboDiscount;
+    let total = comboDiscount + redeemDiscount;
     if (manualDiscountValue > 0) {
       total += manualDiscountType === "percentage"
         ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
@@ -101,7 +124,7 @@ export default function POSPage() {
         : appliedCoupon.discountValue;
     }
     return Math.min(total, totalAmount);
-  }, [comboDiscount, appliedCoupon, totalAmount, manualDiscountValue, manualDiscountType]);
+  }, [comboDiscount, appliedCoupon, totalAmount, manualDiscountValue, manualDiscountType, redeemDiscount]);
 
   const finalAmount = Math.max(0, totalAmount - discount);
   const balanceDue = paymentMode === "partial" ? Math.max(0, finalAmount - receivedAmount) : 0;
@@ -415,9 +438,57 @@ export default function POSPage() {
         }
       } catch (e) { console.error("Coupon usage update failed", e); }
 
+      // Loyalty points: earn and redeem
+      try {
+        if (settings.loyaltyEnabled && !walkin && customerPhone) {
+          const custQuery = query(collection(db, "customers"), where("phone", "==", customerPhone));
+          const custSnap = await getDocs(custQuery);
+          const earned = Math.floor(finalAmount * (settings.pointsPerRupee ?? 0.01));
+          if (custSnap.docs.length > 0) {
+            const custDoc = custSnap.docs[0];
+            const data = custDoc.data();
+            const currentPoints = data.loyaltyPoints || 0;
+            const deduction = Math.min(redeemPoints, currentPoints);
+            const netEarned = earned - deduction;
+            await updateDoc(doc(db, "customers", custDoc.id), {
+              loyaltyPoints: Math.max(0, currentPoints - deduction + earned),
+              lifetimePoints: (data.lifetimePoints || 0) + earned,
+              updatedAt: Timestamp.fromDate(new Date()),
+            });
+          } else if (customerName) {
+            if (earned > 0) {
+              const custId = await generateId("CUST");
+              await setDoc(doc(db, "customers", custId), {
+                name: customerName, phone: customerPhone, email: "", address: "", notes: "",
+                loyaltyPoints: earned, lifetimePoints: earned,
+                createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
+              });
+            }
+          }
+        }
+      } catch (e) { console.error("Loyalty points update failed", e); }
+
       setSuccess(true);
+      setLastReceipt({
+        shopName: settings.shopName || "Shop",
+        shopAddress: settings.address || "",
+        shopPhone: settings.phone || "",
+        date: new Date().toLocaleDateString("en-IN"),
+        time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+        receiptNo: saleId,
+        customerName: cName,
+        customerPhone: cPhone,
+        items: items.map((i) => ({ name: i.productName, qty: i.quantity, price: i.unitPrice, subtotal: i.subtotal })),
+        subtotal: totalAmount,
+        discount,
+        total: finalAmount,
+        paid: effectiveReceived,
+        change: Math.max(0, effectiveReceived - finalAmount),
+        paymentMethod: paymentMode === "qr" ? "QR" : paymentMode === "cash" ? "Cash" : "Partial",
+        recordedBy: profile?.displayName || "Staff",
+      });
       clearForm();
-      setTimeout(() => setSuccess(false), 3000);
+      setTimeout(() => { setSuccess(false); }, 3000);
     } catch (e: any) {
       setError(e?.message || "Sale failed");
     }
@@ -638,6 +709,30 @@ export default function POSPage() {
               </div>
             </div>
 
+            {/* Redeem Points */}
+            {settings.loyaltyEnabled && customerPoints !== null && customerPoints > 0 && (
+              <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <span className="text-xs font-semibold text-secondary">Redeem Points</span>
+                  <span className="text-xs text-muted-foreground ml-auto">{customerPoints} pts available</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <input type="number" value={redeemPoints || ""}
+                    onChange={(e) => setRedeemPoints(Math.min(Math.max(0, Number(e.target.value)), customerPoints))}
+                    min={0} max={customerPoints} placeholder="0"
+                    className="flex-1 px-3 lg:px-2.5 py-2 lg:py-1.5 border-2 border-border rounded text-sm lg:text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                  {redeemPoints > 0 && (
+                    <span className="text-xs lg:text-[11px] font-medium text-green-700 shrink-0">
+                      −{formatNumber(redeemPoints * (settings.pointValue ?? 0.5))}
+                    </span>
+                  )}
+                </div>
+                {(settings.minRedemptionPoints ?? 100) > 0 && customerPoints < (settings.minRedemptionPoints ?? 100) && (
+                  <p className="text-[10px] text-muted-foreground mt-1">Min. {settings.minRedemptionPoints} pts to redeem</p>
+                )}
+              </div>
+            )}
+
             {/* Coupon */}
             <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
               {appliedCoupon && (
@@ -795,6 +890,9 @@ export default function POSPage() {
           }}
           onClose={() => setShowScanner(false)}
         />
+      )}
+      {lastReceipt && (
+        <ReceiptPrint data={lastReceipt} onClose={() => setLastReceipt(null)} />
       )}
     </AdminLayout>
   );

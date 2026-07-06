@@ -402,6 +402,8 @@ export interface Customer {
   email: string;
   address: string;
   notes: string;
+  loyaltyPoints?: number;
+  lifetimePoints?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -443,6 +445,16 @@ export interface ShopSettings {
   deliveryFeeInsideValley?: number;
   deliveryFeeOutsideValley?: number;
   freeDeliveryThreshold?: number;
+  loyaltyEnabled?: boolean;
+  pointsPerRupee?: number;
+  pointValue?: number;
+  minRedemptionPoints?: number;
+}
+
+export interface SmsConfig {
+  provider: "sparrowsms" | "smsfactory";
+  apiKey: string;
+  senderId: string;
 }
 
 export interface PaymentHistoryEntry {

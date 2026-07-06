@@ -6,13 +6,13 @@ import { doc, getDoc, setDoc, addDoc, collection, getDocs, deleteDoc, query, whe
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Save, Image, Download, Mail, Database, Calendar, FileText, UserPlus, Plus, X, TrendingUp } from "lucide-react";
+import { Save, Image, Download, Mail, Database, Calendar, FileText, UserPlus, Plus, X, TrendingUp, MessageSquare } from "lucide-react";
 import { getPreviousFYRange } from "@/lib/nepaliDate";
 import { createJournalEntry } from "@/lib/journal";
 import { useAuth } from "@/contexts/AuthContext";
 import PartnerReport from "@/components/admin/PartnerReport";
 import { generateVCard, downloadVCard } from "@/lib/vcard";
-import type { ShopSettings } from "@/types";
+import type { ShopSettings, SmsConfig as SmsConfigType } from "@/types";
 
 interface Settings {
   shopName: string;
@@ -88,6 +88,18 @@ const emailDefaults: EmailBackupConfig = {
   billDriveFolderId: "",
 };
 
+interface SmsConfigForm {
+  provider: "sparrowsms" | "smsfactory";
+  apiKey: string;
+  senderId: string;
+}
+
+const smsDefaults: SmsConfigForm = {
+  provider: "sparrowsms",
+  apiKey: "",
+  senderId: "KIKSCL",
+};
+
 const ALL_MODULES = [
   { key: "sales", label: "Sales" },
   { key: "purchases", label: "Purchases" },
@@ -120,6 +132,10 @@ export default function SettingsPage() {
   const [archiving, setArchiving] = useState(false);
   const [archiveStatus, setArchiveStatus] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [smsConfig, setSmsConfig] = useState<SmsConfigForm>(smsDefaults);
+  const [smsSaving, setSmsSaving] = useState(false);
+  const [smsSaved, setSmsSaved] = useState(false);
+  const [smsTestStatus, setSmsTestStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!form.shopName) return;
@@ -227,6 +243,10 @@ export default function SettingsPage() {
         if (emailSnap.exists()) {
           setEmailConfig({ ...emailDefaults, ...emailSnap.data() } as EmailBackupConfig);
         }
+        const smsSnap = await getDoc(doc(db, "shop_settings", "smsConfig"));
+        if (smsSnap.exists()) {
+          setSmsConfig({ ...smsDefaults, ...smsSnap.data() } as SmsConfigForm);
+        }
         // Store archive FY dates for GAS doBackup to reference
         const prevFY = getPreviousFYRange();
         const archiveStart = prevFY.start.getTime();
@@ -264,6 +284,27 @@ export default function SettingsPage() {
       console.error("Email config save failed", e);
     }
     setEmailSaving(false);
+  };
+
+  const handleSmsSave = async () => {
+    setSmsSaving(true);
+    setSmsSaved(false);
+    try {
+      await setDoc(doc(db, "shop_settings", "smsConfig"), smsConfig);
+      setSmsSaved(true);
+      setTimeout(() => setSmsSaved(false), 3000);
+    } catch (e) {
+      console.error("SMS config save failed", e);
+    }
+    setSmsSaving(false);
+  };
+
+  const testSms = async () => {
+    setSmsTestStatus(null);
+    if (!smsConfig.apiKey) { setSmsTestStatus("Enter an API key first."); return; }
+    const { sendSMS } = await import("@/lib/sms");
+    const result = await sendSMS(form.phone.replace(/[^0-9]/g, ""), `Test SMS from ${form.shopName} — SMS is working!`);
+    setSmsTestStatus(result.ok ? "Test SMS sent!" : `Failed: ${result.error}`);
   };
 
   const downloadGASScript = () => {
@@ -481,6 +522,47 @@ export default function SettingsPage() {
               </p>
             </div>
 
+            <div className="pt-4 border-t border-border space-y-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-primary" />
+                <h3 className="text-sm font-semibold text-secondary">Loyalty Points</h3>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={!!form.loyaltyEnabled}
+                  onChange={(e) => setForm({ ...form, loyaltyEnabled: e.target.checked })}
+                  className="accent-primary w-4 h-4" />
+                <span className="text-sm font-medium text-secondary">Enable Loyalty Points</span>
+              </label>
+              {form.loyaltyEnabled && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pl-6">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Points per Rs. 1</label>
+                    <input type="number" value={form.pointsPerRupee ?? 0.01}
+                      onChange={(e) => setForm({ ...form, pointsPerRupee: Number(e.target.value) })}
+                      min={0} step={0.001}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <p className="text-xs text-muted-foreground mt-0.5">e.g., 0.01 = 1 point per Rs. 100</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Rs. per Point</label>
+                    <input type="number" value={form.pointValue ?? 0.5}
+                      onChange={(e) => setForm({ ...form, pointValue: Number(e.target.value) })}
+                      min={0} step={0.1}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <p className="text-xs text-muted-foreground mt-0.5">e.g., 0.5 = 100 points = Rs. 50</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Min Redemption</label>
+                    <input type="number" value={form.minRedemptionPoints ?? 100}
+                      onChange={(e) => setForm({ ...form, minRedemptionPoints: Number(e.target.value) })}
+                      min={1} step={10}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                    <p className="text-xs text-muted-foreground mt-0.5">Minimum points to redeem</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex items-center gap-3 pt-4 border-t border-border">
               <Calendar className="h-5 w-5 text-primary" />
               <div className="flex-1">
@@ -567,6 +649,49 @@ export default function SettingsPage() {
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-border space-y-4">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-primary" />
+                <h3 className="text-sm font-semibold text-secondary">SMS Configuration</h3>
+              </div>
+              <p className="text-xs text-muted-foreground">Used for debtor reminders and notifications via SparrowSMS or SMSFactory.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Provider</label>
+                  <select value={smsConfig.provider}
+                    onChange={(e) => setSmsConfig({ ...smsConfig, provider: e.target.value as "sparrowsms" | "smsfactory" })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                    <option value="sparrowsms">SparrowSMS</option>
+                    <option value="smsfactory">SMSFactory</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">API Key / Token</label>
+                  <input type="text" value={smsConfig.apiKey}
+                    onChange={(e) => setSmsConfig({ ...smsConfig, apiKey: e.target.value })}
+                    placeholder="Your API key or token"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Sender ID</label>
+                  <input type="text" value={smsConfig.senderId}
+                    onChange={(e) => setSmsConfig({ ...smsConfig, senderId: e.target.value })}
+                    placeholder="KIKSCL"
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button onClick={handleSmsSave} disabled={smsSaving} size="sm" variant="outline">
+                  <Save className="h-3.5 w-3.5" /> {smsSaving ? "Saving..." : "Save SMS Config"}
+                </Button>
+                <Button onClick={testSms} disabled={!smsConfig.apiKey} size="sm" variant="ghost">
+                  <MessageSquare className="h-3.5 w-3.5" /> Test SMS
+                </Button>
+                {smsSaved && <span className="text-xs text-green-600">Saved!</span>}
+                {smsTestStatus && <span className={`text-xs ${smsTestStatus.startsWith("Test SMS sent") ? "text-green-600" : "text-red-600"}`}>{smsTestStatus}</span>}
               </div>
             </div>
 

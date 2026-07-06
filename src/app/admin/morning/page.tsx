@@ -6,7 +6,8 @@ import PageHeader from "@/components/admin/PageHeader";
 import { useFirestore } from "@/hooks/useFirestore";
 import { Product, FifoLayer, Creditor, Sale, Category } from "@/types";
 import { formatCurrency, toDate } from "@/lib/utils";
-import { Package, AlertTriangle, TrendingUp, DollarSign, Clock, Shield, Users, Sun } from "lucide-react";
+import { Package, AlertTriangle, TrendingUp, DollarSign, Clock, Shield, Users, Sun, MessageSquare } from "lucide-react";
+import { sendSMS } from "@/lib/sms";
 
 const AGE_GREEN = 120;
 const AGE_YELLOW = 180;
@@ -317,7 +318,26 @@ export default function MorningDashboardPage() {
                 <Users className="h-4 w-4 text-rose-500" />
                 <h2 className="text-sm font-semibold text-secondary">Supplier Payment Reminders</h2>
               </div>
-              <span className="text-xs text-muted-foreground">{overdueCreditors.length} overdue</span>
+              <div className="flex items-center gap-2">
+                {overdueCreditors.length > 0 && (
+                  <button onClick={async () => {
+                    const withPhone = overdueCreditors.filter((c) => c.supplierPhone);
+                    if (withPhone.length === 0) { alert("No overdue creditors with phone numbers."); return; }
+                    if (!confirm(`Send SMS reminder to ${withPhone.length} creditor(s)?`)) return;
+                    let sent = 0, failed = 0;
+                    for (const c of withPhone) {
+                      const days = Math.floor((Date.now() - c.dueTime) / 86400000);
+                      const msg = `Dear ${c.supplierName}, your payment of Rs. ${c.balanceDue.toLocaleString("en-IN")} is overdue by ${days} days. Please settle at your earliest. Thank you.`;
+                      const result = await sendSMS(c.supplierPhone || "", msg);
+                      if (result.ok) sent++; else failed++;
+                    }
+                    alert(`SMS sent to ${sent} creditor(s).${failed ? ` ${failed} failed.` : ""}`);
+                  }} className="text-xs text-primary hover:underline flex items-center gap-1">
+                    <MessageSquare className="h-3 w-3" /> SMS All
+                  </button>
+                )}
+                <span className="text-xs text-muted-foreground">{overdueCreditors.length} overdue</span>
+              </div>
             </div>
             {overdueCreditors.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No overdue supplier bills</p>

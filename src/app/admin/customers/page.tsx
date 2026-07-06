@@ -3,16 +3,16 @@
 import { useState, useEffect, useMemo } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
-import { Customer } from "@/types";
-import { formatDate, formatDateTime } from "@/lib/utils";
+import { Customer, Sale } from "@/types";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
 import {
-  setDoc, updateDoc, deleteDoc, doc, collection, Timestamp, onSnapshot,
+  setDoc, updateDoc, deleteDoc, doc, collection, Timestamp, onSnapshot, query, where, getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List, Eye, MoreVertical } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List, Eye, MoreVertical, TrendingUp, ShoppingCart } from "lucide-react";
 
 const emptyForm = {
   name: "", phone: "", email: "", address: "", notes: "",
@@ -36,12 +36,24 @@ export default function AdminCustomersPage() {
   const [detailCustomerData, setDetailCustomerData] = useState<Customer | null>(null);
 
   useEffect(() => {
-    if (!detailCustomerId) { setDetailCustomerData(null); return; }
+    if (!detailCustomerId) { setDetailCustomerData(null); setCustomerSales([]); return; }
     const unsub = onSnapshot(doc(db, "customers", detailCustomerId), (snap) => {
       if (snap.exists()) setDetailCustomerData({ id: snap.id, ...snap.data() } as Customer);
     });
     return () => unsub();
   }, [detailCustomerId]);
+
+  const [customerSales, setCustomerSales] = useState<Sale[]>([]);
+  useEffect(() => {
+    if (!detailCustomerData?.phone) { setCustomerSales([]); return; }
+    (async () => {
+      const q = query(collection(db, "sales"), where("customer.phone", "==", detailCustomerData.phone));
+      const snap = await getDocs(q);
+      const sales = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Sale));
+      sales.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setCustomerSales(sales.slice(0, 50));
+    })();
+  }, [detailCustomerData?.phone]);
 
   const filtered = useMemo(() => {
     if (!search) return customers;
@@ -275,6 +287,27 @@ export default function AdminCustomersPage() {
                 </button>
               </div>
               <div className="p-6 space-y-6">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Total Spent</p>
+                    <p className="font-bold text-secondary">{formatCurrency(customerSales.reduce((s, sale) => s + sale.finalAmount, 0))}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Visits</p>
+                    <p className="font-bold text-secondary">{customerSales.length}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Loyalty Points</p>
+                    <p className="font-bold text-secondary">{detailCustomerData.loyaltyPoints || 0}</p>
+                  </div>
+                  <div className="bg-muted/30 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Last Visit</p>
+                    <p className="font-bold text-secondary text-xs">
+                      {customerSales.length > 0 ? formatDate(customerSales[0].createdAt) : "—"}
+                    </p>
+                  </div>
+                </div>
+
                 <div>
                   <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">Basic Info</h3>
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -291,6 +324,38 @@ export default function AdminCustomersPage() {
                     <p className="text-sm bg-muted/20 p-3 rounded-lg">{detailCustomerData.notes}</p>
                   </div>
                 )}
+
+                <div>
+                  <h3 className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide flex items-center gap-1.5">
+                    <ShoppingCart className="h-3.5 w-3.5" /> Purchase History ({customerSales.length})
+                  </h3>
+                  {customerSales.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No purchases yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto max-h-64 overflow-y-auto border border-border rounded-lg">
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-white">
+                          <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                            <th className="px-3 py-2 font-medium">Date</th>
+                            <th className="px-3 py-2 font-medium text-right">Items</th>
+                            <th className="px-3 py-2 font-medium text-right">Total</th>
+                            <th className="px-3 py-2 font-medium text-right">Payment</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {customerSales.map((sale) => (
+                            <tr key={sale.id} className="hover:bg-muted/30">
+                              <td className="px-3 py-2 text-xs">{formatDate(sale.createdAt)}</td>
+                              <td className="px-3 py-2 text-xs text-right">{sale.items?.length || 0}</td>
+                              <td className="px-3 py-2 text-xs text-right font-medium">{formatCurrency(sale.finalAmount)}</td>
+                              <td className="px-3 py-2 text-xs text-right capitalize">{sale.payment?.method || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
 
                 <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground pt-4 border-t border-border">
                   <p>Created: {detailCustomerData.createdAt ? formatDate(detailCustomerData.createdAt) : "—"}</p>
