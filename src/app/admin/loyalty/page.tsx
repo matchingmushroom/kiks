@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, getDocs, collection, query, where, orderBy, limit, setDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Search, Award, CheckCircle, XCircle, TrendingUp, Clock, User, Phone, IndianRupee } from "lucide-react";
+import { Search, Award, CheckCircle, XCircle, TrendingUp, Clock, User, Phone } from "lucide-react";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatNumber } from "@/lib/utils";
