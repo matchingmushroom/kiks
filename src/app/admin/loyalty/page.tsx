@@ -316,7 +316,7 @@ function SaleRow({
         if (settings.gasLoyaltyUrl) setGasUrl(settings.gasLoyaltyUrl);
         const res = await getHistory(sale.customerPhone);
         if (!cancelled) {
-          setAwarded(res.ok && res.data?.some((t) => t.refType === "sale" && t.referenceId === sale.id && t.type === "earn"));
+          setAwarded(res.ok && (res.data?.some((t) => t.refType === "sale" && t.referenceId === sale.id && t.type === "earn") ?? false));
         }
       } catch { /* ignore */ }
       if (!cancelled) setChecking(false);
