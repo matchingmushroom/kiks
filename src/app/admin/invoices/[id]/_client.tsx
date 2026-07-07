@@ -6,7 +6,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { generateId } from "@/lib/id-generator";
-import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, Timestamp, setDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, Timestamp, setDoc, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Invoice } from "@/types";
 import { formatCurrency, formatDate, amountInWords } from "@/lib/utils";
@@ -41,6 +41,7 @@ export default function InvoiceDetailPage() {
   const [shopAddress, setShopAddress] = useState("");
   const [logoUrl, setLogoUrl] = useState("/logo.svg");
   const [converting, setConverting] = useState(false);
+  const [loyaltyPoints, setLoyaltyPoints] = useState<number | null>(null);
 
   const loadInvoice = async () => {
     try {
@@ -59,6 +60,8 @@ export default function InvoiceDetailPage() {
           setArchived(true);
         }
       }
+      let inv = invoice;
+      if (snap.exists()) inv = { id: snap.id, ...snap.data() } as Invoice;
       const settingsSnap = await getDoc(doc(db, "shop_settings", "config"));
       if (settingsSnap.exists()) {
         const s = settingsSnap.data();
@@ -66,6 +69,15 @@ export default function InvoiceDetailPage() {
         setShopTagline(s.tagline || "Exquisite Jewellery");
         setShopAddress(s.address || "");
         setLogoUrl(s.logoUrl || "/logo.svg");
+        if (s.loyaltyEnabled && inv?.customer?.phone) {
+          try {
+            const custQ = query(collection(db, "customers"), where("phone", "==", inv.customer.phone));
+            const custSnap = await getDocs(custQ);
+            if (custSnap.docs.length > 0) {
+              setLoyaltyPoints(custSnap.docs[0].data().loyaltyPoints || 0);
+            }
+          } catch {}
+        }
       }
     } catch {
       /* ignore */
@@ -177,6 +189,7 @@ export default function InvoiceDetailPage() {
       ? `${invoice.couponIssued.discountValue}% off`
       : invoice.couponIssued?.discountValue ? `Rs. ${invoice.couponIssued.discountValue} off` : undefined,
     couponTerms: invoice.couponIssued?.terms,
+    loyaltyPoints: loyaltyPoints ?? undefined,
   };
 
   return (
@@ -262,6 +275,11 @@ export default function InvoiceDetailPage() {
                 <p className="text-sm text-muted-foreground">{invoice.customer?.phone}</p>
                 {invoice.customer?.address && (
                   <p className="text-sm text-muted-foreground">{invoice.customer.address}</p>
+                )}
+                {loyaltyPoints !== null && (
+                  <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent/10 rounded-lg text-xs font-semibold text-accent">
+                    <span className="text-[10px]">★</span> Loyalty: {loyaltyPoints} pts
+                  </div>
                 )}
               </div>
               <div className="text-right">

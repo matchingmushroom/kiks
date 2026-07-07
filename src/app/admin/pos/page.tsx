@@ -456,9 +456,11 @@ export default function POSPage() {
       } catch (e) { console.error("Coupon usage update failed", e); }
 
       // Loyalty points: earn, redeem, and log to GAS
+      let earned = 0;
+      let finalLoyaltyPoints: number | undefined;
       try {
         if (settings.loyaltyEnabled && !walkin && customerPhone) {
-          const earned = Math.floor(finalAmount * (settings.pointsPerRupee ?? 0.01));
+          earned = Math.floor(finalAmount * (settings.pointsPerRupee ?? 0.01));
           if (earned > 0 || redeemPoints > 0) {
             const custQuery = query(collection(db, "customers"), where("phone", "==", customerPhone));
             const custSnap = await getDocs(custQuery);
@@ -467,12 +469,14 @@ export default function POSPage() {
               const data = custDoc.data();
               const currentPoints = data.loyaltyPoints || 0;
               const deduction = Math.min(redeemPoints, currentPoints);
+              finalLoyaltyPoints = Math.max(0, currentPoints - deduction + earned);
               await updateDoc(doc(db, "customers", custDoc.id), {
-                loyaltyPoints: Math.max(0, currentPoints - deduction + earned),
+                loyaltyPoints: finalLoyaltyPoints,
                 lifetimePoints: (data.lifetimePoints || 0) + earned,
                 updatedAt: Timestamp.fromDate(new Date()),
               });
             } else if (customerName && earned > 0) {
+              finalLoyaltyPoints = earned;
               const custId = await generateId("CUST");
               await setDoc(doc(db, "customers", custId), {
                 name: customerName, phone: customerPhone, email: "", address: "", notes: "",
@@ -507,6 +511,9 @@ export default function POSPage() {
         change: Math.max(0, effectiveReceived - finalAmount),
         paymentMethod: paymentMode === "qr" ? "QR" : paymentMode === "cash" ? "Cash" : "Partial",
         recordedBy: profile?.displayName || "Staff",
+        earnedPoints: earned > 0 ? earned : undefined,
+        redeemedPoints: redeemPoints > 0 ? redeemPoints : undefined,
+        loyaltyPoints: finalLoyaltyPoints,
       });
       clearForm();
       setTimeout(() => { setSuccess(false); }, 3000);

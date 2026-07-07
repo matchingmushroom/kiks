@@ -26,6 +26,9 @@ interface ReceiptData {
   change: number;
   paymentMethod: string;
   recordedBy: string;
+  loyaltyPoints?: number;
+  earnedPoints?: number;
+  redeemedPoints?: number;
 }
 
 interface ReceiptPrintProps {
@@ -136,6 +139,16 @@ export default function ReceiptPrint({ data, onClose }: ReceiptPrintProps) {
               </div>
             )}
           </div>
+          {data.loyaltyPoints !== undefined && (
+            <>
+              <div className="border-t border-dashed border-gray-400 my-2" />
+              <div className="text-center text-[10px]">
+                {data.earnedPoints ? <p>Points earned: +{data.earnedPoints}</p> : null}
+                {data.redeemedPoints ? <p>Points redeemed: -{data.redeemedPoints}</p> : null}
+                <p className="font-bold">Loyalty Balance: {data.loyaltyPoints} pts</p>
+              </div>
+            </>
+          )}
           <div className="border-t border-dashed border-gray-400 my-2" />
           <div className="text-center text-[10px] text-gray-600">
             <p>Thank you for your purchase!</p>

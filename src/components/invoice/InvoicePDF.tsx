@@ -71,6 +71,7 @@ interface InvoicePDFProps {
   couponCode?: string;
   couponDiscountText?: string;
   couponTerms?: string;
+  loyaltyPoints?: number;
 }
 
 export default function InvoicePDF(data: InvoicePDFProps) {
@@ -95,6 +96,9 @@ export default function InvoicePDF(data: InvoicePDFProps) {
             <Text style={styles.value}>{data.customer.name}</Text>
             <Text style={styles.value}>{data.customer.phone}</Text>
             <Text style={styles.value}>{data.customer.address}</Text>
+            {data.loyaltyPoints !== undefined && (
+              <Text style={{ fontSize: 8, color: "#b8860b", marginTop: 4 }}>★ Loyalty Points: {data.loyaltyPoints}</Text>
+            )}
           </View>
           <View style={styles.col}>
             <Text style={styles.label}>DATE</Text>
