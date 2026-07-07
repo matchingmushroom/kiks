@@ -2,7 +2,7 @@
 
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { downloadVCard } from "@/lib/vcard";
-import { Globe, Phone, MessageCircle, MapPin, UserPlus } from "lucide-react";
+import { Globe, Phone, MessageCircle, MapPin, UserPlus, Gift, Award } from "lucide-react";
 import { FaFacebook, FaInstagram, FaYoutube, FaTwitter } from "react-icons/fa";
 import { FaTiktok } from "react-icons/fa6";
 
@@ -135,6 +135,25 @@ export default function ConnectPage() {
                     <MapPin className="h-5 w-5" />
                     <span>Get Directions</span>
                   </a>
+                )}
+
+                {settings.loyaltyEnabled && (
+                  <>
+                    <a
+                      href="/loyalty/register"
+                      className="flex items-center justify-center gap-2.5 w-full h-12 bg-gradient-to-r from-accent to-primary text-white font-semibold rounded-full hover:opacity-90 transition-all active:scale-[0.98] shadow-lg shadow-accent/20"
+                    >
+                      <Gift className="h-5 w-5" />
+                      <span>Join Loyalty Program</span>
+                    </a>
+                    <a
+                      href="/loyalty/check"
+                      className="flex items-center justify-center gap-2.5 w-full h-12 border-2 border-accent text-accent font-semibold rounded-full hover:bg-accent/10 transition-colors active:scale-[0.98]"
+                    >
+                      <Award className="h-5 w-5" />
+                      <span>Check Loyalty Points</span>
+                    </a>
+                  </>
                 )}
               </div>
 
