@@ -1,6 +1,7 @@
 "use client";
 
-import { Facebook, Instagram, Youtube, Twitter, Music2, Mail, MapPin, Phone } from "lucide-react";
+import { Facebook, Instagram, Youtube, Twitter, Music2, Mail, MapPin, Phone, Gift, ExternalLink } from "lucide-react";
+import NextLink from "next/link";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 
 const socialChannels = [
@@ -47,6 +48,16 @@ export default function ShopFooter() {
             ) : (
               <p className="text-xs text-secondary-foreground/50">No social links configured</p>
             )}
+            <div className="mt-4 flex flex-col gap-2">
+              <NextLink href="/loyalty/register" className="flex items-center gap-2 text-sm text-secondary-foreground/70 hover:text-accent transition-colors">
+                <Gift className="h-4 w-4" />
+                Join Loyalty Program
+              </NextLink>
+              <NextLink href="/loyalty/check" className="flex items-center gap-2 text-sm text-secondary-foreground/70 hover:text-accent transition-colors">
+                <ExternalLink className="h-4 w-4" />
+                Connect
+              </NextLink>
+            </div>
           </div>
           <div>
             <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Store Address</h3>
