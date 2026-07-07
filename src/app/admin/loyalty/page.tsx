@@ -129,7 +129,7 @@ export default function LoyaltyPage() {
 
   const handleAward = async (sale: SaleResult) => {
     if (!sale.customerPhone) {
-      setMessage("Cannot award: no customer phone (walk-in sale)");
+      setMessage("Enter a customer phone before awarding");
       return;
     }
     if (!settings.loyaltyEnabled) {
@@ -148,18 +148,20 @@ export default function LoyaltyPage() {
         return;
       }
 
-      // Check GAS to see if already awarded
+      // Check GAS to see if already awarded (only if phone matches sale's original phone)
       const { getHistory, batchTransaction, setGasUrl } = await import("@/lib/loyalty-gas");
       if (settings.gasLoyaltyUrl) setGasUrl(settings.gasLoyaltyUrl);
 
-      const historyRes = await getHistory(sale.customerPhone);
-      const alreadyAwarded = historyRes.ok && historyRes.data?.some(
-        (t) => t.refType === "sale" && t.referenceId === sale.id && t.type === "earn"
-      );
-      if (alreadyAwarded) {
-        setMessage(`Points already awarded for sale ${sale.id}`);
-        setAwardingId(null);
-        return;
+      if (sale.customerPhone) {
+        const historyRes = await getHistory(sale.customerPhone);
+        const alreadyAwarded = historyRes.ok && historyRes.data?.some(
+          (t) => t.refType === "sale" && t.referenceId === sale.id && t.type === "earn"
+        );
+        if (alreadyAwarded) {
+          setMessage(`Points already awarded for sale ${sale.id}`);
+          setAwardingId(null);
+          return;
+        }
       }
 
       // Find customer in Firestore
@@ -304,11 +306,14 @@ function SaleRow({
   const [awarded, setAwarded] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(true);
   const [earned, setEarned] = useState(0);
+  const [editName, setEditName] = useState(sale.customerName === "Walk-in" ? "" : sale.customerName);
+  const [editPhone, setEditPhone] = useState(sale.customerPhone);
+  const [editing, setEditing] = useState(!sale.customerPhone);
 
   useEffect(() => {
+    if (!sale.customerPhone) { setChecking(false); return; }
     let cancelled = false;
     const check = async () => {
-      if (!sale.customerPhone) { setChecking(false); return; }
       const pointsPerRupee = settings.pointsPerRupee ?? 0.01;
       setEarned(Math.floor(sale.finalAmount * pointsPerRupee));
       try {
@@ -323,51 +328,87 @@ function SaleRow({
     };
     check();
     return () => { cancelled = true; };
-  }, [sale.id, sale.customerPhone, sale.finalAmount, sale.customerPhone, settings.pointsPerRupee, settings.gasLoyaltyUrl]);
+  }, [sale.id, sale.customerPhone, sale.finalAmount, settings.pointsPerRupee, settings.gasLoyaltyUrl]);
 
-  const canAward = !!sale.customerPhone && settings.loyaltyEnabled && earned > 0;
+  const finalPhone = editPhone || sale.customerPhone;
+  const finalName = editName || sale.customerName;
+  const hasPhone = !!finalPhone;
+  const effectiveEarned = earned > 0 ? earned : Math.floor(sale.finalAmount * (settings.pointsPerRupee ?? 0.01));
+  const canAward = hasPhone && settings.loyaltyEnabled && effectiveEarned > 0 && awarded !== true;
 
   return (
     <tr className="hover:bg-muted/30 transition-colors">
       <td className="px-4 py-3 font-mono text-xs">{sale.id}</td>
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2">
-          <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-          <div>
-            <p className="font-medium text-sm">{sale.customerName}</p>
-            {sale.customerPhone && <p className="text-xs text-muted-foreground">{sale.customerPhone}</p>}
+      <td className="px-4 py-3 min-w-[200px]">
+        {editing ? (
+          <div className="flex flex-col gap-1.5">
+            <input type="text" value={editName} placeholder="Customer name"
+              onChange={(e) => setEditName(e.target.value)}
+              className="w-full px-2.5 py-1.5 border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary" />
+            <input type="text" value={editPhone} placeholder="Phone number *"
+              onChange={(e) => setEditPhone(e.target.value)}
+              className="w-full px-2.5 py-1.5 border border-border rounded text-xs focus:outline-none focus:ring-2 focus:ring-primary" />
           </div>
-        </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <div>
+              <p className="font-medium text-sm">{sale.customerName}</p>
+              {sale.customerPhone && <p className="text-xs text-muted-foreground">{sale.customerPhone}</p>}
+            </div>
+          </div>
+        )}
       </td>
       <td className="px-4 py-3 text-right font-medium">Rs. {formatNumber(sale.finalAmount)}</td>
       <td className="px-4 py-3 text-xs text-muted-foreground">{fmtDate(sale.saleDate)}</td>
       <td className="px-4 py-3 text-center">
-        {!sale.customerPhone ? (
+        {!hasPhone ? (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-            <XCircle className="h-3.5 w-3.5" /> Walk-in
+            <XCircle className="h-3.5 w-3.5" /> No phone
           </span>
-        ) : checking ? (
+        ) : checking && !editing && !!sale.customerPhone ? (
           <span className="text-xs text-muted-foreground">Checking...</span>
         ) : awarded ? (
           <span className="inline-flex items-center gap-1 text-xs text-green-600">
             <CheckCircle className="h-3.5 w-3.5" /> Awarded
           </span>
-        ) : (
+        ) : hasPhone ? (
           <span className="inline-flex items-center gap-1 text-xs text-amber-600">
-            <TrendingUp className="h-3.5 w-3.5" /> {earned} pts
+            <TrendingUp className="h-3.5 w-3.5" /> {effectiveEarned} pts
           </span>
-        )}
+        ) : null}
       </td>
       <td className="px-4 py-3 text-center">
-        <Button
-          onClick={() => onAward(sale)}
-          disabled={!canAward || awardingId === sale.id || awarded === true || checking}
-          size="sm"
-          variant={canAward && !awarded ? "accent" : "outline"}
-          className="text-xs"
-        >
-          {awardingId === sale.id ? "Awarding..." : awarded ? "Done" : "Award"}
-        </Button>
+        <div className="flex flex-col items-center gap-1">
+          {editing ? (
+            <>
+              <Button onClick={() => {
+                const overrideSale = { ...sale, customerName: finalName, customerPhone: finalPhone };
+                onAward(overrideSale);
+              }} disabled={!canAward || awardingId === sale.id} size="sm" variant="accent" className="text-xs">
+                {awardingId === sale.id ? "Awarding..." : "Award"}
+              </Button>
+              <button onClick={() => setEditing(false)} className="text-[10px] text-muted-foreground hover:text-secondary">
+                Cancel
+              </button>
+            </>
+          ) : (
+            <>
+              <Button onClick={() => {
+                const overrideSale = { ...sale, customerName: finalName, customerPhone: finalPhone };
+                onAward(overrideSale);
+              }} disabled={!canAward || awardingId === sale.id || awarded === true || checking} size="sm"
+                variant={canAward && !awarded ? "accent" : "outline"} className="text-xs">
+                {awardingId === sale.id ? "Awarding..." : awarded ? "Done" : "Award"}
+              </Button>
+              {!sale.customerPhone && (
+                <button onClick={() => setEditing(true)} className="text-[10px] text-primary hover:underline">
+                  Edit customer
+                </button>
+              )}
+            </>
+          )}
+        </div>
       </td>
     </tr>
   );
