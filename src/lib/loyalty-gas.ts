@@ -66,7 +66,7 @@ async function gasPost<T>(body: Record<string, any>): Promise<GASResponse<T>> {
   if (!base) return { ok: false, error: "GAS URL not configured" };
   const res = await fetch(base, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "text/plain" },
     body: JSON.stringify(body),
   });
   return res.json();
