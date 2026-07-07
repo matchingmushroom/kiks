@@ -6,7 +6,7 @@ import AdminLayout from "@/components/admin/AdminLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { generateId } from "@/lib/id-generator";
-import { doc, getDoc, updateDoc, addDoc, collection, deleteDoc, Timestamp, setDoc, query, where } from "firebase/firestore";
+import { doc, getDoc, getDocs, updateDoc, addDoc, collection, deleteDoc, Timestamp, setDoc, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Invoice } from "@/types";
 import { formatCurrency, formatDate, amountInWords } from "@/lib/utils";
