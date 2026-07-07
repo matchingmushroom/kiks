@@ -6,8 +6,6 @@ import { Gift, CheckCircle, Loader2, Sparkles, Star, Shield, ArrowRight } from "
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 import Link from "next/link";
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function LoyaltyRegisterPage() {
   const [phone, setPhone] = useState("");
@@ -23,23 +21,6 @@ export default function LoyaltyRegisterPage() {
     setResult(null);
     const cleanPhone = phone.replace(/\D/g, "");
     const res = await registerCustomer(cleanPhone, name, address);
-    if (res.ok) {
-      try {
-        const q = query(collection(db, "customers"), where("phone", "==", cleanPhone));
-        const snap = await getDocs(q);
-        if (snap.docs.length > 0) {
-          await updateDoc(doc(db, "customers", snap.docs[0].id), {
-            name, address, updatedAt: Timestamp.fromDate(new Date()),
-          });
-        } else {
-          await addDoc(collection(db, "customers"), {
-            name, phone: cleanPhone, address, email: "", notes: "",
-            loyaltyPoints: 0, lifetimePoints: 0,
-            createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
-          });
-        }
-      } catch (e) { console.error("Firestore sync failed", e); }
-    }
     setResult({ ok: res.ok, message: res.ok ? "Registered successfully! Welcome to our loyalty program." : res.error || "Registration failed" });
     if (res.ok) { setPhone(""); setName(""); setAddress(""); }
     setLoading(false);

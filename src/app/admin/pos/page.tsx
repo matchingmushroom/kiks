@@ -86,7 +86,17 @@ export default function POSPage() {
         setCustomerName(data.name || "");
         setCustomerPoints(data.loyaltyPoints || 0);
       } else {
+        setCustomerName("");
         setCustomerPoints(null);
+        import("@/lib/loyalty-gas").then((m) =>
+          m.lookupCustomer(customerPhone).then((r) => {
+            if (cancelled) return;
+            if (r.ok && r.data) {
+              setCustomerName(r.data.name);
+              setCustomerPoints(r.data.currentPoints);
+            }
+          })
+        );
       }
     })();
     return () => { cancelled = true; };
