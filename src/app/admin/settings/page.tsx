@@ -276,7 +276,7 @@ export default function SettingsPage() {
           const data = snap.data() as Settings;
           setForm({ ...defaults, ...data } as Settings);
           if (data.gasLoyaltyUrl) {
-            import("@/lib/loyalty-gas").then((m) => m.setGasUrl(data.gasLoyaltyUrl));
+            import("@/lib/loyalty-gas").then((m) => m.setGasUrl(data.gasLoyaltyUrl!));
           }
         }
         const emailSnap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
@@ -634,7 +634,7 @@ export default function SettingsPage() {
                     <Button onClick={async () => {
                       if (!form.gasLoyaltyUrl) return;
                       const { setGasUrl, ping } = await import("@/lib/loyalty-gas");
-                      setGasUrl(form.gasLoyaltyUrl);
+                      setGasUrl(form.gasLoyaltyUrl!);
                       const res = await ping();
                       alert(res.ok ? "Connected!" : `Failed: ${res.error}`);
                     }} size="sm" variant="outline" type="button">Test</Button>
