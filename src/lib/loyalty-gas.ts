@@ -1,3 +1,6 @@
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 export interface GASBalance {
   phone: string;
   name: string;
@@ -34,6 +37,7 @@ export interface GASResponse<T> {
 }
 
 let cachedUrl: string | null = null;
+let initPromise: Promise<void> | null = null;
 
 function getBaseUrl(): string {
   if (cachedUrl) return cachedUrl;
@@ -53,8 +57,26 @@ export function getGasUrl(): string {
   return getBaseUrl();
 }
 
+async function ensureUrl(): Promise<string> {
+  const existing = getBaseUrl();
+  if (existing) return existing;
+  if (!initPromise) {
+    initPromise = (async () => {
+      try {
+        const snap = await getDoc(doc(db, "shop_settings", "config"));
+        if (snap.exists()) {
+          const data = snap.data() as { gasLoyaltyUrl?: string };
+          if (data.gasLoyaltyUrl) setGasUrl(data.gasLoyaltyUrl);
+        }
+      } catch (e) { console.error("initGasUrl failed", e); }
+    })();
+  }
+  await initPromise;
+  return getBaseUrl();
+}
+
 async function gasGet<T>(params: Record<string, string>): Promise<GASResponse<T>> {
-  const base = getBaseUrl();
+  const base = await ensureUrl();
   if (!base) return { ok: false, error: "GAS URL not configured" };
   const qs = new URLSearchParams(params).toString();
   const res = await fetch(`${base}?${qs}`);
@@ -62,7 +84,7 @@ async function gasGet<T>(params: Record<string, string>): Promise<GASResponse<T>
 }
 
 async function gasPost<T>(body: Record<string, any>): Promise<GASResponse<T>> {
-  const base = getBaseUrl();
+  const base = await ensureUrl();
   if (!base) return { ok: false, error: "GAS URL not configured" };
   const res = await fetch(base, {
     method: "POST",
@@ -101,24 +123,6 @@ export function getHistory(phone: string): Promise<GASResponse<GASTransaction[]>
 
 export function lookupCustomer(phone: string): Promise<GASResponse<GASLookup>> {
   return gasGet({ action: "lookup", phone });
-}
-
-let initPromise: Promise<void> | null = null;
-export async function initGasUrl(): Promise<void> {
-  if (cachedUrl) return;
-  if (initPromise) return initPromise;
-  initPromise = (async () => {
-    try {
-      const { db } = await import("@/lib/firebase");
-      const { doc, getDoc } = await import("firebase/firestore");
-      const snap = await getDoc(doc(db, "shop_settings", "config"));
-      if (snap.exists()) {
-        const data = snap.data() as { gasLoyaltyUrl?: string };
-        if (data.gasLoyaltyUrl) setGasUrl(data.gasLoyaltyUrl);
-      }
-    } catch {}
-  })();
-  return initPromise;
 }
 
 export function batchTransaction(
