@@ -11,7 +11,7 @@ import {
   LayoutDashboard, Package, ShoppingCart, Receipt, Users, BarChart3,
   Settings, LogOut, Menu, X, Tags, FileText, Truck, Home, Shield,
   Rocket, ArrowLeft, DollarSign, CreditCard, Wallet, Sparkles,
-  ClipboardList, Zap, ChevronDown, Bell, Search, MessageSquare,
+  ClipboardList, Zap, ChevronDown, Bell, Search, MessageSquare, Award,
 } from "lucide-react";
 
 interface NavItem {
@@ -34,6 +34,8 @@ const navItems: NavItem[] = [
   { label: "Offers", href: "/admin/offers", icon: <Sparkles className="h-4 w-4" />, permission: "manage_offers" },
   { label: "Testimonials", href: "/admin/testimonials", icon: <MessageSquare className="h-4 w-4" />, permission: "manage_homepage" },
   { label: "Debtors", href: "/admin/debtors", icon: <Users className="h-4 w-4" />, permission: "manage_debtors" },
+  { divider: true, section: "LOYALTY" },
+  { label: "Loyalty", href: "/admin/loyalty", icon: <Award className="h-4 w-4" />, permission: "manage_sales" },
   { divider: true, section: "INVENTORY" },
   { label: "Morning Dashboard", href: "/admin/morning", icon: <BarChart3 className="h-4 w-4" />, permission: "view_morning_dashboard" },
   { label: "Products", href: "/admin/products", icon: <Package className="h-4 w-4" />, permission: "manage_products" },

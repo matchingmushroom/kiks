@@ -359,7 +359,7 @@ export default function SettingsPage() {
     document.body.removeChild(link);
   };
 
-  const [activePill, setActivePill] = useState<"general" | "partners" | "backup">("general");
+  const [activePill, setActivePill] = useState<"general" | "loyalty" | "partners" | "backup">("general");
   const [bottomNavHrefs, setBottomNavHrefs] = useState<string[]>([]);
   useEffect(() => {
     try {
@@ -380,7 +380,7 @@ export default function SettingsPage() {
     localStorage.setItem("pc_bottom_nav", JSON.stringify(items));
   };
 
-  const renderPill = (tab: "general" | "partners" | "backup", label: string, icon: ReactNode) => (
+  const renderPill = (tab: "general" | "loyalty" | "partners" | "backup", label: string, icon: ReactNode) => (
     <button key={tab} onClick={() => setActivePill(tab)}
       className={`flex items-center gap-2 px-5 py-2.5 text-sm font-medium rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
         activePill === tab
@@ -407,6 +407,7 @@ export default function SettingsPage() {
         {/* Pill Tabs */}
         <div className="flex flex-wrap gap-2">
           {renderPill("general", "General", <Image className="h-4 w-4" />)}
+          {renderPill("loyalty", "Loyalty", <TrendingUp className="h-4 w-4" />)}
           {renderPill("partners", "Partners", <Save className="h-4 w-4" />)}
           {renderPill("backup", "Backup", <Mail className="h-4 w-4" />)}
 
@@ -584,65 +585,7 @@ export default function SettingsPage() {
               </p>
             </div>
 
-            <div className="pt-4 border-t border-border space-y-3">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-primary" />
-                <h3 className="text-sm font-semibold text-secondary">Loyalty Points</h3>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={!!form.loyaltyEnabled}
-                  onChange={(e) => setForm({ ...form, loyaltyEnabled: e.target.checked })}
-                  className="accent-primary w-4 h-4" />
-                <span className="text-sm font-medium text-secondary">Enable Loyalty Points</span>
-              </label>
-              {form.loyaltyEnabled && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pl-6">
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Points per Rs. 1</label>
-                    <input type="number" value={form.pointsPerRupee ?? 0.01}
-                      onChange={(e) => setForm({ ...form, pointsPerRupee: Number(e.target.value) })}
-                      min={0} step={0.001}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                    <p className="text-xs text-muted-foreground mt-0.5">e.g., 0.01 = 1 point per Rs. 100</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Rs. per Point</label>
-                    <input type="number" value={form.pointValue ?? 0.5}
-                      onChange={(e) => setForm({ ...form, pointValue: Number(e.target.value) })}
-                      min={0} step={0.1}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                    <p className="text-xs text-muted-foreground mt-0.5">e.g., 0.5 = 100 points = Rs. 50</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">Min Redemption</label>
-                    <input type="number" value={form.minRedemptionPoints ?? 100}
-                      onChange={(e) => setForm({ ...form, minRedemptionPoints: Number(e.target.value) })}
-                      min={1} step={10}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                    <p className="text-xs text-muted-foreground mt-0.5">Minimum points to redeem</p>
-                  </div>
-                </div>
-              )}
-              {form.loyaltyEnabled && (
-                <div className="pl-6 pt-2">
-                  <label className="block text-xs font-medium text-muted-foreground mb-1">GAS Loyalty Web App URL</label>
-                  <div className="flex gap-2">
-                    <input type="url" value={form.gasLoyaltyUrl ?? ""}
-                      onChange={(e) => setForm({ ...form, gasLoyaltyUrl: e.target.value })}
-                      placeholder="https://script.google.com/macros/s/.../exec"
-                      className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-                    <Button onClick={async () => {
-                      if (!form.gasLoyaltyUrl) return;
-                      const { setGasUrl, ping } = await import("@/lib/loyalty-gas");
-                      setGasUrl(form.gasLoyaltyUrl!);
-                      const res = await ping();
-                      alert(res.ok ? "Connected!" : `Failed: ${res.error}`);
-                    }} size="sm" variant="outline" type="button">Test</Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-0.5">Deploy the loyalty-gas.gs script and paste the web app URL here</p>
-                </div>
-              )}
-            </div>
+
 
             <div className="flex items-center gap-3 pt-4 border-t border-border">
               <Calendar className="h-5 w-5 text-primary" />
@@ -833,6 +776,79 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+
+            <div className="flex items-center gap-3 pt-4 border-t border-border">
+              <Button onClick={handleSave} disabled={saving} variant="accent">
+                <Save className="h-4 w-4" /> {saving ? "Saving..." : "Save Settings"}
+              </Button>
+              {saved && <span className="text-sm text-green-600">Settings saved!</span>}
+            </div>
+          </div>
+        )}
+
+        {/* ── Loyalty Tab ── */}
+        {activePill === "loyalty" && (
+          <div className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-3">
+            <div className="flex items-center gap-2 pb-4 border-b border-border">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold text-secondary">Loyalty Points</h2>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={!!form.loyaltyEnabled}
+                onChange={(e) => setForm({ ...form, loyaltyEnabled: e.target.checked })}
+                className="accent-primary w-4 h-4" />
+              <span className="text-sm font-medium text-secondary">Enable Loyalty Points</span>
+            </label>
+
+            {form.loyaltyEnabled && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Points per Rs. 1</label>
+                  <input type="number" value={form.pointsPerRupee ?? 0.01}
+                    onChange={(e) => setForm({ ...form, pointsPerRupee: Number(e.target.value) })}
+                    min={0} step={0.001}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <p className="text-xs text-muted-foreground mt-0.5">e.g., 0.01 = 1 point per Rs. 100</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Rs. per Point</label>
+                  <input type="number" value={form.pointValue ?? 0.5}
+                    onChange={(e) => setForm({ ...form, pointValue: Number(e.target.value) })}
+                    min={0} step={0.1}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <p className="text-xs text-muted-foreground mt-0.5">e.g., 0.5 = 100 points = Rs. 50</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Min Redemption</label>
+                  <input type="number" value={form.minRedemptionPoints ?? 100}
+                    onChange={(e) => setForm({ ...form, minRedemptionPoints: Number(e.target.value) })}
+                    min={1} step={10}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <p className="text-xs text-muted-foreground mt-0.5">Minimum points to redeem</p>
+                </div>
+              </div>
+            )}
+
+            {form.loyaltyEnabled && (
+              <div className="pt-2">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">GAS Loyalty Web App URL</label>
+                <div className="flex gap-2">
+                  <input type="url" value={form.gasLoyaltyUrl ?? ""}
+                    onChange={(e) => setForm({ ...form, gasLoyaltyUrl: e.target.value })}
+                    placeholder="https://script.google.com/macros/s/.../exec"
+                    className="flex-1 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                  <Button onClick={async () => {
+                    if (!form.gasLoyaltyUrl) return;
+                    const { setGasUrl, ping } = await import("@/lib/loyalty-gas");
+                    setGasUrl(form.gasLoyaltyUrl!);
+                    const res = await ping();
+                    alert(res.ok ? "Connected!" : `Failed: ${res.error}`);
+                  }} size="sm" variant="outline" type="button">Test</Button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">Deploy the loyalty-gas.gs script and paste the web app URL here</p>
+              </div>
+            )}
 
             <div className="flex items-center gap-3 pt-4 border-t border-border">
               <Button onClick={handleSave} disabled={saving} variant="accent">
