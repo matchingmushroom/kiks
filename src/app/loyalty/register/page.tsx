@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { registerCustomer } from "@/lib/loyalty-gas";
+import { useEffect, useState } from "react";
+import { registerCustomer, initGasUrl } from "@/lib/loyalty-gas";
 import { Gift, CheckCircle, Loader2, Sparkles, Star, Shield, ArrowRight } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
@@ -13,6 +13,8 @@ export default function LoyaltyRegisterPage() {
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  useEffect(() => { initGasUrl(); }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

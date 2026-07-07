@@ -103,6 +103,24 @@ export function lookupCustomer(phone: string): Promise<GASResponse<GASLookup>> {
   return gasGet({ action: "lookup", phone });
 }
 
+let initPromise: Promise<void> | null = null;
+export async function initGasUrl(): Promise<void> {
+  if (cachedUrl) return;
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    try {
+      const { db } = await import("@/lib/firebase");
+      const { doc, getDoc } = await import("firebase/firestore");
+      const snap = await getDoc(doc(db, "shop_settings", "config"));
+      if (snap.exists()) {
+        const data = snap.data() as { gasLoyaltyUrl?: string };
+        if (data.gasLoyaltyUrl) setGasUrl(data.gasLoyaltyUrl);
+      }
+    } catch {}
+  })();
+  return initPromise;
+}
+
 export function batchTransaction(
   phone: string,
   earnPoints: number,

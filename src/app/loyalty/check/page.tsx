@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { getBalance, getHistory } from "@/lib/loyalty-gas";
+import { useEffect, useState } from "react";
+import { getBalance, getHistory, initGasUrl } from "@/lib/loyalty-gas";
 import type { GASTransaction } from "@/lib/loyalty-gas";
 import { Gift, Search, TrendingUp, History, Loader2, ChevronDown, ChevronUp, Sparkles, ArrowRight, Award, Clock } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
@@ -15,6 +15,8 @@ export default function LoyaltyCheckPage() {
   const [history, setHistory] = useState<GASTransaction[]>([]);
   const [error, setError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => { initGasUrl(); }, []);
 
   const handleCheck = async () => {
     if (!phone) return;
