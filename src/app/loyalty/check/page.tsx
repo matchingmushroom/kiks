@@ -1,20 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { getBalance, getHistory } from "@/lib/loyalty-gas";
+import { useEffect, useState } from "react";
+import { getBalance, getHistory, setGasUrl } from "@/lib/loyalty-gas";
 import type { GASTransaction } from "@/lib/loyalty-gas";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Gift, Search, TrendingUp, History, Loader2, ChevronDown, ChevronUp, Sparkles, ArrowRight, Award, Clock } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 import Link from "next/link";
 
 export default function LoyaltyCheckPage() {
+  const { settings } = useShopSettings();
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [balance, setBalance] = useState<{ name: string; currentPoints: number; lifetimePoints: number } | null>(null);
   const [history, setHistory] = useState<GASTransaction[]>([]);
   const [error, setError] = useState("");
   const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    if (settings.gasLoyaltyUrl) setGasUrl(settings.gasLoyaltyUrl);
+  }, [settings.gasLoyaltyUrl]);
 
   const handleCheck = async () => {
     if (!phone) return;

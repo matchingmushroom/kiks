@@ -1,18 +1,24 @@
 "use client";
 
-import { useState } from "react";
-import { registerCustomer } from "@/lib/loyalty-gas";
+import { useEffect, useState } from "react";
+import { registerCustomer, setGasUrl } from "@/lib/loyalty-gas";
+import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Gift, CheckCircle, Loader2, Sparkles, Star, Shield, ArrowRight } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 import Link from "next/link";
 
 export default function LoyaltyRegisterPage() {
+  const { settings } = useShopSettings();
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    if (settings.gasLoyaltyUrl) setGasUrl(settings.gasLoyaltyUrl);
+  }, [settings.gasLoyaltyUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
