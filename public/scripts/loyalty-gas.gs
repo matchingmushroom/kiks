@@ -43,9 +43,10 @@ function doPost(e) {
     
     if (action === "register") return jsonResponse(registerCustomer(body));
     if (action === "transaction") return jsonResponse(addTransaction(body));
+    if (action === "batch") return jsonResponse(batchTransaction(body));
     if (action === "sync") return jsonResponse(syncToFirestore(body));
     if (action === "migrate") return jsonResponse(migrateFromFirestore(body));
-    return jsonResponse({ ok: false, error: "Unknown action. Use: register, transaction, sync, migrate" }, 400);
+    return jsonResponse({ ok: false, error: "Unknown action. Use: register, transaction, batch, sync, migrate" }, 400);
   } catch (err) {
     return jsonResponse({ ok: false, error: err.message }, 500);
   }
@@ -137,6 +138,69 @@ function addTransaction(body) {
     }
   }
   
+  throw new Error("Phone not registered. Register first.");
+}
+
+/* ----------- BATCH TRANSACTION (atomic earn + redeem) ----------- */
+
+function batchTransaction(body) {
+  var phone = body.phone;
+  var earnPoints = body.earnPoints || 0;
+  var redeemPoints = body.redeemPoints || 0;
+  var referenceId = body.referenceId || "";
+  var refType = body.refType || "";
+  var note = body.note || "";
+
+  if (!phone) throw new Error("phone is required");
+  if (earnPoints < 0 || redeemPoints < 0) throw new Error("earnPoints and redeemPoints must be non-negative");
+
+  // Write earn transaction
+  if (earnPoints > 0) {
+    var txnSheet = getOrCreateSheet(TXN_SHEET, ["txnId", "phone", "type", "points", "referenceId", "refType", "note", "createdAt"]);
+    var txnId = "LTX-" + String(Date.now()).slice(-6) + "E-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+    txnSheet.appendRow([txnId, phone, "earn", earnPoints, referenceId, refType, note + " (earn)", new Date().toISOString()]);
+  }
+
+  // Write redeem transaction
+  if (redeemPoints > 0) {
+    var txnSheet2 = getOrCreateSheet(TXN_SHEET, ["txnId", "phone", "type", "points", "referenceId", "refType", "note", "createdAt"]);
+    var txnId2 = "LTX-" + String(Date.now()).slice(-6) + "R-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+    txnSheet2.appendRow([txnId2, phone, "redeem", -redeemPoints, referenceId, refType, note + " (redeem)", new Date().toISOString()]);
+  }
+
+  // Update balance atomically
+  var regSheet = getOrCreateSheet(REG_SHEET, ["phone", "name", "address", "email", "registeredAt", "currentPoints", "lifetimePoints"]);
+  var regData = regSheet.getDataRange().getValues();
+
+  for (var i = 1; i < regData.length; i++) {
+    if (String(regData[i][0]) === phone) {
+      var currentPoints = Number(regData[i][5]) || 0;
+      var lifetimePoints = Number(regData[i][6]) || 0;
+      var deduction = Math.min(redeemPoints, currentPoints);
+      var newBalance = Math.max(0, currentPoints - deduction + earnPoints);
+      var newLifetime = lifetimePoints + earnPoints;
+
+      regSheet.getRange(i + 1, 6).setValue(newBalance);
+      if (earnPoints > 0) {
+        regSheet.getRange(i + 1, 7).setValue(newLifetime);
+      }
+
+      return {
+        ok: true,
+        message: "Batch transaction recorded",
+        data: {
+          phone: phone,
+          earnPoints: earnPoints,
+          redeemPoints: redeemPoints,
+          deduction: deduction,
+          previousPoints: currentPoints,
+          currentPoints: newBalance,
+          lifetimePoints: newLifetime,
+        }
+      };
+    }
+  }
+
   throw new Error("Phone not registered. Register first.");
 }
 

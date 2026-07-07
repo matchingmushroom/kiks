@@ -102,3 +102,14 @@ export function getHistory(phone: string): Promise<GASResponse<GASTransaction[]>
 export function lookupCustomer(phone: string): Promise<GASResponse<GASLookup>> {
   return gasGet({ action: "lookup", phone });
 }
+
+export function batchTransaction(
+  phone: string,
+  earnPoints: number,
+  redeemPoints: number,
+  referenceId?: string,
+  refType?: string,
+  note?: string,
+) {
+  return gasPost({ action: "batch", phone, earnPoints, redeemPoints, referenceId, refType, note });
+}

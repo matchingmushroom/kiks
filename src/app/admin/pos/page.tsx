@@ -269,6 +269,10 @@ export default function POSPage() {
         }
       }
 
+      if (settings.loyaltyEnabled && redeemPoints > 0 && redeemPoints < (settings.minRedemptionPoints ?? 0)) {
+        throw new Error(`Minimum ${settings.minRedemptionPoints} points required to redeem`);
+      }
+
       const cName = walkin ? "Walk-in Customer" : customerName;
       const cPhone = walkin ? "" : customerPhone;
       const saleType = balanceDue > 0 ? (receivedAmount > 0 ? "partial" : "credit") : "cash";
@@ -484,11 +488,12 @@ export default function POSPage() {
                 createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
               });
             }
-            // Fire-and-forget to GAS for history
-            import("@/lib/loyalty-gas").then((m) => {
-              if (earned > 0) m.addTransaction(customerPhone, "earn", earned, saleId, "sale", "POS sale");
-              if (redeemPoints > 0) m.addTransaction(customerPhone, "redeem", -redeemPoints, saleId, "sale", "Points redeemed");
-            });
+            // Fire-and-forget to GAS for history (atomic batch)
+            if (earned > 0 || redeemPoints > 0) {
+              import("@/lib/loyalty-gas").then((m) => {
+                m.batchTransaction(customerPhone, earned, redeemPoints, saleId, "sale", "POS sale");
+              });
+            }
           }
         }
       } catch (e) { console.error("Loyalty points update failed", e); }
@@ -757,6 +762,9 @@ export default function POSPage() {
                 </div>
                 {(settings.minRedemptionPoints ?? 100) > 0 && customerPoints < (settings.minRedemptionPoints ?? 100) && (
                   <p className="text-[10px] text-muted-foreground mt-1">Min. {settings.minRedemptionPoints} pts to redeem</p>
+                )}
+                {redeemPoints > 0 && (settings.minRedemptionPoints ?? 0) > 0 && redeemPoints < (settings.minRedemptionPoints ?? 0) && (
+                  <p className="text-[10px] text-red-500 mt-1">Minimum {settings.minRedemptionPoints} pts required</p>
                 )}
               </div>
             )}
