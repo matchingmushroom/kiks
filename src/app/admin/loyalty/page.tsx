@@ -397,7 +397,7 @@ function SaleRow({
               <Button onClick={() => {
                 const overrideSale = { ...sale, customerName: finalName, customerPhone: finalPhone };
                 onAward(overrideSale);
-              }} disabled={!canAward || awardingId === sale.id || awarded === true || checking} size="sm"
+              }} disabled={!canAward || awardingId === sale.id || !!awarded || checking} size="sm"
                 variant={canAward && !awarded ? "accent" : "outline"} className="text-xs">
                 {awardingId === sale.id ? "Awarding..." : awarded ? "Done" : "Award"}
               </Button>
