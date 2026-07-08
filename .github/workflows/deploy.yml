@@ -25,7 +25,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
       - name: Setup Pages
         id: pages
@@ -48,7 +48,7 @@ jobs:
           NEXT_PUBLIC_WHATSAPP_NUMBER: 9779849171833
       - name: Print build log
         if: always()
-        run: tail -100 /tmp/next-build.log || true
+        run: cat /tmp/next-build.log || echo "No log file"
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
