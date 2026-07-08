@@ -53,7 +53,7 @@ export default function ShopFooter() {
                 <Gift className="h-4 w-4" />
                 Join Loyalty Program
               </NextLink>
-              <NextLink href="/loyalty/check" className="flex items-center gap-2 text-sm text-secondary-foreground/70 hover:text-accent transition-colors">
+              <NextLink href="/connect" className="flex items-center gap-2 text-sm text-secondary-foreground/70 hover:text-accent transition-colors">
                 <ExternalLink className="h-4 w-4" />
                 Connect
               </NextLink>
