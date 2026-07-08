@@ -124,9 +124,10 @@ export default function POSPage() {
 
   const redeemDiscount = useMemo(() => {
     if (!settings.loyaltyEnabled || !customerPhone || redeemPoints <= 0) return 0;
+    if (redeemPoints < (settings.minRedemptionPoints ?? 0)) return 0;
     const maxDiscount = redeemPoints * (settings.pointValue ?? 0.5);
-    return Math.min(maxDiscount, totalAmount * 0.5); // max 50% off via points
-  }, [settings.loyaltyEnabled, settings.pointValue, customerPhone, redeemPoints, totalAmount]);
+    return Math.min(maxDiscount, totalAmount * 0.5);
+  }, [settings.loyaltyEnabled, settings.pointValue, settings.minRedemptionPoints, customerPhone, redeemPoints, totalAmount]);
 
   const discount = useMemo(() => {
     let total = comboDiscount + redeemDiscount;
@@ -675,7 +676,7 @@ export default function POSPage() {
           </section>
 
           {/* Right: Payment + Discount + Coupon + Summary (fixed column) */}
-          <section aria-label="Payment and discounts" className="w-full lg:w-80 shrink-0 flex flex-col gap-2">
+          <section aria-label="Payment and discounts" className="w-full lg:w-80 shrink-0 flex flex-col gap-2 overflow-y-auto min-h-0">
             {/* Payment */}
             <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
               <div className="flex items-center gap-1.5 mb-1.5">
@@ -809,8 +810,8 @@ export default function POSPage() {
               </button>
             </div>
 
-            {/* Summary + Record (sticky at bottom on desktop) */}
-            <div className="bg-white border-2 border-border rounded-xl p-3 shadow-sm lg:mt-auto space-y-2">
+            {/* Summary + Record (sticky at bottom) */}
+            <div className="bg-white border-2 border-border rounded-xl p-3 shadow-sm mt-auto space-y-2">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span className="font-semibold text-secondary">Rs. {formatNumber(totalAmount)}</span>
@@ -821,6 +822,12 @@ export default function POSPage() {
                   <span>− Rs. {formatNumber(manualDiscountType === "percentage"
                     ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
                     : Math.min(manualDiscountValue, totalAmount))}</span>
+                </div>
+              )}
+              {redeemDiscount > 0 && (
+                <div className="flex justify-between text-[11px] text-orange-700">
+                  <span>Redeem Points</span>
+                  <span>− Rs. {formatNumber(redeemDiscount)}</span>
                 </div>
               )}
               {comboDiscount > 0 && (

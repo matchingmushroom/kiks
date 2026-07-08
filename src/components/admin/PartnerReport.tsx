@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { pdf } from "@react-pdf/renderer";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { Sale, Purchase, Product, Category } from "@/types";
@@ -234,10 +234,10 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
           reader.readAsDataURL(b);
         });
       const base64 = await toBase64(blob);
-      const webhookUrl = settings.gasWebhookUrl || "";
+      const cfgSnap = await getDoc(doc(db, "shop_settings", "emailBackupConfig"));
+      const webhookUrl = (cfgSnap.data() as any)?.gasWebhookUrl || "";
       if (!webhookUrl) {
-        handleDownload();
-        setSent(true);
+        alert("GAS Webhook URL not configured. Please set it in Settings → Email/Backup → GAS Webhook URL.");
         setSending(false);
         return;
       }
@@ -253,7 +253,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
       });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const result = await res.json();
-      if (result.status !== "ok") throw new Error(result.message || "Unknown error");
+      if (result.status !== "ok") throw new Error(result.message || "GAS returned error");
       setSent(true);
     } catch (e) {
       console.error("Send failed", e);
