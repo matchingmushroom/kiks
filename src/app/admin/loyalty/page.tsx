@@ -6,7 +6,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, getDocs, collection, query, where, orderBy, limit, setDoc, updateDoc, Timestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Search, Award, CheckCircle, XCircle, TrendingUp, Clock, User, Phone } from "lucide-react";
+import { Search, Award, CheckCircle, XCircle, TrendingUp, Clock, User, Phone, Pencil } from "lucide-react";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatNumber } from "@/lib/utils";
@@ -31,6 +31,8 @@ export default function LoyaltyPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [awardingId, setAwardingId] = useState<string | null>(null);
+  const [manualTarget, setManualTarget] = useState<SaleResult | null>(null);
+  const [manualPoints, setManualPoints] = useState(0);
 
   const fetchBySaleId = async () => {
     if (!searchId.trim()) return;
@@ -208,6 +210,58 @@ export default function LoyaltyPage() {
     setAwardingId(null);
   };
 
+  const handleManualAward = async () => {
+    if (!manualTarget || manualPoints <= 0) return;
+    if (!manualTarget.customerPhone) { setMessage("Customer has no phone number"); return; }
+    setAwardingId(manualTarget.id + "_manual");
+    setMessage(null);
+    try {
+      const { batchTransaction, setGasUrl } = await import("@/lib/loyalty-gas");
+      if (settings.gasLoyaltyUrl) setGasUrl(settings.gasLoyaltyUrl);
+
+      const custQuery = query(collection(db, "customers"), where("phone", "==", manualTarget.customerPhone));
+      const custSnap = await getDocs(custQuery);
+      let finalLoyaltyPoints: number;
+
+      if (custSnap.docs.length > 0) {
+        const custDoc = custSnap.docs[0];
+        const custData = custDoc.data();
+        finalLoyaltyPoints = (custData.loyaltyPoints || 0) + manualPoints;
+        await updateDoc(doc(db, "customers", custDoc.id), {
+          loyaltyPoints: finalLoyaltyPoints,
+          lifetimePoints: (custData.lifetimePoints || 0) + manualPoints,
+          updatedAt: Timestamp.fromDate(new Date()),
+        });
+      } else {
+        finalLoyaltyPoints = manualPoints;
+        const { generateId } = await import("@/lib/id-generator");
+        const custId = await generateId("CUST");
+        await setDoc(doc(db, "customers", custId), {
+          name: manualTarget.customerName,
+          phone: manualTarget.customerPhone,
+          email: "", address: "", notes: "",
+          loyaltyPoints: manualPoints,
+          lifetimePoints: manualPoints,
+          createdAt: Timestamp.fromDate(new Date()),
+          updatedAt: Timestamp.fromDate(new Date()),
+        });
+      }
+
+      const refId = "manual-" + Date.now();
+      const batchRes = await batchTransaction(manualTarget.customerPhone, manualPoints, 0, refId, "manual", "Manual award by " + (profile?.displayName || "admin"));
+      if (batchRes.ok) {
+        setMessage(`Awarded ${manualPoints} points to ${manualTarget.customerName} (${manualTarget.customerPhone})`);
+      } else {
+        setMessage(`GAS error: ${batchRes.error}. Points saved in Firestore but not synced.`);
+      }
+    } catch (e: any) {
+      setMessage("Manual award failed: " + (e.message || e));
+    }
+    setAwardingId(null);
+    setManualTarget(null);
+    setManualPoints(0);
+  };
+
   return (
     <AdminLayout>
       <div className="p-4 lg:p-6 max-w-4xl space-y-6">
@@ -276,7 +330,7 @@ export default function LoyaltyPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {results.map((sale) => (
-                    <SaleRow key={sale.id} sale={sale} onAward={handleAward} awardingId={awardingId} settings={settings} />
+                    <SaleRow key={sale.id} sale={sale} onAward={handleAward} onManualAward={() => { setManualTarget(sale); setManualPoints(0); }} awardingId={awardingId} settings={settings} />
                   ))}
                 </tbody>
               </table>
@@ -291,15 +345,49 @@ export default function LoyaltyPage() {
           </div>
         )}
       </div>
+
+      {/* Manual award dialog */}
+      {manualTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => { setManualTarget(null); setManualPoints(0); }}
+          role="dialog" aria-modal="true">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-auto"
+            onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-secondary mb-1">Manually Award Points</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              {manualTarget.customerName}{manualTarget.customerPhone ? ` (${manualTarget.customerPhone})` : ""}
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="manual-points" className="block text-sm font-medium text-secondary mb-1">Points to award</label>
+                <input id="manual-points" type="number" value={manualPoints || ""}
+                  onChange={(e) => setManualPoints(Math.max(0, Number(e.target.value)))}
+                  min={1} autoFocus placeholder="Enter points"
+                  className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+              </div>
+              <div className="flex gap-3">
+                <Button onClick={() => { setManualTarget(null); setManualPoints(0); }}
+                  variant="outline" size="lg" className="flex-1">Cancel</Button>
+                <Button onClick={handleManualAward}
+                  disabled={manualPoints <= 0 || awardingId === (manualTarget.id + "_manual")}
+                  variant="accent" size="lg" className="flex-1">
+                  {awardingId === (manualTarget.id + "_manual") ? "Awarding..." : "Award"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 }
 
 function SaleRow({
-  sale, onAward, awardingId, settings,
+  sale, onAward, onManualAward, awardingId, settings,
 }: {
   sale: SaleResult;
   onAward: (sale: SaleResult) => Promise<void>;
+  onManualAward: () => void;
   awardingId: string | null;
   settings: any;
 }) {
@@ -394,13 +482,22 @@ function SaleRow({
             </>
           ) : (
             <>
-              <Button onClick={() => {
-                const overrideSale = { ...sale, customerName: finalName, customerPhone: finalPhone };
-                onAward(overrideSale);
-              }} disabled={!canAward || awardingId === sale.id || !!awarded || checking} size="sm"
-                variant={canAward && !awarded ? "accent" : "outline"} className="text-xs">
-                {awardingId === sale.id ? "Awarding..." : awarded ? "Done" : "Award"}
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button onClick={() => {
+                  const overrideSale = { ...sale, customerName: finalName, customerPhone: finalPhone };
+                  onAward(overrideSale);
+                }} disabled={!canAward || awardingId === sale.id || !!awarded || checking} size="sm"
+                  variant={canAward && !awarded ? "accent" : "outline"} className="text-xs">
+                  {awardingId === sale.id ? "Awarding..." : awarded ? "Done" : "Award"}
+                </Button>
+                {hasPhone && (
+                  <button onClick={onManualAward}
+                    title="Manually award points"
+                    className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors">
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
               {!sale.customerPhone && (
                 <button onClick={() => setEditing(true)} className="text-[10px] text-primary hover:underline">
                   Edit customer
