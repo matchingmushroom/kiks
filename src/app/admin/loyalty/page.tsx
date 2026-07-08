@@ -33,6 +33,8 @@ export default function LoyaltyPage() {
   const [awardingId, setAwardingId] = useState<string | null>(null);
   const [manualTarget, setManualTarget] = useState<SaleResult | null>(null);
   const [manualPoints, setManualPoints] = useState(0);
+  const [manualName, setManualName] = useState("");
+  const [manualPhone, setManualPhone] = useState("");
 
   const fetchBySaleId = async () => {
     if (!searchId.trim()) return;
@@ -211,15 +213,17 @@ export default function LoyaltyPage() {
   };
 
   const handleManualAward = async () => {
+    const phone = manualPhone || manualTarget?.customerPhone || "";
+    const name = manualName || manualTarget?.customerName || "";
     if (!manualTarget || manualPoints <= 0) return;
-    if (!manualTarget.customerPhone) { setMessage("Customer has no phone number"); return; }
+    if (!phone) { setMessage("Enter a phone number"); return; }
     setAwardingId(manualTarget.id + "_manual");
     setMessage(null);
     try {
       const { batchTransaction, setGasUrl } = await import("@/lib/loyalty-gas");
       if (settings.gasLoyaltyUrl) setGasUrl(settings.gasLoyaltyUrl);
 
-      const custQuery = query(collection(db, "customers"), where("phone", "==", manualTarget.customerPhone));
+      const custQuery = query(collection(db, "customers"), where("phone", "==", phone));
       const custSnap = await getDocs(custQuery);
       let finalLoyaltyPoints: number;
 
@@ -237,8 +241,8 @@ export default function LoyaltyPage() {
         const { generateId } = await import("@/lib/id-generator");
         const custId = await generateId("CUST");
         await setDoc(doc(db, "customers", custId), {
-          name: manualTarget.customerName,
-          phone: manualTarget.customerPhone,
+          name,
+          phone,
           email: "", address: "", notes: "",
           loyaltyPoints: manualPoints,
           lifetimePoints: manualPoints,
@@ -248,9 +252,9 @@ export default function LoyaltyPage() {
       }
 
       const refId = "manual-" + Date.now();
-      const batchRes = await batchTransaction(manualTarget.customerPhone, manualPoints, 0, refId, "manual", "Manual award by " + (profile?.displayName || "admin"));
+      const batchRes = await batchTransaction(phone, manualPoints, 0, refId, "manual", "Manual award by " + (profile?.displayName || "admin"));
       if (batchRes.ok) {
-        setMessage(`Awarded ${manualPoints} points to ${manualTarget.customerName} (${manualTarget.customerPhone})`);
+        setMessage(`Awarded ${manualPoints} points to ${name} (${phone})`);
       } else {
         setMessage(`GAS error: ${batchRes.error}. Points saved in Firestore but not synced.`);
       }
@@ -260,6 +264,8 @@ export default function LoyaltyPage() {
     setAwardingId(null);
     setManualTarget(null);
     setManualPoints(0);
+    setManualName("");
+    setManualPhone("");
   };
 
   return (
@@ -349,15 +355,38 @@ export default function LoyaltyPage() {
       {/* Manual award dialog */}
       {manualTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={() => { setManualTarget(null); setManualPoints(0); }}
+          onClick={() => { setManualTarget(null); setManualPoints(0); setManualName(""); setManualPhone(""); }}
           role="dialog" aria-modal="true">
           <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-auto"
             onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-secondary mb-1">Manually Award Points</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              {manualTarget.customerName}{manualTarget.customerPhone ? ` (${manualTarget.customerPhone})` : ""}
-            </p>
+            {!manualTarget.customerPhone && (
+              <p className="text-xs text-amber-600 mb-3">Enter customer details to award points</p>
+            )}
+            {manualTarget.customerPhone && (
+              <p className="text-sm text-muted-foreground mb-4">
+                {manualTarget.customerName} ({manualTarget.customerPhone})
+              </p>
+            )}
             <div className="space-y-4">
+              {!manualTarget.customerPhone && (
+                <>
+                  <div>
+                    <label htmlFor="manual-name" className="block text-sm font-medium text-secondary mb-1">Customer name</label>
+                    <input id="manual-name" type="text" value={manualName}
+                      onChange={(e) => setManualName(e.target.value)}
+                      placeholder="Enter name"
+                      className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                  </div>
+                  <div>
+                    <label htmlFor="manual-phone" className="block text-sm font-medium text-secondary mb-1">Phone number</label>
+                    <input id="manual-phone" type="tel" value={manualPhone}
+                      onChange={(e) => setManualPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      placeholder="Enter phone number"
+                      className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                  </div>
+                </>
+              )}
               <div>
                 <label htmlFor="manual-points" className="block text-sm font-medium text-secondary mb-1">Points to award</label>
                 <input id="manual-points" type="number" value={manualPoints || ""}
@@ -366,7 +395,7 @@ export default function LoyaltyPage() {
                   className="w-full px-4 py-3 border-2 border-border rounded-lg text-base focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
               </div>
               <div className="flex gap-3">
-                <Button onClick={() => { setManualTarget(null); setManualPoints(0); }}
+                <Button onClick={() => { setManualTarget(null); setManualPoints(0); setManualName(""); setManualPhone(""); }}
                   variant="outline" size="lg" className="flex-1">Cancel</Button>
                 <Button onClick={handleManualAward}
                   disabled={manualPoints <= 0 || awardingId === (manualTarget.id + "_manual")}
@@ -490,13 +519,11 @@ function SaleRow({
                   variant={canAward && !awarded ? "accent" : "outline"} className="text-xs">
                   {awardingId === sale.id ? "Awarding..." : awarded ? "Done" : "Award"}
                 </Button>
-                {hasPhone && (
-                  <button onClick={onManualAward}
-                    title="Manually award points"
-                    className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                )}
+                <button onClick={onManualAward}
+                  title="Manually award points"
+                  className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors">
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
               </div>
               {!sale.customerPhone && (
                 <button onClick={() => setEditing(true)} className="text-[10px] text-primary hover:underline">
