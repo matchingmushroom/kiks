@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import path from "path";
 
 const nextConfig: NextConfig = {
   output: "export",
@@ -10,13 +9,6 @@ const nextConfig: NextConfig = {
   trailingSlash: false,
   typescript: {
     ignoreBuildErrors: true,
-  },
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      "@firebase/firestore": path.resolve(process.cwd(), "node_modules/@firebase/firestore"),
-    };
-    return config;
   },
 };
 
