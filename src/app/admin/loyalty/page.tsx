@@ -253,6 +253,10 @@ export default function LoyaltyPage() {
         });
       }
 
+      await updateDoc(doc(db, "sales", manualTarget.id), {
+        customer: { name, phone },
+      });
+
       const refId = manualTarget.id;
       const batchRes = await batchTransaction(phone, earned, 0, refId, "sale", "Walk-in award by " + (profile?.displayName || "admin"));
       if (batchRes.ok) {
