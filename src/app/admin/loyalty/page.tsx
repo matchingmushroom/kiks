@@ -508,15 +508,15 @@ function SaleRow({
                   variant={canAward && !awarded ? "accent" : "outline"} className="text-xs">
                   {awardingId === sale.id ? "Awarding..." : awarded ? "Done" : "Award"}
                 </Button>
-                {!sale.customerPhone && (
-                  <button onClick={onManualAward}
-                    title="Award walk-in customer"
-                    className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors">
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                )}
               </div>
             </>
+          )}
+          {!sale.customerPhone && (
+            <button onClick={onManualAward}
+              title="Award walk-in customer"
+              className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded transition-colors">
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
           )}
         </div>
       </td>
