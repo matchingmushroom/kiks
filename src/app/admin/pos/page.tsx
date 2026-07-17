@@ -747,6 +747,7 @@ export default function POSPage() {
             <div className="flex-1 bg-white border border-border rounded-xl p-3 shadow-sm flex flex-col min-h-0">
               <h2 className="text-xs font-semibold text-secondary mb-2 shrink-0">
                 Items ({items.length})
+                {settings?.liteMode && <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-primary/10 text-primary">Lite</span>}
                 {selectedCategory && <span className="ml-2 text-[10px] text-muted-foreground font-normal">from <span className="font-medium">{selectedCategory}</span></span>}
               </h2>
               {items.length === 0 ? (
