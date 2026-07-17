@@ -682,7 +682,7 @@ export default function POSPage() {
                 <ul className="flex-1 overflow-y-auto space-y-2 min-h-0" role="list">
                   {items.map((item, idx) => (
                     <li key={item.productId}
-                      className="p-3 border border-border rounded-lg bg-white shadow-sm text-xs space-y-2">
+                      className="p-3 border border-border rounded-lg bg-white shadow-sm text-xs space-y-1.5">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-semibold text-secondary leading-tight truncate">{item.productName}</p>
                         <button onClick={() => removeItem(idx)}
@@ -691,17 +691,17 @@ export default function POSPage() {
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 min-w-0">
-                          <label htmlFor={`price-${idx}`} className="block text-[11px] text-muted-foreground mb-0.5">Rate</label>
+                      <div className="lg:flex lg:items-center lg:gap-2 space-y-1.5 lg:space-y-0">
+                        <div className="lg:flex-1 lg:min-w-0">
+                          <label htmlFor={`price-${idx}`} className="text-[11px] text-muted-foreground">Price (Rs.)</label>
                           <input id={`price-${idx}`} type="number" value={item.unitPrice}
                             onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
                             min={0} step={10}
                             className="w-full text-sm lg:text-xs border border-border rounded py-1.5 px-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                         </div>
-                        <div className="shrink-0">
-                          <label className="block text-[11px] text-muted-foreground mb-0.5">Qty</label>
-                          <div className="flex items-center gap-1">
+                        <div>
+                          <label className="text-[11px] text-muted-foreground">Qty</label>
+                          <div className="flex items-center gap-1 mt-0.5">
                             <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
                               aria-label={`Decrease qty of ${item.productName}`}
                               className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
@@ -710,7 +710,7 @@ export default function POSPage() {
                             <input id={`qty-${idx}`} type="number" value={item.quantity}
                               onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
                               min={1}
-                              className="w-12 text-center text-sm lg:text-xs border border-border rounded py-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                              className="w-14 text-center text-sm lg:text-xs border border-border rounded py-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                             <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
                               aria-label={`Increase qty of ${item.productName}`}
                               className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
@@ -718,9 +718,9 @@ export default function POSPage() {
                             </button>
                           </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <span className="block text-[11px] text-muted-foreground mb-0.5">Subtotal</span>
-                          <span className="font-semibold text-secondary text-sm lg:text-xs">Rs. {formatNumber(item.subtotal)}</span>
+                        <div className="text-right lg:text-right">
+                          <span className="text-[11px] text-muted-foreground">Subtotal</span>
+                          <p className="font-semibold text-secondary text-sm lg:text-xs">Rs. {formatNumber(item.subtotal)}</p>
                         </div>
                       </div>
                     </li>
