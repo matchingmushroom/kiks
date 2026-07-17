@@ -697,7 +697,7 @@ export default function POSPage() {
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>
-                      <div className="lg:flex lg:items-center lg:gap-2 space-y-1.5 lg:space-y-0">
+                      <div className="flex flex-col lg:flex-row lg:items-center lg:gap-2 gap-1.5">
                         <div className="lg:flex-1 lg:min-w-0">
                           <label htmlFor={`price-${idx}`} className="text-[11px] text-muted-foreground">Price (Rs.)</label>
                           <input id={`price-${idx}`} type="number" value={item.unitPrice}
