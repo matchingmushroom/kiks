@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { registerCustomer, setGasUrl } from "@/lib/loyalty-gas";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
-import { Gift, CheckCircle, Loader2, Sparkles, Star, Shield, ArrowRight } from "lucide-react";
+import { Gift, CheckCircle, Loader2, Sparkles, Star, Shield, ArrowRight, AlertTriangle } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 import Link from "next/link";
@@ -23,6 +23,12 @@ export default function LoyaltyRegisterPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone || !name) return;
+    const { checkRateLimit } = await import("@/lib/rate-limit");
+    const rl = await checkRateLimit("loyalty_reg_" + phone.replace(/\D/g, ""), { maxAttempts: 3, windowMs: 3600000 });
+    if (!rl.allowed) {
+      setResult({ ok: false, message: "Too many registration attempts. Try again later." });
+      return;
+    }
     setLoading(true);
     setResult(null);
     const cleanPhone = phone.replace(/\D/g, "");

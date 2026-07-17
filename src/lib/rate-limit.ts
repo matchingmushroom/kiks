@@ -45,6 +45,6 @@ export async function checkRateLimit(
       resetAt: state.windowStart + cfg.windowMs,
     };
   } catch {
-    return { allowed: true, remaining: 1, resetAt: now };
+    return { allowed: false, remaining: 0, resetAt: now + cfg.windowMs };
   }
 }

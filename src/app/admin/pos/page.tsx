@@ -151,18 +151,18 @@ export default function POSPage() {
   }, [settings.loyaltyEnabled, settings.pointValue, settings.minRedemptionPoints, customerPhone, redeemPoints, totalAmount]);
 
   const discount = useMemo(() => {
-    let total = comboDiscount + redeemDiscount;
-    if (manualDiscountValue > 0) {
-      total += manualDiscountType === "percentage"
+    const manualDisc = manualDiscountValue > 0
+      ? manualDiscountType === "percentage"
         ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount)
-        : Math.min(manualDiscountValue, totalAmount);
-    }
-    if (appliedCoupon) {
-      total += appliedCoupon.discountType === "percentage"
+        : Math.min(manualDiscountValue, totalAmount)
+      : 0;
+    const couponDisc = appliedCoupon
+      ? appliedCoupon.discountType === "percentage"
         ? Math.min((totalAmount * appliedCoupon.discountValue) / 100, appliedCoupon.maxDiscount || Infinity)
-        : appliedCoupon.discountValue;
-    }
-    return Math.min(total, totalAmount);
+        : appliedCoupon.discountValue
+      : 0;
+    const bestNonRedeemDiscount = Math.max(comboDiscount, manualDisc, couponDisc);
+    return Math.min(bestNonRedeemDiscount + redeemDiscount, totalAmount);
   }, [comboDiscount, appliedCoupon, totalAmount, manualDiscountValue, manualDiscountType, redeemDiscount]);
 
   const finalAmount = Math.max(0, totalAmount - discount);

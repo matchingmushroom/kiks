@@ -13,10 +13,18 @@
  */
 
 // ── CONFIGURE THESE ───────────────────────────────────
+// IMPORTANT: Do NOT hardcode your Firebase credentials here.
+// Instead, set them as Script Properties:
+//   Project Settings → Script Properties → Add:
+//     FIREBASE_PROJECT_ID  →  your-project-id
+//     FIREBASE_API_KEY     →  your-api-key
+//
+// The script reads from PropertiesService at runtime (see getFirebaseConfig below).
+// If missing, it falls back to these placeholders (script will fail gracefully).
 
 var FIREBASE_CONFIG = {
-  projectId: "kiks-collections",
-  apiKey: "AIzaSyBWYuU_UpuHhgvbG9KjaSIvQxazWpeIXZE",
+  projectId: PropertiesService.getScriptProperties().getProperty("FIREBASE_PROJECT_ID") || "YOUR_PROJECT_ID",
+  apiKey: PropertiesService.getScriptProperties().getProperty("FIREBASE_API_KEY") || "YOUR_API_KEY",
 };
 
 // ── DO NOT EDIT BELOW ─────────────────────────────────

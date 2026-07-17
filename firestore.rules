@@ -36,10 +36,12 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
 
-    // ── Orders: read public (for cart checkout), write authenticated ──
+    // ── Orders: create public (for cart checkout), read/write authenticated ──
     match /orders/{orderId} {
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create: if true;
+      allow update: if request.auth != null;
+      allow delete: if false;
     }
 
     // ── Invoices: read public (for public invoice view) ──
