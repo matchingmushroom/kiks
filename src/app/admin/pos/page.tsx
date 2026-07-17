@@ -216,7 +216,7 @@ export default function POSPage() {
 
   const updateItem = (index: number, field: "quantity" | "unitPrice", value: number) => {
     if (value < 0) value = 0;
-    if (field === "quantity") {
+    if (field === "quantity" && items[index].productId) {
       const stock = availableStock(items[index].productId);
       value = Math.min(value, stock);
     }
@@ -682,43 +682,45 @@ export default function POSPage() {
                 <ul className="flex-1 overflow-y-auto space-y-2 min-h-0" role="list">
                   {items.map((item, idx) => (
                     <li key={item.productId}
-                      className="grid grid-cols-2 gap-x-3 gap-y-1.5 p-3 border border-border rounded-lg bg-white shadow-sm text-xs">
-                      <div className="col-span-2 flex items-start justify-between">
-                        <p className="font-semibold text-secondary leading-tight truncate pr-2">{item.productName}</p>
+                      className="p-3 border border-border rounded-lg bg-white shadow-sm text-xs space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-semibold text-secondary leading-tight truncate">{item.productName}</p>
                         <button onClick={() => removeItem(idx)}
                           aria-label={`Remove ${item.productName}`}
                           className="p-1 text-red-500 hover:bg-red-50 rounded shrink-0 focus:ring-2 focus:ring-red-300 outline-none">
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>
-                      <div>
-                        <label htmlFor={`price-${idx}`} className="block text-[11px] text-muted-foreground mb-0.5">Rate</label>
-                        <input id={`price-${idx}`} type="number" value={item.unitPrice}
-                          onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
-                          min={0} step={10}
-                          className="w-full text-sm lg:text-xs border border-border rounded py-1.5 px-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-                      </div>
-                      <div className="text-right">
-                        <span className="block text-[11px] text-muted-foreground mb-0.5">Subtotal</span>
-                        <span className="font-semibold text-secondary text-sm lg:text-xs">Rs. {formatNumber(item.subtotal)}</span>
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-[11px] text-muted-foreground mb-0.5">Qty</label>
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
-                            aria-label={`Decrease qty of ${item.productName}`}
-                            className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
-                            <Minus className="h-4 w-4" aria-hidden="true" />
-                          </button>
-                          <input id={`qty-${idx}`} type="number" value={item.quantity}
-                            onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
-                            min={1}
-                            className="flex-1 text-center text-sm lg:text-xs border border-border rounded py-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-                          <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
-                            aria-label={`Increase qty of ${item.productName}`}
-                            className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
-                            <Plus className="h-4 w-4" aria-hidden="true" />
-                          </button>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <label htmlFor={`price-${idx}`} className="block text-[11px] text-muted-foreground mb-0.5">Rate</label>
+                          <input id={`price-${idx}`} type="number" value={item.unitPrice}
+                            onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
+                            min={0} step={10}
+                            className="w-full text-sm lg:text-xs border border-border rounded py-1.5 px-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                        </div>
+                        <div className="shrink-0">
+                          <label className="block text-[11px] text-muted-foreground mb-0.5">Qty</label>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
+                              aria-label={`Decrease qty of ${item.productName}`}
+                              className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                              <Minus className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                            <input id={`qty-${idx}`} type="number" value={item.quantity}
+                              onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
+                              min={1}
+                              className="w-12 text-center text-sm lg:text-xs border border-border rounded py-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                            <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
+                              aria-label={`Increase qty of ${item.productName}`}
+                              className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                              <Plus className="h-4 w-4" aria-hidden="true" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="block text-[11px] text-muted-foreground mb-0.5">Subtotal</span>
+                          <span className="font-semibold text-secondary text-sm lg:text-xs">Rs. {formatNumber(item.subtotal)}</span>
                         </div>
                       </div>
                     </li>
