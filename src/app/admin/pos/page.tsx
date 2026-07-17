@@ -585,13 +585,19 @@ export default function POSPage() {
             </label>
             {!walkin && (
               <div className="flex flex-col lg:flex-row gap-1.5 w-full lg:w-auto">
-                <input id="cust-name" type="text" placeholder="Customer Name" value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full lg:w-32 px-3 py-2 lg:px-2 lg:py-1.5 border-2 border-border rounded-md text-sm lg:text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
-                <input id="cust-phone" type="tel" placeholder="Mobile Number" value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                  maxLength={10}
-                  className="w-full lg:w-32 px-3 py-2 lg:px-2 lg:py-1.5 border-2 border-border rounded-md text-sm lg:text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                <div className="flex flex-col gap-0.5">
+                  <label htmlFor="cust-name" className="text-xs text-muted-foreground">Name</label>
+                  <input id="cust-name" type="text" placeholder="Customer Name" value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full lg:w-32 px-3 py-2 lg:px-2 lg:py-1.5 border-2 border-border rounded-md text-sm lg:text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <label htmlFor="cust-phone" className="text-xs text-muted-foreground">Mobile No.</label>
+                  <input id="cust-phone" type="tel" placeholder="Mobile Number" value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    maxLength={10}
+                    className="w-full lg:w-32 px-3 py-2 lg:px-2 lg:py-1.5 border-2 border-border rounded-md text-sm lg:text-xs focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                </div>
               </div>
             )}
           </div>
@@ -681,7 +687,7 @@ export default function POSPage() {
               ) : (
                 <ul className="flex-1 overflow-y-auto space-y-2 min-h-0" role="list">
                   {items.map((item, idx) => (
-                    <li key={item.productId}
+                    <li key={`${item.productId}-${idx}`}
                       className="p-3 border border-border rounded-lg bg-white shadow-sm text-xs space-y-1.5">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-semibold text-secondary leading-tight truncate">{item.productName}</p>
