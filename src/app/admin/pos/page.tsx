@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { useFirestore, orderBy, limit } from "@/hooks/useFirestore";
-import { Product, Coupon, Sale } from "@/types";
+import { Product, Coupon, Sale, Category } from "@/types";
 import { formatCurrency, formatNumber, generateCouponCode } from "@/lib/utils";
 import { toBS } from "@/lib/nepaliDate";
 import { generateId } from "@/lib/id-generator";
@@ -47,6 +47,10 @@ export default function POSPage() {
   });
   const { data: allCoupons } = useFirestore<Coupon>("coupons", {
     constraints: [orderBy("createdAt", "desc"), limit(100)],
+    realtime: true,
+  });
+  const { data: allCategories } = useFirestore<Category>("categories", {
+    constraints: [orderBy("order", "asc"), limit(100)],
     realtime: true,
   });
 
@@ -164,12 +168,19 @@ export default function POSPage() {
   const finalAmount = Math.max(0, totalAmount - discount);
   const balanceDue = paymentMode === "partial" ? Math.max(0, finalAmount - receivedAmount) : 0;
 
-  const categories = useMemo(() =>
-    [...new Set(activeProducts.map((p) => p.category).filter(Boolean))] as string[],
-  [activeProducts]);
+  const categoryMap = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of allCategories) m.set(c.id, c.name);
+    return m;
+  }, [allCategories]);
+
+  const categories = useMemo(() => {
+    const ids = [...new Set(activeProducts.map((p) => p.categoryId).filter(Boolean))] as string[];
+    return ids.map((id) => ({ id, name: categoryMap.get(id) || id })).filter((c) => c.name);
+  }, [activeProducts, categoryMap]);
 
   const categoryProducts = useMemo(() =>
-    selectedCategory ? activeProducts.filter((p) => p.category === selectedCategory).slice(0, 30) : [],
+    selectedCategory ? activeProducts.filter((p) => p.categoryId === selectedCategory).slice(0, 30) : [],
   [activeProducts, selectedCategory]);
 
   const availableStock = (productId: string): number => {
@@ -694,13 +705,13 @@ export default function POSPage() {
                 All
               </button>
               {categories.slice(0, 10).map((cat) => (
-                <button key={cat} onClick={() => setSelectedCategory(selectedCategory === cat ? "" : cat)}
+                <button key={cat.id} onClick={() => setSelectedCategory(selectedCategory === cat.id ? "" : cat.id)}
                   className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors whitespace-nowrap ${
-                    selectedCategory === cat
+                    selectedCategory === cat.id
                       ? "bg-primary text-white border-primary"
                       : "bg-white text-muted-foreground border-border hover:border-primary hover:text-primary"
                   }`}>
-                  {cat}
+                  {cat.name}
                 </button>
               ))}
             </div>
@@ -712,7 +723,7 @@ export default function POSPage() {
           <div className="shrink-0 px-4 pb-2">
             <div className="bg-white border border-border rounded-xl p-2 shadow-sm">
               <div className="flex items-center justify-between mb-1.5 px-1">
-                <span className="text-xs font-semibold text-secondary">{selectedCategory}</span>
+                <span className="text-xs font-semibold text-secondary">{categoryMap.get(selectedCategory) || selectedCategory}</span>
                 <button onClick={() => setSelectedCategory("")}
                   className="text-[10px] text-muted-foreground hover:text-primary">✕ Clear</button>
               </div>
