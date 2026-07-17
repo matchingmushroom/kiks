@@ -188,6 +188,58 @@ service cloud.firestore {
 ```
 ⚠️ Read access is open to the public. Do not store sensitive customer data (passwords, payment info) in Firestore.
 
+### TLS / SSL
+Firestore connections are encrypted via HTTPS/TLS by default. No additional configuration needed.
+
+### Security Headers (Production)
+Since the app is a static export, `next.config.ts` headers only apply to the dev server. For production (GitHub Pages, Cloudflare Pages, etc.), configure headers at the CDN/hosting level:
+- **Cloudflare Pages**: Add headers via `_headers` file or Cloudflare dashboard
+- **Netlify**: Add headers via `netlify.toml` or `_headers` file
+- **GitHub Pages**: Use a CDN (Cloudflare, Fastly) in front, or serve via Cloudflare Pages
+
+Recommended headers:
+```
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebaseio.com https://*.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleapis.com https://*.firebasestorage.app; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://firestore.googleapis.com; frame-src 'self' https://*.firebaseapp.com
+Referrer-Policy: strict-origin-when-cross-origin
+```
+
+### Rate Limiting
+- **SMS sending**: Limited to 10 attempts per minute per debtor via Firestore-backed rate limiter (`src/lib/rate-limit.ts`)
+- **Firebase Auth**: Built-in rate limiting on login, signup, and password reset (handled server-side by Firebase)
+
+### Error Handling
+- The admin error boundary (`admin/error.tsx`) shows a generic message with a correlation ID — no stack traces exposed to users
+- All `alert()` and state error messages across admin pages use generic user-friendly messages instead of `e.message`
+- Detailed errors are logged to `console.error` only
+
+### Environment Variables
+All required Firebase config vars are validated at startup in `src/lib/firebase.ts`. The app throws a clear error if any are missing rather than failing silently at runtime.
+
+## Data Privacy & Deletion
+
+### Personal Data Collected
+The following personal data is stored per customer: **name, phone, email, address**. This data appears in:
+- `customers` collection (central registry)
+- `sales`, `invoices`, `orders` — embedded `customer` object
+- `debtors` — `customerName`, `customerPhone`, `customerAddress`
+- `coupons` — `issuedToCustomer` and `restrictedToPhones`
+- `testimonials` — `customerName`, `customerPhone`, `customerPhoto`
+- `accountTransactions`, `journalEntries`, `inventory_logs` — customer name in description/reason strings
+
+### Customer Deletion Flow
+Navigate to **Customers → Delete** to open the deletion modal. The system will:
+1. **Anonymize** personal data fields (`name` → `[Deleted]`, phone/email/address → empty) across all linked records
+2. **Optionally delete testimonials** (checkbox) — otherwise they are anonymized
+3. **Delete the customer document** from the `customers` collection
+
+Business records (sales, invoices, debtors) are **retained** for accounting/legal purposes with personal data removed. Customer names embedded in `accountTransactions`, `journalEntries`, and `inventory_logs` descriptions are not automatically updated (these are append-only audit logs).
+
+### GAS Backup Logs
+The Google Apps Script backup (`scripts/gas-backup.gs`) has been updated to **not log** response payloads or email addresses in `console.log` statements. Error responses are logged as `[REDACTED]`.
+
 ## Backup
 - **CSV Export**: Download individual collections or bundled ZIP from `/admin/backup`
 - **Reports**: Generate YTD/MTD/Custom period sales, product, and debtor reports

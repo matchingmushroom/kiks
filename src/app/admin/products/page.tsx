@@ -207,7 +207,7 @@ export default function AdminProductsPage() {
       alert(`Backfilled barcodeId/shortCode for ${updates.length} products.`);
     } catch (e) {
       console.error("Backfill failed", e);
-      alert("Backfill failed: " + (e instanceof Error ? e.message : "Unknown error"));
+      alert("Backfill failed. Try again.");
     }
     setBackfilling(false);
   };
@@ -296,7 +296,7 @@ export default function AdminProductsPage() {
       });
     } catch (e: any) {
       console.error("Upload failed", e);
-      alert("Failed to upload image: " + (e.message || e));
+      alert("Image upload failed. Check the file and try again.");
       setUploading(false);
     }
   };
@@ -326,7 +326,7 @@ export default function AdminProductsPage() {
       setComboPrice(0);
     } catch (e) {
       console.error("Combo creation failed", e);
-      alert("Failed to create combo: " + (e instanceof Error ? e.message : "Unknown error"));
+      alert("Failed to create combo. Try again.");
     }
     setSavingCombo(false);
   };

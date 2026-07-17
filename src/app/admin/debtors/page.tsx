@@ -180,20 +180,23 @@ export default function AdminDebtorsPage() {
         body: JSON.stringify({ action: "sendReport", module: "debtors", csv, filename: `debtors-${period}.csv`, period, emailTo: cfg.emailTo || "", driveFolderId: cfg.driveFolderId || "" }),
       });
       const data = await res.json();
-      if (data.status === "ok") alert("Report sent!"); else alert("Error: " + (data.message || "Unknown"));
-    } catch (e: any) { alert("Failed: " + (e.message || e)); }
+      if (data.status === "ok") alert("Report sent!"); else alert("Failed to send report. Check the GAS webhook URL in Settings.");
+    } catch { alert("Could not send report. Check Settings and try again."); }
     setSendingEmail(false);
   };
 
   const handleSendSms = async (debtor: Debtor) => {
     if (!debtor.customerPhone) { alert("No phone number for this debtor."); return; }
+    const { checkRateLimit } = await import("@/lib/rate-limit");
+    const rl = await checkRateLimit("sms_" + debtor.id);
+    if (!rl.allowed) { alert("Too many SMS requests. Try again later."); return; }
     setSendingSmsId(debtor.id);
     try {
       const days = debtor.dueDate ? getDaysOverdue(debtor.dueDate) : 0;
       const msg = `Dear ${debtor.customerName}, your balance of Rs. ${debtor.balanceDue.toLocaleString("en-IN")} is overdue by ${days} days. Please pay at your earliest convenience. Thank you.`;
       const result = await sendSMS(debtor.customerPhone, msg);
-      if (!result.ok) alert("SMS failed: " + (result.error || "Unknown error"));
-    } catch (e: any) { alert("SMS error: " + (e.message || e)); }
+      if (!result.ok) alert("SMS failed. Please check settings and try again.");
+    } catch { alert("Could not send SMS. Try again later."); }
     setSendingSmsId(null);
   };
 

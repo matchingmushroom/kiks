@@ -392,7 +392,7 @@ function SalesContent() {
         });
         savedInvId = invId;
       } catch (e: any) {
-        setInvoiceError("Invoice auto-generation failed: " + (e?.message || "Unknown error"));
+        setInvoiceError("Invoice auto-generation failed. Sale was recorded.");
         console.error("Auto-invoice failed, sale was still recorded", e);
       }
 
@@ -493,7 +493,7 @@ function SalesContent() {
       setOrderData(null);
       setTimeout(() => { setSavedSale(false); setSavedInvoiceId(null); }, 6000);
     } catch (e: any) {
-      setSaleError(e?.message || "Sale failed. Please try again.");
+      setSaleError("Sale failed. Please try again.");
       setForm({ ...emptyForm });
       setShowForm(false);
       setOrderData(null);
@@ -735,7 +735,7 @@ function SalesContent() {
       if (data.status === "ok") alert("Report sent to email" + (cfg.driveFolderId ? " and saved to Drive" : "") + "!");
       else alert("Error: " + (data.message || "Unknown error"));
     } catch (e: any) {
-      alert("Failed to send: " + (e.message || e));
+      alert("Failed to send. Try again.");
     }
     setSendingEmail(false);
   };

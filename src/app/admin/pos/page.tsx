@@ -564,7 +564,7 @@ export default function POSPage() {
       clearForm();
       setTimeout(() => { setSuccess(false); }, 3000);
     } catch (e: any) {
-      setError(e?.message || "Sale failed");
+      setError("Sale failed. Please try again.");
     }
     setSaving(false);
   };

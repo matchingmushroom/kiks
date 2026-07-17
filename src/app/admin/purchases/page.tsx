@@ -950,7 +950,7 @@ function PurchasesContent() {
       });
     } catch (e: any) {
       console.error("Bill upload failed", e);
-      alert("Failed to upload bill: " + (e.message || e));
+      alert("Bill upload failed. Try again.");
       setUploadingBill(false);
     }
   };
@@ -988,7 +988,7 @@ function PurchasesContent() {
       });
     } catch (e: any) {
       console.error("CSV bill upload failed", e);
-      alert("Failed to upload bill: " + (e.message || e));
+      alert("Bill upload failed. Try again.");
       setCsvUploadingBill(false);
     }
   };
@@ -1078,7 +1078,7 @@ function PurchasesContent() {
       });
       const data = await res.json();
       if (data.status === "ok") alert("Report sent!"); else alert("Error: " + (data.message || "Unknown"));
-    } catch (e: any) { alert("Failed: " + (e.message || e)); }
+    } catch (e: any) { alert("Operation failed. Try again."); }
     setSendingEmail(false);
   };
 

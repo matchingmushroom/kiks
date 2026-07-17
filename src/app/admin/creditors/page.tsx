@@ -164,7 +164,7 @@ export default function AdminCreditorsPage() {
       });
       const data = await res.json();
       if (data.status === "ok") alert("Report sent!"); else alert("Error: " + (data.message || "Unknown"));
-    } catch (e: any) { alert("Failed: " + (e.message || e)); }
+    } catch (e: any) { alert("Operation failed. Try again."); }
     setSendingEmail(false);
   };
 

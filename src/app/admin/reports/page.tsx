@@ -576,7 +576,7 @@ function FinancialReportSection({ type, user }: { type: string; user: any }) {
         return res.json();
       })
       .then((result) => { setData(result); setLoading(false); })
-      .catch((e) => { console.error("Financial report fetch failed:", e); setError(e?.message || "Unknown error"); setLoading(false); });
+      .catch((e) => { console.error("Financial report fetch failed:", e); setError("Failed to load report."); setLoading(false); });
   }, [type, gasUrl]);
 
   const exportFinancialCSV = () => {

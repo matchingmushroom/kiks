@@ -264,8 +264,8 @@ export default function SettingsPage() {
       } else {
         setArchiveStatus("Archive failed: " + (data.message || "Unknown error"));
       }
-    } catch (e: any) {
-      setArchiveStatus("Error: " + (e.message || e));
+    } catch {
+      setArchiveStatus("Archive failed. Try again.");
     }
     setArchiving(false);
   };

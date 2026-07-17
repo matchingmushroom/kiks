@@ -754,7 +754,7 @@ function doBackup() {
   var emailTo = config.emailTo;
   var driveFolderId = config.driveFolderId;
   var enabledModules = config.enabledModules || [];
-  console.log("doBackup: emailTo=" + emailTo + " modules=" + enabledModules.join(","));
+  console.log("doBackup: emailTo=[REDACTED] modules=" + enabledModules.join(","));
 
   var attachments = [];
   var period = new Date().toISOString().slice(0, 10);
@@ -929,7 +929,7 @@ function firestoreGet(path) {
     muteHttpExceptions: true,
   });
   if (resp.getResponseCode() !== 200) {
-    console.log("firestoreGet(" + path + ") returned " + resp.getResponseCode() + ": " + resp.getContentText().slice(0, 200));
+    console.log("firestoreGet(" + path + ") returned " + resp.getResponseCode() + ": [REDACTED]");
     return null;
   }
   var data = JSON.parse(resp.getContentText());
@@ -949,7 +949,7 @@ function firestoreList(collection) {
       muteHttpExceptions: true,
     });
     if (resp.getResponseCode() !== 200) {
-      console.log("firestoreList(" + collection + ") returned " + resp.getResponseCode() + ": " + resp.getContentText().slice(0, 200));
+      console.log("firestoreList(" + collection + ") returned " + resp.getResponseCode() + ": [REDACTED]");
       break;
     }
     var data = JSON.parse(resp.getContentText());
@@ -1057,7 +1057,7 @@ function firestoreQuery(collection, whereClauses, orderByClause, limitVal) {
   });
 
   if (resp.getResponseCode() !== 200) {
-    console.log("firestoreQuery(" + collection + ") returned " + resp.getResponseCode() + ": " + resp.getContentText().slice(0, 200));
+    console.log("firestoreQuery(" + collection + ") returned " + resp.getResponseCode() + ": [REDACTED]");
     return [];
   }
 

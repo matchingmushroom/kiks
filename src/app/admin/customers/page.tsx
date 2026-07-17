@@ -7,12 +7,12 @@ import { Customer, Sale } from "@/types";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils";
 import { generateId } from "@/lib/id-generator";
 import {
-  setDoc, updateDoc, deleteDoc, doc, collection, Timestamp, onSnapshot, query, where, getDocs,
+  setDoc, updateDoc, doc, collection, Timestamp, onSnapshot, query, where, getDocs,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List, Eye, MoreVertical, TrendingUp, ShoppingCart, Gift } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Save, Search, LayoutGrid, List, Eye, MoreVertical, TrendingUp, ShoppingCart, Gift, AlertTriangle, Loader2 } from "lucide-react";
 
 const emptyForm = {
   name: "", phone: "", email: "", address: "", notes: "",
@@ -31,6 +31,10 @@ export default function AdminCustomersPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [detailCustomerId, setDetailCustomerId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Customer | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<string | null>(null);
+  const [deleteTestimonials, setDeleteTestimonials] = useState(false);
 
   useEffect(() => { if (openMenuId) { const handler = () => setOpenMenuId(null); window.addEventListener("click", handler); return () => window.removeEventListener("click", handler); } }, [openMenuId]);
   const [detailCustomerData, setDetailCustomerData] = useState<Customer | null>(null);
@@ -116,13 +120,28 @@ export default function AdminCustomersPage() {
     setSaving(false);
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`Delete customer "${name}"?`)) return;
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteResult(null);
     try {
-      await deleteDoc(doc(db, "customers", id));
+      const { anonymizeCustomerData, deleteCustomerDocument } = await import("@/lib/anonymize-customer");
+      const result = await anonymizeCustomerData(deleteTarget.phone, deleteTarget.name, {
+        deleteTestimonials,
+      });
+      await deleteCustomerDocument(deleteTarget.id);
+      setDeleteResult(
+        `Deleted customer & anonymized ${result.total} linked record(s): ` +
+        `Sales ${result.sales}, Invoices ${result.invoices}, Orders ${result.orders}, ` +
+        `Debtors ${result.debtors}, Coupons ${result.coupons}, ` +
+        `Testimonials ${deleteTestimonials ? "deleted " + result.testimonials.deleted : "anonymized " + result.testimonials.anonymized}`
+      );
+      setTimeout(() => { setDeleteTarget(null); setDeleteResult(null); }, 3000);
     } catch (e) {
       console.error("Delete failed", e);
+      setDeleteResult("Deletion failed. Please try again.");
     }
+    setDeleting(false);
   };
 
   return (
@@ -227,7 +246,7 @@ export default function AdminCustomersPage() {
                         <button onClick={() => { openEdit(c); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
                           <Edit2 className="h-3.5 w-3.5 text-muted-foreground" /> Edit
                         </button>
-                        <button onClick={() => { handleDelete(c.id, c.name); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600">
+                        <button onClick={() => { setDeleteTarget(c); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600">
                           <Trash2 className="h-3.5 w-3.5" /> Delete
                         </button>
                       </div>
@@ -276,7 +295,7 @@ export default function AdminCustomersPage() {
                           className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
                           <Edit2 className="h-3.5 w-3.5" /> Edit
                         </button>
-                        <button onClick={() => handleDelete(c.id, c.name)}
+                        <button onClick={() => setDeleteTarget(c)}
                           className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700">
                           <Trash2 className="h-3.5 w-3.5" /> Delete
                         </button>
@@ -410,6 +429,38 @@ export default function AdminCustomersPage() {
                   <p>Created: {detailCustomerData.createdAt ? formatDate(detailCustomerData.createdAt) : "—"}</p>
                   <p>Updated: {detailCustomerData.updatedAt ? formatDateTime(detailCustomerData.updatedAt) : "—"}</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => !deleting && setDeleteTarget(null)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-full bg-red-100"><AlertTriangle className="h-5 w-5 text-red-600" /></div>
+                <h2 className="text-lg font-bold text-secondary">Delete Customer</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                This will permanently delete <strong>{deleteTarget.name}</strong> and anonymize personal data
+                across all linked records (sales, invoices, orders, debtors, coupons).
+              </p>
+              <label className="flex items-center gap-2 text-sm text-muted-foreground mb-4 p-3 bg-muted/30 rounded-lg cursor-pointer">
+                <input type="checkbox" checked={deleteTestimonials} onChange={(e) => setDeleteTestimonials(e.target.checked)}
+                  className="rounded border-border accent-red-500" />
+                Also <strong>delete</strong> testimonials (otherwise they will be anonymized)
+              </label>
+              {deleteResult && (
+                <p className={`text-sm mb-4 p-2 rounded ${deleteResult.startsWith("Error") ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"}`}>
+                  {deleteResult}
+                </p>
+              )}
+              <div className="flex gap-3 justify-end">
+                <Button onClick={() => { setDeleteTarget(null); setDeleteResult(null); }} variant="outline" disabled={deleting}>Cancel</Button>
+                <Button onClick={handleDelete} disabled={deleting}
+                  className="bg-red-600 hover:bg-red-700 text-white">
+                  {deleting ? <><Loader2 className="h-4 w-4 animate-spin" /> Deleting...</> : <><Trash2 className="h-4 w-4" /> Delete</>}
+                </Button>
               </div>
             </div>
           </div>

@@ -58,8 +58,8 @@ export default function LoyaltyPage() {
         saleDate: d.createdAt?.toMillis?.() || d.createdAt || Date.now(),
         recordedByName: d.recordedByName || "",
       }]);
-    } catch (e: any) {
-      setMessage("Error: " + (e.message || e));
+    } catch {
+      setMessage("Could not load sales data.");
     }
     setLoading(false);
   };
@@ -91,8 +91,8 @@ export default function LoyaltyPage() {
       });
       setResults(list);
       if (list.length === 0) setMessage("No sales found for this phone");
-    } catch (e: any) {
-      setMessage("Error: " + (e.message || e));
+    } catch {
+      setMessage("Could not load sales data.");
     }
     setLoading(false);
   };
@@ -121,8 +121,8 @@ export default function LoyaltyPage() {
         });
       });
       setResults(list);
-    } catch (e: any) {
-      setMessage("Error: " + (e.message || e));
+    } catch {
+      setMessage("Could not load sales data.");
     }
     setLoading(false);
   };
@@ -206,8 +206,8 @@ export default function LoyaltyPage() {
       } else {
         setMessage(`GAS error: ${batchRes.error}. Points saved in Firestore but not synced.`);
       }
-    } catch (e: any) {
-      setMessage("Award failed: " + (e.message || e));
+    } catch {
+      setMessage("Award failed. Try again.");
     }
     setAwardingId(null);
   };
@@ -265,8 +265,8 @@ export default function LoyaltyPage() {
         setMessage(`GAS error: ${batchRes.error}. Points saved in Firestore but not synced.`);
       }
       setResults((prev) => prev.map((r) => r.id === manualTarget.id ? { ...r, customerName: name, customerPhone: phone } : r));
-    } catch (e: any) {
-      setMessage("Manual award failed: " + (e.message || e));
+    } catch {
+      setMessage("Manual award failed. Try again.");
     }
     setAwardingId(null);
     setManualTarget(null);

@@ -257,7 +257,7 @@ export default function PartnerReport({ partnerEmails, onClose }: PartnerReportP
       setSent(true);
     } catch (e) {
       console.error("Send failed", e);
-      alert("Failed to send report. " + (e instanceof Error ? e.message : "Check GAS webhook URL in settings."));
+      alert("Failed to send report. Try again.");
     }
     setSending(false);
   };
