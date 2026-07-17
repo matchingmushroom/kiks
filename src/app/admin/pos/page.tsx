@@ -687,7 +687,7 @@ export default function POSPage() {
                   {items.map((item, idx) => (
                     <li key={`${item.productId}-${idx}`}
                       className="p-3 border border-border rounded-lg bg-white shadow-sm text-xs">
-                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-start justify-between gap-2 mb-1.5 lg:hidden">
                         <p className="font-semibold text-secondary leading-tight truncate">{item.productName}</p>
                         <button onClick={() => removeItem(idx)}
                           aria-label={`Remove ${item.productName}`}
@@ -695,12 +695,13 @@ export default function POSPage() {
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-y-1.5 gap-x-2">
+                      {/* Mobile: 2-column grid */}
+                      <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 lg:hidden">
                         <span className="text-xs text-muted-foreground">Price (Rs.)</span>
                         <input type="number" value={item.unitPrice}
                           onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
                           min={0} step={10}
-                          className="w-full text-sm lg:text-xs border border-border rounded py-1 px-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-right" />
+                          className="w-full text-xs border border-border rounded py-1 px-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-right" />
                         <span className="text-xs text-muted-foreground">Qty</span>
                         <div className="flex items-center gap-1 justify-end">
                           <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
@@ -711,7 +712,7 @@ export default function POSPage() {
                           <input type="number" value={item.quantity}
                             onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
                             min={1}
-                            className="w-12 text-center text-sm lg:text-xs border border-border rounded py-1 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                            className="w-12 text-center text-xs border border-border rounded py-1 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                           <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
                             aria-label={`Increase qty of ${item.productName}`}
                             className="p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
@@ -719,7 +720,39 @@ export default function POSPage() {
                           </button>
                         </div>
                         <span className="text-xs text-muted-foreground">Subtotal</span>
-                        <p className="font-semibold text-secondary text-sm lg:text-xs text-right">Rs. {formatNumber(item.subtotal)}</p>
+                        <p className="font-semibold text-secondary text-xs text-right">Rs. {formatNumber(item.subtotal)}</p>
+                      </div>
+                      {/* Desktop: horizontal row */}
+                      <div className="hidden lg:flex lg:items-center lg:gap-3">
+                        <p className="font-semibold text-secondary truncate flex-1 min-w-0">{item.productName}</p>
+                        <button onClick={() => removeItem(idx)}
+                          aria-label={`Remove ${item.productName}`}
+                          className="p-1 text-red-500 hover:bg-red-50 rounded shrink-0 focus:ring-2 focus:ring-red-300 outline-none">
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                        <div className="w-24">
+                          <input type="number" value={item.unitPrice}
+                            onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
+                            min={0} step={10}
+                            className="w-full text-xs border border-border rounded py-1.5 px-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-right" />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
+                            aria-label={`Decrease qty of ${item.productName}`}
+                            className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                            <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                          <input type="number" value={item.quantity}
+                            onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
+                            min={1}
+                            className="w-12 text-center text-xs border border-border rounded py-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                          <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
+                            aria-label={`Increase qty of ${item.productName}`}
+                            className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                          </button>
+                        </div>
+                        <p className="font-semibold text-secondary text-xs w-20 text-right">Rs. {formatNumber(item.subtotal)}</p>
                       </div>
                     </li>
                   ))}
