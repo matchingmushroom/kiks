@@ -604,8 +604,8 @@ export default function POSPage() {
 
           {settings?.liteMode ? (
             <div className="space-y-2">
-              <div className="grid grid-cols-3 gap-2">
-                <div className="col-span-1">
+              <div className="flex flex-col gap-2">
+                <div>
                   <input type="text" value={liteItemName}
                     onChange={(e) => { setLiteItemName(e.target.value); setLiteSuggestions(filterLiteNames(e.target.value)); }}
                     placeholder="Item name" autoComplete="off"
@@ -622,15 +622,13 @@ export default function POSPage() {
                 <input type="number" value={liteItemPrice || ""}
                   onChange={(e) => setLiteItemPrice(Number(e.target.value))}
                   placeholder="Price (Rs.)" min={0} className="w-full px-3 py-2 border-2 border-border rounded-lg text-sm focus:border-primary outline-none" />
-                <div className="flex gap-2">
-                  <input type="number" value={liteItemQty || ""}
-                    onChange={(e) => setLiteItemQty(Number(e.target.value))}
-                    placeholder="Qty" min={1} className="w-full px-3 py-2 border-2 border-border rounded-lg text-sm focus:border-primary outline-none" />
-                  <button type="button" onClick={addLiteItem} disabled={!liteItemName || !liteItemPrice || !liteItemQty}
-                    className="px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 shrink-0">
-                    Add
-                  </button>
-                </div>
+                <input type="number" value={liteItemQty || ""}
+                  onChange={(e) => setLiteItemQty(Number(e.target.value))}
+                  placeholder="Qty" min={1} className="w-full px-3 py-2 border-2 border-border rounded-lg text-sm focus:border-primary outline-none" />
+                <button type="button" onClick={addLiteItem} disabled={!liteItemName || !liteItemPrice || !liteItemQty}
+                  className="w-full px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  Add
+                </button>
               </div>
             </div>
           ) : (
