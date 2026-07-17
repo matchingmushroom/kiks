@@ -15,7 +15,7 @@ import {
 import { db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { Plus, Edit2, X, Save, Search, Shield, LayoutGrid, List, Power, PowerOff, Key, Mail, MoreVertical } from "lucide-react";
+import { Plus, Edit2, X, Save, Search, Shield, LayoutGrid, List, Power, PowerOff, Key, Mail, MoreVertical, Trash2, AlertTriangle } from "lucide-react";
 
 const ROLES: UserRole[] = ["admin", "manager", "staff", "accountant"];
 const ROLE_COLORS: Record<string, string> = {
@@ -47,12 +47,28 @@ export default function AdminStaffPage() {
 
   useEffect(() => { if (openMenuId) { const handler = () => setOpenMenuId(null); window.addEventListener("click", handler); return () => window.removeEventListener("click", handler); } }, [openMenuId]);
   const [detailStaff, setDetailStaff] = useState<AppUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null);
 
   const filtered = users.filter((u) => {
     const matchSearch = !search || u.displayName?.toLowerCase().includes(search.toLowerCase()) || u.email?.includes(search);
-    const matchActive = showDisabled || u.isActive !== false;
+    const matchActive = showDisabled || (!u.deletedAt && u.isActive !== false);
     return matchSearch && matchActive;
   });
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await updateDoc(doc(db, "users", deleteTarget.uid), {
+        isActive: false,
+        deletedAt: Timestamp.fromDate(new Date()),
+        deletedBy: auth.currentUser?.uid || "",
+        updatedAt: Timestamp.fromDate(new Date()),
+      });
+      setDeleteTarget(null);
+    } catch (e) {
+      console.error("Delete failed", e);
+    }
+  };
 
   const openAdd = () => {
     setEmail(""); setPassword(""); setDisplayName(""); setPhone(""); setRole("staff"); setIsActive(true);
@@ -135,7 +151,7 @@ export default function AdminStaffPage() {
           <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
             <input type="checkbox" checked={showDisabled} onChange={(e) => setShowDisabled(e.target.checked)}
               className="rounded border-border" />
-            Show disabled
+            Show disabled/deleted
           </label>
           <div className="flex items-center gap-1">
             <button onClick={() => setViewMode("grid")}
@@ -253,6 +269,11 @@ export default function AdminStaffPage() {
                         <button onClick={() => { openEdit(u); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-muted">
                           <Edit2 className="h-3.5 w-3.5 text-muted-foreground" /> Edit
                         </button>
+                        {!u.deletedAt && (
+                          <button onClick={() => { setDeleteTarget(u); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-red-50 text-red-600">
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -263,7 +284,11 @@ export default function AdminStaffPage() {
                   <span>Joined {formatDate(u.createdAt)}</span>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {u.isActive === false ? (
+                  {u.deletedAt ? (
+                    <span className="inline-flex items-center gap-1 text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+                      <Trash2 className="h-3 w-3" /> Deleted
+                    </span>
+                  ) : u.isActive === false ? (
                     <span className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
                       <PowerOff className="h-3 w-3" /> Disabled
                     </span>
@@ -334,6 +359,12 @@ export default function AdminStaffPage() {
                         className="p-1.5 text-muted-foreground hover:text-primary hover:bg-muted rounded" title="Send password reset email">
                         <Key className="h-3.5 w-3.5" />
                       </button>
+                      {!u.deletedAt && (
+                        <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(u); }}
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded" title="Delete staff">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -350,10 +381,33 @@ export default function AdminStaffPage() {
               <Row label="Email" value={detailStaff.email} />
               <Row label="Role" value={detailStaff.role} />
               <Row label="Phone" value={detailStaff.phone || "—"} />
-              <Row label="Status" value={detailStaff.isActive !== false ? "Active" : "Disabled"} />
+              <Row label="Status" value={detailStaff.deletedAt ? "Deleted" : detailStaff.isActive !== false ? "Active" : "Disabled"} />
               <Row label="Joined" value={formatDate(detailStaff.createdAt)} />
             </div>
           </DetailModal>
+        )}
+
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setDeleteTarget(null)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 rounded-full bg-red-100"><AlertTriangle className="h-5 w-5 text-red-600" /></div>
+                <h2 className="text-lg font-bold text-secondary">Delete Staff</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mb-1">
+                This will disable <strong>{deleteTarget.displayName}</strong> and mark them as deleted.
+              </p>
+              <p className="text-xs text-muted-foreground mb-4">
+                To fully remove the Firebase Auth account, go to Firebase Console → Authentication → Users and delete them there.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button onClick={() => setDeleteTarget(null)} variant="outline">Cancel</Button>
+                <Button onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white">
+                  <Trash2 className="h-4 w-4" /> Delete
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </AdminLayout>
