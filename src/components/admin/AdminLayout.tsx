@@ -21,6 +21,7 @@ interface NavItem {
   permission?: string;
   divider?: boolean;
   section?: string;
+  liteModeHide?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -38,12 +39,12 @@ const navItems: NavItem[] = [
   { label: "Loyalty", href: "/admin/loyalty", icon: <Award className="h-4 w-4" />, permission: "manage_sales" },
   { divider: true, section: "INVENTORY" },
   { label: "Morning Dashboard", href: "/admin/morning", icon: <BarChart3 className="h-4 w-4" />, permission: "view_morning_dashboard" },
-  { label: "Products", href: "/admin/products", icon: <Package className="h-4 w-4" />, permission: "manage_products" },
+  { label: "Products", href: "/admin/products", icon: <Package className="h-4 w-4" />, permission: "manage_products", liteModeHide: true },
   { label: "Categories", href: "/admin/categories", icon: <Tags className="h-4 w-4" />, permission: "manage_categories" },
-  { label: "Inventory", href: "/admin/inventory", icon: <BarChart3 className="h-4 w-4" />, permission: "manage_inventory" },
-  { label: "Reconciliation", href: "/admin/reconciliation", icon: <ClipboardList className="h-4 w-4" />, permission: "manage_inventory" },
+  { label: "Inventory", href: "/admin/inventory", icon: <BarChart3 className="h-4 w-4" />, permission: "manage_inventory", liteModeHide: true },
+  { label: "Reconciliation", href: "/admin/reconciliation", icon: <ClipboardList className="h-4 w-4" />, permission: "manage_inventory", liteModeHide: true },
   { label: "Purchases", href: "/admin/purchases", icon: <DollarSign className="h-4 w-4" />, permission: "manage_purchases" },
-  { label: "Suppliers", href: "/admin/suppliers", icon: <Truck className="h-4 w-4" />, permission: "manage_suppliers" },
+  { label: "Suppliers", href: "/admin/suppliers", icon: <Truck className="h-4 w-4" />, permission: "manage_suppliers", liteModeHide: true },
   { label: "Creditors", href: "/admin/creditors", icon: <Users className="h-4 w-4" />, permission: "manage_creditors" },
   { divider: true, section: "FINANCE" },
   { label: "Expenses", href: "/admin/expenses", icon: <CreditCard className="h-4 w-4" />, permission: "manage_expenses" },
@@ -202,6 +203,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   const filteredItems = navItems.filter((item) => {
     if (item.divider) return true;
+    if (settings?.liteMode && item.liteModeHide) return false;
     if (!item.permission) return true;
     return hasPermission(profile?.role, item.permission as never, profile?.permissions);
   });

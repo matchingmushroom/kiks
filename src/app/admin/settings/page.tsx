@@ -63,6 +63,7 @@ interface Settings {
   hiddenSocialLinks: string[];
   announcementText?: string;
   useBsCalendar?: boolean;
+  liteMode?: boolean;
   deliveryFeeInsideValley?: number;
   deliveryFeeOutsideValley?: number;
   freeDeliveryThreshold?: number;
@@ -598,6 +599,20 @@ export default function SettingsPage() {
                 </label>
                 <p className="text-xs text-muted-foreground mt-1 ml-6">
                   Display dates in BS format. YTD filters use fiscal year (Shrawan 1 – Ashad 32).
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-4 border-t border-border">
+              <div className="flex-1">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={!!form.liteMode}
+                    onChange={(e) => setForm({ ...form, liteMode: e.target.checked })}
+                    className="accent-primary w-4 h-4" />
+                  <span className="text-sm font-medium text-secondary">Lite Mode</span>
+                </label>
+                <p className="text-xs text-muted-foreground mt-1 ml-6">
+                  Simplify purchases, POS &amp; sales. No product catalog management, no inventory tracking.
                 </p>
               </div>
             </div>

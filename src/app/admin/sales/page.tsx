@@ -313,17 +313,21 @@ function SalesContent() {
     setSaving(true);
     setSaleError(null);
     try {
-      for (const item of form.items) {
-        const product = products.find((p) => p.id === item.productId);
-        const stock = product?.quantityInStock ?? 0;
-        if (item.quantity > stock) {
-          throw new Error(`Insufficient stock for ${item.productName}. Available: ${stock}, requested: ${item.quantity}`);
+      if (!saleSettings?.liteMode) {
+        for (const item of form.items) {
+          const product = products.find((p) => p.id === item.productId);
+          const stock = product?.quantityInStock ?? 0;
+          if (item.quantity > stock) {
+            throw new Error(`Insufficient stock for ${item.productName}. Available: ${stock}, requested: ${item.quantity}`);
+          }
         }
       }
       const fifoCosts: Record<string, { avgCost: number; totalCost: number }> = {};
-      for (const item of form.items) {
-        const totalCost = await consumeFifo(item.productId, item.quantity);
-        fifoCosts[item.productId] = { avgCost: totalCost / item.quantity, totalCost };
+      if (!saleSettings?.liteMode) {
+        for (const item of form.items) {
+          const totalCost = await consumeFifo(item.productId, item.quantity);
+          fifoCosts[item.productId] = { avgCost: totalCost / item.quantity, totalCost };
+        }
       }
       const totalCogs = Object.values(fifoCosts).reduce((s, c) => s + c.totalCost, 0);
       const itemsWithCost = form.items.map((item) => ({
@@ -510,22 +514,24 @@ function SalesContent() {
     // Skip restocking if already returned — stock was restored during return
     if (!sale.returned) {
       for (const item of sale.items) {
-        const prodRef = doc(db, "products", item.productId);
-        const prodSnap = await getDoc(prodRef);
-        if (prodSnap.exists()) {
-          const currentStock = prodSnap.data().quantityInStock || 0;
-          await updateDoc(prodRef, { quantityInStock: currentStock + item.quantity });
-        }
-        await restoreFifo(item.productId, item.quantity, item.costPriceAtSale || 0);
-        await addDoc(collection(db, "inventoryLogs"), {
-          productId: item.productId,
-          changeType: "sale",
-          quantityChange: item.quantity,
+        if (!saleSettings?.liteMode) {
+          const prodRef = doc(db, "products", item.productId);
+          const prodSnap = await getDoc(prodRef);
+          if (prodSnap.exists()) {
+            const currentStock = prodSnap.data().quantityInStock || 0;
+            await updateDoc(prodRef, { quantityInStock: currentStock + item.quantity });
+          }
+          await restoreFifo(item.productId, item.quantity, item.costPriceAtSale || 0);
+          await addDoc(collection(db, "inventoryLogs"), {
+            productId: item.productId,
+            changeType: "sale",
+            quantityChange: item.quantity,
           reason: `Sale #${id} deleted`,
           performedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
       }
+    }
     }
     // Delete linked invoice
     const invSnap = await getDocs(query(collection(db, "invoices"), where("relatedSaleId", "==", id)));
@@ -606,17 +612,18 @@ function SalesContent() {
         const qty = returnQtys[i] || 0;
         if (qty <= 0) continue;
         const item = returnSale.items[i];
-        const prodRef = doc(db, "products", item.productId);
-        const prodSnap = await getDoc(prodRef);
-        if (prodSnap.exists()) {
-          const currentStock = prodSnap.data().quantityInStock || 0;
-          await updateDoc(prodRef, {
-            quantityInStock: currentStock + qty,
-            updatedAt: Timestamp.fromDate(new Date()),
-          });
-        }
-        await restoreFifo(item.productId, qty, item.costPriceAtSale || 0);
-        await addDoc(collection(db, "inventoryLogs"), {
+        if (!saleSettings?.liteMode) {
+          const prodRef = doc(db, "products", item.productId);
+          const prodSnap = await getDoc(prodRef);
+          if (prodSnap.exists()) {
+            const currentStock = prodSnap.data().quantityInStock || 0;
+            await updateDoc(prodRef, {
+              quantityInStock: currentStock + qty,
+              updatedAt: Timestamp.fromDate(new Date()),
+            });
+          }
+          await restoreFifo(item.productId, qty, item.costPriceAtSale || 0);
+          await addDoc(collection(db, "inventoryLogs"), {
           productId: item.productId,
           changeType: "sales_return",
           quantityChange: qty,
@@ -624,6 +631,7 @@ function SalesContent() {
           performedBy: user?.uid || "",
           createdAt: Timestamp.fromDate(new Date()),
         });
+      }
       }
 
       if (returnType === "refund") {

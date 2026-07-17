@@ -564,7 +564,58 @@ function PurchasesContent() {
   };
 
   const handleSave = async () => {
-    if (saving || !form.supplierName || form.items.length === 0) return;
+    if (saving) return;
+    if (purchaseSettings?.liteMode) {
+      if (!form.totalAmount) return;
+      setSaving(true);
+      setPurchaseError(null);
+      try {
+        const purchaseId = await generateId("PURC");
+        await setDoc(doc(db, "purchases", purchaseId), {
+          supplierName: form.supplierName || "Expense",
+          supplierPhone: "",
+          purchaseDate: Timestamp.fromDate(new Date()),
+          items: [],
+          totalAmount: form.totalAmount,
+          discountAmount: 0,
+          paymentStatus: form.paymentStatus,
+          paymentMethod: form.paidAmount && form.paidAmount > 0 ? "cash" : "",
+          paidAmount: form.paidAmount || 0,
+          billNo: "",
+          billDate: "",
+          billImageUrl: "",
+          notes: form.notes,
+          recordedBy: user?.uid || "",
+          recordedByName: profile?.displayName || "",
+          returned: false,
+          createdAt: Timestamp.fromDate(new Date()),
+          updatedAt: Timestamp.fromDate(new Date()),
+          liteMode: true,
+        });
+        if (form.paidAmount && form.paidAmount > 0) {
+          await addDoc(collection(db, "accountTransactions"), {
+            accountId: resolveAccount("cash"),
+            type: "debit",
+            amount: form.paidAmount,
+            description: `Expense: ${form.supplierName || "General"}`,
+            date: Timestamp.fromDate(new Date()),
+            referenceType: "purchase",
+            referenceId: purchaseId,
+            recordedBy: user?.uid || "",
+            createdAt: Timestamp.fromDate(new Date()),
+          });
+        }
+        setShowForm(false);
+        setForm({ ...emptyForm });
+        setPurchaseSaved(true);
+        setTimeout(() => setPurchaseSaved(false), 3000);
+      } catch (e) {
+        setPurchaseError("Failed to save expense: " + (e instanceof Error ? e.message : "Unknown error"));
+      }
+      setSaving(false);
+      return;
+    }
+    if (!form.supplierName || form.items.length === 0) return;
     setSaving(true);
     setPurchaseError(null);
     try {
@@ -1107,13 +1158,63 @@ function PurchasesContent() {
           <div className="bg-white border border-border rounded-xl p-6 mb-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-secondary">
-                {editingId ? "Edit Purchase" : "New Purchase"}
+                {editingId ? "Edit Purchase" : purchaseSettings?.liteMode ? "Record Expense" : "New Purchase"}
               </h2>
               <button onClick={() => setShowForm(false)} className="p-1 hover:bg-muted rounded">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
+            {purchaseSettings?.liteMode ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Supplier Name</label>
+                    <input type="text" value={form.supplierName}
+                      onChange={(e) => setForm({ ...form, supplierName: e.target.value })}
+                      placeholder="e.g. Wholesale Traders" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Total Amount (Rs.) *</label>
+                    <input type="number" value={form.totalAmount || ""}
+                      onChange={(e) => setForm({ ...form, totalAmount: Number(e.target.value) })}
+                      min={0} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Payment Status</label>
+                    <select value={form.paymentStatus}
+                      onChange={(e) => setForm({ ...form, paymentStatus: e.target.value as "paid" | "unpaid" | "partially_paid" | "advance" })}
+                      className="w-full px-3 py-2 border border-border rounded-lg text-sm">
+                      <option value="paid">Paid</option>
+                      <option value="unpaid">Unpaid</option>
+                      <option value="partially_paid">Partially Paid</option>
+                      <option value="advance">Advance</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground mb-1">Paid Amount (Rs.)</label>
+                    <input type="number" value={form.paidAmount || ""}
+                      onChange={(e) => setForm({ ...form, paidAmount: Number(e.target.value) })}
+                      min={0} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
+                  <textarea value={form.notes}
+                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                    rows={2} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <Button onClick={() => setShowForm(false)} variant="outline">Cancel</Button>
+                  <Button onClick={handleSave} disabled={saving || !form.totalAmount} variant="accent">
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {saving ? " Saving..." : " Save Expense"}
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1668,6 +1769,7 @@ function PurchasesContent() {
                 </div>
               </div>
             </div>
+            )}
           </div>
         )}
 

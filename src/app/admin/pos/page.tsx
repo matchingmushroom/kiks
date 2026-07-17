@@ -55,6 +55,19 @@ export default function POSPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [items, setItems] = useState<LineItem[]>([]);
   const [productSearch, setProductSearch] = useState("");
+  const [liteItemName, setLiteItemName] = useState("");
+  const [liteItemPrice, setLiteItemPrice] = useState(0);
+  const [liteItemQty, setLiteItemQty] = useState(1);
+  const [liteUsedNames, setLiteUsedNames] = useState<string[]>([]);
+  const [liteSuggestions, setLiteSuggestions] = useState<string[]>([]);
+  const filterLiteNames = (q: string) => q ? liteUsedNames.filter((n) => n.toLowerCase().includes(q.toLowerCase())) : [];
+  const addLiteItem = () => {
+    if (!liteItemName || !liteItemPrice || !liteItemQty) return;
+    const subtotal = liteItemPrice * liteItemQty;
+    setItems((prev) => [...prev, { productId: "", productName: liteItemName, quantity: liteItemQty, unitPrice: liteItemPrice, subtotal }]);
+    if (!liteUsedNames.includes(liteItemName)) setLiteUsedNames((prev) => [...prev, liteItemName]);
+    setLiteItemName(""); setLiteItemPrice(0); setLiteItemQty(1); setLiteSuggestions([]);
+  };
   const [paymentMode, setPaymentMode] = useState<PaymentMode>("cash");
   const [receivedAmount, setReceivedAmount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
@@ -262,11 +275,13 @@ export default function POSPage() {
     setSaving(true);
     setError("");
     try {
-      for (const item of items) {
-        const product = activeProducts.find((p) => p.id === item.productId);
-        const stock = product?.quantityInStock ?? 0;
-        if (item.quantity > stock) {
-          throw new Error(`Insufficient stock for ${item.productName}. Available: ${stock}`);
+      if (!settings?.liteMode) {
+        for (const item of items) {
+          const product = activeProducts.find((p) => p.id === item.productId);
+          const stock = product?.quantityInStock ?? 0;
+          if (item.quantity > stock) {
+            throw new Error(`Insufficient stock for ${item.productName}. Available: ${stock}`);
+          }
         }
       }
 
@@ -279,11 +294,13 @@ export default function POSPage() {
       const saleType = balanceDue > 0 ? (receivedAmount > 0 ? "partial" : "credit") : "cash";
       const effectiveReceived = paymentMode === "cash" || paymentMode === "qr" ? finalAmount : receivedAmount;
 
-      // FIFO: consume layers and compute actual costs
+      // FIFO: consume layers and compute actual costs (skipped in lite mode)
       const fifoCosts: Record<string, { avgCost: number; totalCost: number }> = {};
-      for (const item of items) {
-        const totalCost = await consumeFifo(item.productId, item.quantity);
-        fifoCosts[item.productId] = { avgCost: totalCost / item.quantity, totalCost };
+      if (!settings?.liteMode) {
+        for (const item of items) {
+          const totalCost = await consumeFifo(item.productId, item.quantity);
+          fifoCosts[item.productId] = { avgCost: totalCost / item.quantity, totalCost };
+        }
       }
       const totalCogs = Object.values(fifoCosts).reduce((s, c) => s + c.totalCost, 0);
 
@@ -293,7 +310,7 @@ export default function POSPage() {
         saleType,
         customer: { name: cName, phone: cPhone, address: "", email: "" },
         items: items.map((item) => {
-          const product = activeProducts.find((p) => p.id === item.productId);
+          const product = settings?.liteMode ? null : activeProducts.find((p) => p.id === item.productId);
           return {
             productId: item.productId, productName: item.productName, sku: product?.sku || "",
             quantity: item.quantity, unitPrice: item.unitPrice, weight: product?.weight || 0,
@@ -331,7 +348,7 @@ export default function POSPage() {
           invoiceNumber, type: "invoice", status: "draft",
           customer: { name: cName, phone: cPhone, address: "" },
           items: items.map((item) => {
-            const product = activeProducts.find((p) => p.id === item.productId);
+            const product = settings?.liteMode ? null : activeProducts.find((p) => p.id === item.productId);
             return {
               productId: item.productId, productName: item.productName,
               sku: product?.sku || "", description: "",
@@ -358,19 +375,21 @@ export default function POSPage() {
         console.error("Auto-invoice failed", e);
       }
 
-      for (const item of items) {
-        try {
-          const prodRef = doc(db, "products", item.productId);
-          const prodSnap = await getDoc(prodRef);
-          if (prodSnap.exists()) {
-            const currentStock = prodSnap.data().quantityInStock || 0;
-            await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - item.quantity) });
-          }
-          await addDoc(collection(db, "inventoryLogs"), {
-            productId: item.productId, changeType: "sale", quantityChange: -item.quantity,
-            reason: `POS sale to ${cName}`, performedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
-          });
-        } catch (e) { console.error("Stock update failed", e); }
+      if (!settings?.liteMode) {
+        for (const item of items) {
+          try {
+            const prodRef = doc(db, "products", item.productId);
+            const prodSnap = await getDoc(prodRef);
+            if (prodSnap.exists()) {
+              const currentStock = prodSnap.data().quantityInStock || 0;
+              await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - item.quantity) });
+            }
+            await addDoc(collection(db, "inventoryLogs"), {
+              productId: item.productId, changeType: "sale", quantityChange: -item.quantity,
+              reason: `POS sale to ${cName}`, performedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
+            });
+          } catch (e) { console.error("Stock update failed", e); }
+        }
       }
 
       try {
@@ -388,7 +407,7 @@ export default function POSPage() {
           id: saleId, orderId: "", saleType,
           customer: { name: cName, phone: cPhone, address: "", email: "" },
           items: items.map((item) => {
-            const product = activeProducts.find((p) => p.id === item.productId);
+            const product = settings?.liteMode ? null : activeProducts.find((p) => p.id === item.productId);
             return {
               productId: item.productId, productName: item.productName, sku: product?.sku || "",
               quantity: item.quantity, unitPrice: item.unitPrice, weight: product?.weight || 0,
@@ -577,7 +596,39 @@ export default function POSPage() {
             )}
           </div>
 
-          {/* Search */}
+          {settings?.liteMode ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-1">
+                  <input type="text" value={liteItemName}
+                    onChange={(e) => { setLiteItemName(e.target.value); setLiteSuggestions(filterLiteNames(e.target.value)); }}
+                    placeholder="Item name" autoComplete="off"
+                    className="w-full px-3 py-2 border-2 border-border rounded-lg text-sm focus:border-primary outline-none" />
+                  {liteSuggestions.length > 0 && (
+                    <div className="mt-1 border border-border rounded-lg divide-y divide-border max-h-32 overflow-y-auto bg-white shadow-lg">
+                      {liteSuggestions.map((name, i) => (
+                        <button key={i} type="button" onMouseDown={() => { setLiteItemName(name); setLiteSuggestions([]); }}
+                          className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted">{name}</button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <input type="number" value={liteItemPrice || ""}
+                  onChange={(e) => setLiteItemPrice(Number(e.target.value))}
+                  placeholder="Price (Rs.)" min={0} className="w-full px-3 py-2 border-2 border-border rounded-lg text-sm focus:border-primary outline-none" />
+                <div className="flex gap-2">
+                  <input type="number" value={liteItemQty || ""}
+                    onChange={(e) => setLiteItemQty(Number(e.target.value))}
+                    placeholder="Qty" min={1} className="w-full px-3 py-2 border-2 border-border rounded-lg text-sm focus:border-primary outline-none" />
+                  <button type="button" onClick={addLiteItem} disabled={!liteItemName || !liteItemPrice || !liteItemQty}
+                    className="px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 shrink-0">
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+          <>
           <div className="relative">
             <label htmlFor="product-search" className="sr-only">Search products</label>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 lg:h-4 lg:w-4 text-muted-foreground" aria-hidden="true" />
@@ -614,6 +665,8 @@ export default function POSPage() {
               ))}
             </div>
           )}
+          </>
+        )}
         </div>
 
         <div className="flex-1 flex flex-col lg:flex-row gap-3 px-4 pb-3 overflow-hidden min-h-0">

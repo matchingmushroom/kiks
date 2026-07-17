@@ -450,6 +450,7 @@ export interface ShopSettings {
   pointValue?: number;
   minRedemptionPoints?: number;
   gasLoyaltyUrl?: string;
+  liteMode?: boolean;
 }
 
 export interface SmsConfig {
