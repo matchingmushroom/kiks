@@ -1,0 +1,26 @@
+{
+  "name": "@panchakanya/shared",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "lint": "echo 'no lint'"
+  },
+  "dependencies": {
+    "@radix-ui/react-slot": "^1.1.0",
+    "@remotemerge/nepali-date-converter": "^1.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.0",
+    "firebase": "^11.0.0",
+    "jszip": "^3.10.0",
+    "next": "^16.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwind-merge": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "typescript": "^5.0.0"
+  }
+}
