@@ -625,14 +625,14 @@ export default function POSPage() {
 
           {settings?.liteMode ? (
             <div className="space-y-2">
-              <div className="flex flex-col gap-2">
-                <div>
+              <div className="flex flex-col gap-2 lg:grid lg:grid-cols-4 lg:gap-3 lg:items-start">
+                <div className="relative">
                   <input type="text" value={liteItemName}
                     onChange={(e) => { setLiteItemName(e.target.value); setLiteSuggestions(filterLiteNames(e.target.value)); }}
                     placeholder="Item name" autoComplete="off"
                     className="w-full px-3 py-2 border-2 border-border rounded-lg text-sm focus:border-primary outline-none" />
                   {liteSuggestions.length > 0 && (
-                    <div className="mt-1 border border-border rounded-lg divide-y divide-border max-h-32 overflow-y-auto bg-white shadow-lg">
+                    <div className="mt-1 border border-border rounded-lg divide-y divide-border max-h-32 overflow-y-auto bg-white shadow-lg absolute z-10 w-full">
                       {liteSuggestions.map((name, i) => (
                         <button key={i} type="button" onMouseDown={() => { setLiteItemName(name); setLiteSuggestions([]); }}
                           className="w-full text-left px-3 py-1.5 text-xs hover:bg-muted">{name}</button>
@@ -647,7 +647,7 @@ export default function POSPage() {
                   onChange={(e) => setLiteItemQty(Number(e.target.value))}
                   placeholder="Qty" min={1} className="w-full px-3 py-2 border-2 border-border rounded-lg text-sm focus:border-primary outline-none" />
                 <button type="button" onClick={addLiteItem} disabled={!liteItemName || !liteItemPrice || !liteItemQty}
-                  className="w-full px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50">
+                  className="w-full px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 lg:h-11 lg:self-start">
                   Add
                 </button>
               </div>
