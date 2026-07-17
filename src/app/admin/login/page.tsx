@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { ArrowLeft } from "lucide-react";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
 const ERROR_MAP: Record<string, string> = {
   "auth/invalid-credential": "Invalid email or password.",
@@ -26,6 +28,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const { user, login } = useAuth();
   const router = useRouter();
 
@@ -48,7 +52,7 @@ export default function LoginPage() {
       const e = err as { code?: string; message?: string };
       const code = e.code || "";
       console.error("Login error:", code, e.message);
-      setError(ERROR_MAP[code] || `Login failed: ${code}`);
+      setError(ERROR_MAP[code] || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -100,6 +104,23 @@ export default function LoginPage() {
                 placeholder="Enter your password"
                 required
               />
+              <div className="mt-1 text-right">
+                {resetSent ? (
+                  <span className="text-xs text-green-600">Reset link sent! Check your email.</span>
+                ) : (
+                  <button type="button" disabled={resetting || !email} onClick={async () => {
+                    if (!email) return;
+                    setResetting(true);
+                    try {
+                      await sendPasswordResetEmail(auth, email);
+                      setResetSent(true);
+                    } catch { setError("Failed to send reset email."); }
+                    setResetting(false);
+                  }} className="text-xs text-primary hover:underline disabled:opacity-50">
+                    {resetting ? <Loader2 className="h-3 w-3 inline animate-spin" /> : null} Forgot password?
+                  </button>
+                )}
+              </div>
             </div>
             <button
               type="submit"

@@ -583,7 +583,7 @@ export default function SettingsPage() {
                 rows={2} maxLength={300}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
               <p className="text-xs text-muted-foreground">
-                Shown at the top of every page. Supports HTML entities. Leave empty to hide.
+                Shown at the top of every page. Plain text only. Leave empty to hide.
               </p>
             </div>
 

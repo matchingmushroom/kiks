@@ -42,7 +42,7 @@ function AnnouncementBar() {
   if (dismissed || !text) return null;
   return (
     <div className="bg-accent text-secondary text-xs sm:text-sm text-center py-2 px-4 relative">
-      <span className="font-medium" dangerouslySetInnerHTML={{ __html: text }} />
+      <span className="font-medium">{text}</span>
       <button onClick={() => setDismissed(true)} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:opacity-70">
         <X className="h-3.5 w-3.5" />
       </button>

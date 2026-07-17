@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { collection, addDoc, Timestamp, getDocs, query, where, doc, updateDoc } from "firebase/firestore";
+import { collection, addDoc, Timestamp, getDocs, query, where, doc, updateDoc, runTransaction } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useCart } from "@/contexts/CartContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
@@ -92,15 +92,28 @@ export default function CartPage() {
         deliveryLocation, status: "pending", notes: "", processedBy: "",
         createdAt: Timestamp.fromDate(new Date()),
       };
-      const orderRef = await addDoc(collection(db, "orders"), orderData);
+      let orderRef;
       if (appliedCoupon) {
-        await updateDoc(doc(db, "coupons", appliedCoupon.id), { usedCount: (appliedCoupon.usedCount || 0) + 1, issuedForOrderId: orderRef.id });
+        orderRef = await runTransaction(db, async (transaction) => {
+          const couponRef = doc(db, "coupons", appliedCoupon.id);
+          const couponSnap = await transaction.get(couponRef);
+          if (!couponSnap.exists()) throw new Error("Coupon no longer valid");
+          const couponData = couponSnap.data();
+          if (couponData.usageLimit && (couponData.usedCount || 0) >= couponData.usageLimit) {
+            throw new Error("Coupon usage limit reached");
+          }
+          const ref = await addDoc(collection(db, "orders"), orderData);
+          transaction.update(couponRef, { usedCount: (couponData.usedCount || 0) + 1, issuedForOrderId: ref.id });
+          return ref;
+        });
+      } else {
+        orderRef = await addDoc(collection(db, "orders"), orderData);
       }
       setOrderNumber(orderNum);
       const wLink = generateWhatsAppLink(settings.whatsappNumber || "977XXXXXXXXX", items, finalTotal, customerName, customerPhone, customerAddress, appliedCoupon?.code, discount, deliveryFee, deliveryLocation ?? undefined);
       setWaLink(wLink); setOrderPlaced(true);
     } catch (err) {
-      setOrderError("Failed to place order: " + (err instanceof Error ? err.message : "Unknown error"));
+      setOrderError("Failed to place order. Please try again.");
       setOrdering(false);
     }
   };
