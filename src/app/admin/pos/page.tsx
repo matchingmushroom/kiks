@@ -688,7 +688,7 @@ export default function POSPage() {
                 <ul className="flex-1 overflow-y-auto space-y-2 min-h-0" role="list">
                   {items.map((item, idx) => (
                     <li key={`${item.productId}-${idx}`}
-                      className="p-3 border border-border rounded-lg bg-white shadow-sm text-xs space-y-1.5">
+                      className="p-3 border border-border rounded-lg bg-white shadow-sm text-xs space-y-2">
                       <div className="flex items-start justify-between gap-2">
                         <p className="font-semibold text-secondary leading-tight truncate">{item.productName}</p>
                         <button onClick={() => removeItem(idx)}
@@ -697,17 +697,17 @@ export default function POSPage() {
                           <Trash2 className="h-4 w-4" aria-hidden="true" />
                         </button>
                       </div>
-                      <div className="flex flex-col lg:flex-row lg:items-center lg:gap-2 gap-1.5">
-                        <div className="lg:flex-1 lg:min-w-0">
-                          <label htmlFor={`price-${idx}`} className="text-[11px] text-muted-foreground">Price (Rs.)</label>
+                      <div className="flex flex-col gap-1.5 lg:flex-row lg:items-center lg:gap-2">
+                        <div className="flex flex-col gap-0.5 lg:flex-1 lg:min-w-0">
+                          <label htmlFor={`price-${idx}`} className="text-xs text-muted-foreground">Price (Rs.)</label>
                           <input id={`price-${idx}`} type="number" value={item.unitPrice}
                             onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
                             min={0} step={10}
                             className="w-full text-sm lg:text-xs border border-border rounded py-1.5 px-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                         </div>
-                        <div>
-                          <label className="text-[11px] text-muted-foreground">Qty</label>
-                          <div className="flex items-center gap-1 mt-0.5">
+                        <div className="flex flex-col gap-0.5">
+                          <label className="text-xs text-muted-foreground">Qty</label>
+                          <div className="flex items-center gap-1">
                             <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
                               aria-label={`Decrease qty of ${item.productName}`}
                               className="p-1.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
@@ -724,8 +724,8 @@ export default function POSPage() {
                             </button>
                           </div>
                         </div>
-                        <div className="text-right lg:text-right">
-                          <span className="text-[11px] text-muted-foreground">Subtotal</span>
+                        <div className="flex flex-col gap-0.5 text-right lg:text-right">
+                          <span className="text-xs text-muted-foreground">Subtotal</span>
                           <p className="font-semibold text-secondary text-sm lg:text-xs">Rs. {formatNumber(item.subtotal)}</p>
                         </div>
                       </div>
