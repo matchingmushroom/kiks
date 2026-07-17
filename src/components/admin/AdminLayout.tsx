@@ -230,7 +230,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               P
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-semibold text-foreground leading-tight">{settings.shopName}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-foreground leading-tight">{settings.shopName}</span>
+                {settings?.liteMode && <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wider bg-primary text-primary-foreground">Lite</span>}
+              </div>
               <span className="text-[10px] text-muted-foreground/60 font-light tracking-wider uppercase">Management</span>
             </div>
           </Link>
@@ -293,6 +296,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <div className="hidden sm:flex items-center gap-3 text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{profile?.displayName || "User"}</span>
               <span className="px-2.5 py-0.5 rounded-full bg-muted text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{profile?.role || "staff"}</span>
+              {settings?.liteMode && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">Lite Mode</span>}
             </div>
           </div>
           <div className="flex items-center gap-3">
