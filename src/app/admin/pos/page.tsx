@@ -86,6 +86,10 @@ export default function POSPage() {
   const [lastReceipt, setLastReceipt] = useState<any>(null);
   const [redeemPoints, setRedeemPoints] = useState(0);
   const [customerPoints, setCustomerPoints] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [mobilePaymentOpen, setMobilePaymentOpen] = useState(true);
+  const [mobileDiscountOpen, setMobileDiscountOpen] = useState(false);
+  const [mobileCouponOpen, setMobileCouponOpen] = useState(false);
 
   useEffect(() => {
     if (walkin || !customerPhone) { setCustomerName(""); setCustomerPoints(null); setRedeemPoints(0); return; }
@@ -160,7 +164,13 @@ export default function POSPage() {
   const finalAmount = Math.max(0, totalAmount - discount);
   const balanceDue = paymentMode === "partial" ? Math.max(0, finalAmount - receivedAmount) : 0;
 
+  const categories = useMemo(() =>
+    [...new Set(activeProducts.map((p) => p.category).filter(Boolean))] as string[],
+  [activeProducts]);
 
+  const categoryProducts = useMemo(() =>
+    selectedCategory ? activeProducts.filter((p) => p.category === selectedCategory).slice(0, 30) : [],
+  [activeProducts, selectedCategory]);
 
   const availableStock = (productId: string): number => {
     const p = activeProducts.find((p) => p.id === productId);
@@ -670,15 +680,63 @@ export default function POSPage() {
             </div>
           )}
           </>
-        )}
+          )}
+
+          {/* Category filter buttons */}
+          {!settings?.liteMode && categories.length > 0 && (
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+              <button onClick={() => setSelectedCategory("")}
+                className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                  !selectedCategory
+                    ? "bg-primary text-white border-primary"
+                    : "bg-white text-muted-foreground border-border hover:border-primary hover:text-primary"
+                }`}>
+                All
+              </button>
+              {categories.slice(0, 10).map((cat) => (
+                <button key={cat} onClick={() => setSelectedCategory(selectedCategory === cat ? "" : cat)}
+                  className={`shrink-0 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors whitespace-nowrap ${
+                    selectedCategory === cat
+                      ? "bg-primary text-white border-primary"
+                      : "bg-white text-muted-foreground border-border hover:border-primary hover:text-primary"
+                  }`}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Product quick-add grid (non-lite mode, shown after search) */}
+        {!settings?.liteMode && selectedCategory && categoryProducts.length > 0 && (
+          <div className="shrink-0 px-4 pb-2">
+            <div className="bg-white border border-border rounded-xl p-2 shadow-sm">
+              <div className="flex items-center justify-between mb-1.5 px-1">
+                <span className="text-xs font-semibold text-secondary">{selectedCategory}</span>
+                <button onClick={() => setSelectedCategory("")}
+                  className="text-[10px] text-muted-foreground hover:text-primary">✕ Clear</button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                {categoryProducts.map((p) => (
+                  <button key={p.id} onClick={() => addItem(p)}
+                    disabled={(p.quantityInStock ?? 0) <= 0}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg border border-border hover:bg-primary/5 hover:border-primary text-[11px] disabled:opacity-30 disabled:cursor-not-allowed">
+                    <span className="font-medium text-secondary truncate max-w-24">{p.name}</span>
+                    <span className="text-muted-foreground shrink-0">Rs.{formatNumber(p.price)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex-1 flex flex-col lg:flex-row gap-3 px-4 pb-3 overflow-hidden min-h-0">
           {/* Left: Cart items (scrollable) */}
-          <section aria-label="Cart items" ref={summaryRef} className="flex-1 flex flex-col min-w-0 min-h-[120px] lg:min-h-0">
+          <section aria-label="Cart items" ref={summaryRef} className="flex-1 flex flex-col min-w-0 min-h-[120px] lg:min-h-0 pb-20 lg:pb-0">
             <div className="flex-1 bg-white border border-border rounded-xl p-3 shadow-sm flex flex-col min-h-0">
               <h2 className="text-xs font-semibold text-secondary mb-2 shrink-0">
                 Items ({items.length})
+                {selectedCategory && <span className="ml-2 text-[10px] text-muted-foreground font-normal">from <span className="font-medium">{selectedCategory}</span></span>}
               </h2>
               {items.length === 0 ? (
                 <p className="text-center text-muted-foreground text-xs py-6">Search and add products above</p>
@@ -762,12 +820,13 @@ export default function POSPage() {
           </section>
 
           {/* Right: Payment + Discount + Coupon + Summary (fixed column) */}
-          <section aria-label="Payment and discounts" className="w-full lg:w-80 shrink-0 flex flex-col gap-2 overflow-y-auto min-h-0">
+          <section aria-label="Payment and discounts" className="w-full lg:w-80 shrink-0 flex flex-col gap-2 overflow-y-auto min-h-0 pb-16 lg:pb-0">
             {/* Payment */}
             <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
-              <div className="flex items-center gap-1.5 mb-1.5">
+              <button onClick={() => setMobilePaymentOpen(!mobilePaymentOpen)}
+                className="flex items-center justify-between w-full lg:cursor-default">
                 <span className="text-xs font-semibold text-secondary">Payment</span>
-                <div className="flex gap-1" role="radiogroup" aria-label="Payment mode">
+                <div className="flex gap-1" role="radiogroup" aria-label="Payment mode" onClick={(e) => e.stopPropagation()}>
                   {(["cash", "qr", "partial"] as PaymentMode[]).map((mode) => (
                     <button key={mode} role="radio" aria-checked={paymentMode === mode}
                       onClick={() => { setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
@@ -780,9 +839,9 @@ export default function POSPage() {
                     </button>
                   ))}
                 </div>
-              </div>
-              {paymentMode === "partial" && (
-                <div className="flex items-center gap-1.5">
+              </button>
+              {(mobilePaymentOpen || window.innerWidth >= 1024) && paymentMode === "partial" && (
+                <div className="flex items-center gap-1.5 mt-2">
                   <label htmlFor="received-amount" className="text-xs lg:text-[11px] text-muted-foreground">Received:</label>
                   <input id="received-amount" type="number" value={receivedAmount || ""}
                     onChange={(e) => setReceivedAmount(Math.max(0, Number(e.target.value)))}
@@ -858,6 +917,12 @@ export default function POSPage() {
 
             {/* Coupon */}
             <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
+              <button onClick={() => setMobileCouponOpen(!mobileCouponOpen)}
+                className="flex items-center justify-between w-full lg:hidden mb-1">
+                <span className="text-xs font-semibold text-secondary">Coupon</span>
+                <span className="text-[11px] text-muted-foreground">{mobileCouponOpen ? "▲" : "▼"}</span>
+              </button>
+              {(mobileCouponOpen || true) && (<>
               {appliedCoupon && (
                 <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 lg:px-2.5 py-2 lg:py-1.5 mb-1.5">
                   <span className="text-xs lg:text-[11px] font-semibold text-green-800 truncate">
@@ -894,6 +959,7 @@ export default function POSPage() {
                 className="text-xs lg:text-[11px] text-muted-foreground hover:text-primary font-medium mt-1 hover:underline focus:outline-none focus:ring-2 focus:ring-primary rounded px-0.5">
                 Issue new &rarr;
               </button>
+              </>)}
             </div>
 
             {/* Summary + Record (sticky at bottom) */}
@@ -940,12 +1006,36 @@ export default function POSPage() {
                   <span>Rs. {formatNumber(balanceDue)}</span>
                 </div>
               )}
-              <Button onClick={handleSave} disabled={saving || items.length === 0} variant="accent"
-                className="w-full py-3 text-sm font-bold">
-                <CheckCircle className="h-5 w-5" aria-hidden="true" /> {saving ? "Recording..." : "Record Sale"}
-              </Button>
+              {/* Desktop Record button */}
+              <div className="hidden lg:block">
+                <Button onClick={handleSave} disabled={saving || items.length === 0} variant="accent"
+                  className="w-full py-3 text-sm font-bold">
+                  <CheckCircle className="h-5 w-5" aria-hidden="true" /> {saving ? "Recording..." : "Record Sale"}
+                </Button>
+              </div>
             </div>
           </section>
+        </div>
+
+        {/* Mobile sticky bottom bar */}
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t-2 border-border px-4 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="text-xs text-muted-foreground">
+              <span>{items.length} item{items.length !== 1 ? "s" : ""}</span>
+              {discount > 0 && <span className="ml-2 text-green-700">−{formatNumber(discount)}</span>}
+            </div>
+            <span className="text-base font-bold text-secondary">Rs. {formatNumber(finalAmount)}</span>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={clearForm} disabled={items.length === 0}
+              className="px-3 py-2.5 rounded-lg border border-border text-sm text-muted-foreground font-medium hover:bg-muted disabled:opacity-30 shrink-0">
+              <Trash2 className="h-5 w-5" aria-hidden="true" />
+            </button>
+            <Button onClick={handleSave} disabled={saving || items.length === 0} variant="accent"
+              className="flex-1 py-3 text-sm font-bold">
+              <CheckCircle className="h-5 w-5" aria-hidden="true" /> {saving ? "Recording..." : "Record Sale"}
+            </Button>
+          </div>
         </div>
       </div>
 
