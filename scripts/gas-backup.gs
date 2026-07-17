@@ -13,11 +13,22 @@
  */
 
 // ── CONFIGURE THESE ───────────────────────────────────
+// IMPORTANT: Do NOT hardcode secrets. Use Script Properties instead.
+// Go to Project Settings → Script Properties and set:
+//   FIREBASE_PROJECT_ID  (e.g., "my-project-id")
+//   FIREBASE_API_KEY     (your Firebase Web API key)
+//
+// Fallback: if Script Properties are not set, these defaults will be used
+// which should be placeholder values for local development only.
 
 var FIREBASE_CONFIG = {
-  projectId: "kiks-collections",
-  apiKey: "AIzaSyBWYuU_UpuHhgvbG9KjaSIvQxazWpeIXZE",
+  projectId: PropertiesService.getScriptProperties().getProperty("FIREBASE_PROJECT_ID") || "YOUR_PROJECT_ID",
+  apiKey: PropertiesService.getScriptProperties().getProperty("FIREBASE_API_KEY") || "YOUR_API_KEY",
 };
+
+// ⚠️ SECURITY WARNING: If you previously hardcoded real values in this file,
+// they may still exist in git history. Rotate the API key in Firebase Console
+// immediately if this repo is public or shared.
 
 // ── REQUIRED SCOPES (set in appsscript.json) ──────────
 // oauthScopes:

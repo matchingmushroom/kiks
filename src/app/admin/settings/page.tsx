@@ -712,7 +712,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground mb-1">API Key / Token</label>
-                  <input type="text" value={smsConfig.apiKey}
+                  <input type="password" value={smsConfig.apiKey}
                     onChange={(e) => setSmsConfig({ ...smsConfig, apiKey: e.target.value })}
                     placeholder="Your API key or token"
                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />

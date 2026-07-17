@@ -147,8 +147,34 @@ src/
 - `homepage_sections/{id}` — Homepage content sections
 - `counters/{name}` — Auto-increment counters for order/invoice/estimate numbers
 
-## Security Rules (Firestore)
-Lock down Firestore with these rules in production:
+## Security & Secrets
+
+### ⚠️ Environment Variables
+All secrets must be stored in `.env.local` (not committed to git). Copy `.env.example` to `.env.local` and fill in your values:
+```bash
+cp .env.example .env.local
+```
+
+### ⚠️ Previously Exposed Secrets
+The following secrets have been **previously committed to git history**:
+- **Firebase Web API Key** (`AIzaSyBW...`)
+- **Firebase Project ID** (`kiks-collections`)
+
+If you forked or cloned this repository, **rotate these credentials immediately**:
+1. Go to [Firebase Console](https://console.firebase.google.com/) → Project Settings → Service Accounts → Firebase Admin SDK
+2. Under "Web API Key", click "Regenerate key"
+3. Update `.env.local` with the new key
+4. The GAS script (`scripts/gas-backup.gs`) has been updated to use Script Properties — set `FIREBASE_PROJECT_ID` and `FIREBASE_API_KEY` in your GAS project's Script Properties (do not hardcode)
+
+### Google Apps Script Secrets
+The file `scripts/gas-backup.gs` previously contained hardcoded credentials. It now reads from `PropertiesService.getScriptProperties()`. Set these in your GAS project:
+1. Open your GAS project → Project Settings → Script Properties
+2. Add: `FIREBASE_PROJECT_ID`, `FIREBASE_API_KEY`
+
+### SMS API Key
+The SMS API key is stored in Firestore and displayed in the admin settings. It is now masked with a password input. Only share admin credentials with trusted staff.
+
+### Firestore Security Rules
 ```
 rules_version = '2';
 service cloud.firestore {
@@ -160,6 +186,7 @@ service cloud.firestore {
   }
 }
 ```
+⚠️ Read access is open to the public. Do not store sensitive customer data (passwords, payment info) in Firestore.
 
 ## Backup
 - **CSV Export**: Download individual collections or bundled ZIP from `/admin/backup`
