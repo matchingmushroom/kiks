@@ -159,6 +159,7 @@ function toggleModule(modules: string[], key: string): string[] {
 }
 
 export default function SettingsPage() {
+  const { profile } = useAuth();
   const [form, setForm] = useState<Settings>(defaults);
   const [emailConfig, setEmailConfig] = useState<EmailBackupConfig>(emailDefaults);
   const [loading, setLoading] = useState(true);
@@ -603,6 +604,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
+            {profile?.role === "admin" && (
             <div className="flex items-center gap-3 pt-4 border-t border-border">
               <div className="flex-1">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -616,6 +618,7 @@ export default function SettingsPage() {
                 </p>
               </div>
             </div>
+            )}
 
             <div className="space-y-3 pt-4 border-t border-border">
               <h3 className="text-sm font-semibold text-secondary">Delivery Fee</h3>
