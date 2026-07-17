@@ -1029,7 +1029,7 @@ export default function POSPage() {
         </div>
 
         {/* Mobile sticky bottom bar */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t-2 border-border px-4 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+        <div className="lg:hidden fixed bottom-14 left-0 right-0 z-[60] bg-white border-t-2 border-border px-4 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
           <div className="flex items-center justify-between mb-1.5">
             <div className="text-xs text-muted-foreground">
               <span>{items.length} item{items.length !== 1 ? "s" : ""}</span>
