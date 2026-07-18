@@ -83,12 +83,16 @@ export default function ShopFooter() {
             </div>
           </div>
 
-          {settings.mapEmbedUrl || settings.address ? (
+          {settings.mapEmbedUrl || settings.address || (settings.mapLat && settings.mapLng) ? (
             <div>
               <h3 className="font-semibold mb-4 text-sm uppercase tracking-wider text-secondary-foreground/60">Find Us</h3>
               <div className="rounded-lg overflow-hidden border border-secondary-foreground/10">
                 <iframe
-                  src={settings.mapEmbedUrl || `https://maps.google.com/maps?q=${encodeURIComponent(settings.address)}&output=embed`}
+                  src={(() => {
+                    if (settings.mapEmbedUrl) return settings.mapEmbedUrl;
+                    if (settings.mapLat && settings.mapLng) return `https://maps.google.com/maps?q=${settings.mapLat},${settings.mapLng}&output=embed`;
+                    return `https://maps.google.com/maps?q=${encodeURIComponent(settings.address)}&output=embed`;
+                  })()}
                   width="100%"
                   height="180"
                   style={{ border: 0 }}
