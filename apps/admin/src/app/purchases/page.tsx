@@ -229,7 +229,6 @@ function PurchasesContent() {
   };
 
   const handleCsvImport = async () => {
-    alert("handleCsvImport fired!");
     console.log("handleCsvImport called, csvSupplier:", csvSupplier, "csvRows:", csvRows.length, "blocked rows:", csvRows.filter((r) => !r.match && !r.categoryId).length);
     if (!csvSupplier || csvRows.length === 0 || csvRows.some((r) => !r.match && !r.categoryId)) return;
     setCsvImporting(true);
