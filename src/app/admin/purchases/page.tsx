@@ -233,68 +233,81 @@ function PurchasesContent() {
     try {
       const csvPurchaseId = await generateId("PURC");
       const items: PurchaseItemType[] = [];
+      const errors: string[] = [];
       for (const r of csvRows) {
-        let prodId = r.match?.id || "";
-        let prodSku = r.match?.sku || "";
-        if (!r.match && r.categoryId) {
-          const prodId_ = await generateId("PROD");
-          const cat = categories.find((c) => c.id === r.categoryId);
-          const supplier = allSuppliers.find((s) => s.name === (csvSupplier || form.supplierName));
-          const supCode = supplier?.shortCode || "XX";
-          const cp = r.unitCost || 0;
-          const qty = r.quantity || 1;
-          const shortCode = await generateSkuV2();
-          const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
-          const sku = generateSku(barcodeId, cp, supCode, qty);
-          const modelCode = await generateModelCode(cat?.shortCode || "XX");
-          await setDoc(doc(db, "products", prodId_), {
-            name: r.productName, websiteName: r.websiteName || "", description: r.description || "", design: "", categoryId: r.categoryId,
-            images: [], videoUrl: "", price: r.salesPrice, costPrice: r.unitCost,
-            weight: 0, metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0,
-            warranty: r.warranty || "", sku, shortCode, barcodeId, modelCode, quantityInStock: 0,
-            isActive: r.isActive !== undefined ? r.isActive : true,
-            isFeatured: r.isFeatured || false,
-            showOnWebsite: r.showOnWebsite !== undefined ? r.showOnWebsite : false,
-            badge: "", originalPrice: 0, brand: "", modelNo: "",
-            baseMaterial: r.baseMaterial || "", plating: r.plating || "", color: r.color || "",
-            productType: r.productType || "", idealFor: [], netQuantity: 1,
-            occasion: [], collection: "",
-            createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
+        try {
+          let prodId = r.match?.id || "";
+          let prodSku = r.match?.sku || "";
+          if (!r.match && r.categoryId) {
+            const prodId_ = await generateId("PROD");
+            const cat = categories.find((c) => c.id === r.categoryId);
+            const supplier = allSuppliers.find((s) => s.name === (csvSupplier || form.supplierName));
+            const supCode = supplier?.shortCode || "XX";
+            const cp = r.unitCost || 0;
+            const qty = r.quantity || 1;
+            const shortCode = await generateSkuV2();
+            const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
+            const sku = generateSku(barcodeId, cp, supCode, qty);
+            const modelCode = await generateModelCode(cat?.shortCode || "XX");
+            await setDoc(doc(db, "products", prodId_), {
+              name: r.productName, websiteName: r.websiteName || "", description: r.description || "", design: "", categoryId: r.categoryId,
+              images: [], videoUrl: "", price: r.salesPrice, costPrice: r.unitCost,
+              weight: 0, metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0,
+              warranty: r.warranty || "", sku, shortCode, barcodeId, modelCode, quantityInStock: 0,
+              isActive: r.isActive !== undefined ? r.isActive : true,
+              isFeatured: r.isFeatured || false,
+              showOnWebsite: r.showOnWebsite !== undefined ? r.showOnWebsite : false,
+              badge: "", originalPrice: 0, brand: "", modelNo: "",
+              baseMaterial: r.baseMaterial || "", plating: r.plating || "", color: r.color || "",
+              productType: r.productType || "", idealFor: [], netQuantity: 1,
+              occasion: [], collection: "",
+              createdAt: Timestamp.fromDate(new Date()), updatedAt: Timestamp.fromDate(new Date()),
+            });
+            prodId = prodId_;
+            prodSku = sku;
+          }
+          const prodRef = doc(db, "products", prodId);
+          const prodSnap = await getDoc(prodRef);
+          if (prodSnap.exists()) {
+            const p = prodSnap.data() as Product;
+            const oldStock = p.quantityInStock || 0;
+            const newStock = oldStock + r.quantity;
+            const updateData: Record<string, unknown> = { quantityInStock: newStock, price: r.salesPrice };
+            if (r.categoryId) updateData.categoryId = r.categoryId;
+            if (r.productType) updateData.productType = r.productType;
+            if (r.baseMaterial) updateData.baseMaterial = r.baseMaterial;
+            if (r.plating) updateData.plating = r.plating;
+            if (r.color) updateData.color = r.color;
+            if (r.description) updateData.description = r.description;
+            if (r.warranty) updateData.warranty = r.warranty;
+            if (r.isFeatured !== undefined) updateData.isFeatured = r.isFeatured;
+            if (r.isActive !== undefined) updateData.isActive = r.isActive;
+            if (r.websiteName) updateData.websiteName = r.websiteName;
+            if (r.showOnWebsite !== undefined) updateData.showOnWebsite = r.showOnWebsite;
+            await updateDoc(prodRef, updateData);
+          } else if (!r.match) {
+            errors.push(`${r.productName}: product doc not found after create`);
+            continue;
+          }
+          await createLayer(prodId, csvPurchaseId, Date.now(), r.quantity, r.unitCost);
+          await addDoc(collection(db, "inventoryLogs"), {
+            productId: prodId, changeType: "purchase", quantityChange: r.quantity,
+            reason: `CSV import - ${csvSupplier}`, performedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
           });
-          prodId = prodId_;
-          prodSku = sku;
+          items.push({
+            productId: prodId, productName: r.productName, sku: prodSku,
+            quantity: r.quantity, unitCost: r.unitCost, salesPrice: r.salesPrice,
+            subtotal: r.quantity * r.unitCost, serialNo: r.serialNo || "",
+          });
+        } catch (e: any) {
+          errors.push(`${r.productName}: ${e.message}`);
         }
-        const prodRef = doc(db, "products", prodId);
-        const prodSnap = await getDoc(prodRef);
-        if (prodSnap.exists()) {
-          const p = prodSnap.data() as Product;
-          const oldStock = p.quantityInStock || 0;
-          const newStock = oldStock + r.quantity;
-          const updateData: Record<string, unknown> = { quantityInStock: newStock, price: r.salesPrice };
-          if (r.categoryId) updateData.categoryId = r.categoryId;
-          if (r.productType) updateData.productType = r.productType;
-          if (r.baseMaterial) updateData.baseMaterial = r.baseMaterial;
-          if (r.plating) updateData.plating = r.plating;
-          if (r.color) updateData.color = r.color;
-          if (r.description) updateData.description = r.description;
-          if (r.warranty) updateData.warranty = r.warranty;
-          if (r.isFeatured !== undefined) updateData.isFeatured = r.isFeatured;
-          if (r.isActive !== undefined) updateData.isActive = r.isActive;
-          if (r.websiteName) updateData.websiteName = r.websiteName;
-          if (r.showOnWebsite !== undefined) updateData.showOnWebsite = r.showOnWebsite;
-          await updateDoc(prodRef, updateData);
-        }
-        await createLayer(prodId, csvPurchaseId, Date.now(), r.quantity, r.unitCost);
-        await addDoc(collection(db, "inventoryLogs"), {
-          productId: prodId, changeType: "purchase", quantityChange: r.quantity,
-          reason: `CSV import - ${csvSupplier}`, performedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
-        });
-        items.push({
-          productId: prodId, productName: r.productName, sku: prodSku,
-          quantity: r.quantity, unitCost: r.unitCost, salesPrice: r.salesPrice,
-          subtotal: r.quantity * r.unitCost, serialNo: r.serialNo || "",
-        });
       }
+      if (errors.length > 0) {
+        setPurchaseError(errors.join(" | "));
+        setTimeout(() => setPurchaseError(null), 10000);
+      }
+      if (items.length === 0) { setCsvImporting(false); return; }
       const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
       const paid = csvPaymentStatus === "paid" ? totalAmount : csvPaymentStatus === "partially_paid" ? csvPaidAmount : 0;
       const purchaseId = csvPurchaseId;
