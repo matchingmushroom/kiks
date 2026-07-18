@@ -930,7 +930,7 @@ function PurchasesContent() {
       }
       await deleteDoc(doc(db, "purchases", id));
     } catch (e: any) {
-      alert("Failed to delete purchase: " + (e.message || "Unknown error"));
+      alert("Failed to delete purchase: " + (e?.message || "Unknown error"));
     }
   };
 
