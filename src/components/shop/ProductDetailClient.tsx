@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Product, Testimonial } from "@/types";
 import { formatNumber } from "@/lib/utils";
-import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, Gift, Truck, Star, MessageSquare } from "lucide-react";
-import { collection, addDoc } from "firebase/firestore";
+import { ShoppingBag, Check, ChevronLeft, ChevronRight, Sparkles, ShieldCheck, Gift, Truck, Star, MessageSquare, Package } from "lucide-react";
+import { collection, addDoc, getDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useFirestore, where } from "@/hooks/useFirestore";
 
@@ -34,15 +34,35 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [comboItemsData, setComboItemsData] = useState<Product[]>([]);
   const images = product.images?.map(imgUrl) || [];
   const displayName = product.websiteName || product.name;
+  const isCombo = !!product.comboItems?.length;
+  const comboOriginalTotal = isCombo ? comboItemsData.reduce((sum, item) => sum + item.price, 0) : 0;
+  const displayPrice = isCombo ? (product.comboPrice || product.price) : product.price;
+
+  useEffect(() => {
+    if (!product.comboItems?.length) return;
+    let cancelled = false;
+    (async () => {
+      const items: Product[] = [];
+      for (const pid of product.comboItems!) {
+        const snap = await getDoc(doc(db, "products", pid));
+        if (!cancelled && snap.exists()) {
+          items.push({ id: snap.id, ...snap.data() } as Product);
+        }
+      }
+      if (!cancelled) setComboItemsData(items);
+    })();
+    return () => { cancelled = true; };
+  }, [product.comboItems]);
 
   const handleAddToCart = () => {
     addItem({
       productId: product.id,
       name: displayName,
       image: images[0] || "",
-      price: product.price,
+      price: displayPrice,
       weight: product.weight,
       makingCharge: product.makingCharge,
       quantity: 1,
@@ -168,7 +188,19 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-secondary leading-tight">{displayName}</h1>
               </div>
 
-              {product.badge === "price_dropped" || product.badge === "offer" ? (
+              {isCombo ? (
+                <div className="mb-4">
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-xl sm:text-2xl text-muted-foreground line-through">
+                      Rs. {formatNumber(comboOriginalTotal)}
+                    </span>
+                    <span className="text-2xl sm:text-3xl font-bold text-primary">
+                      Rs. {formatNumber(displayPrice)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-purple-600 font-medium mt-1">Combo Deal — Save Rs. {formatNumber(comboOriginalTotal - displayPrice)}</p>
+                </div>
+              ) : product.badge === "price_dropped" || product.badge === "offer" ? (
                 <div className="flex items-baseline gap-3 mb-4">
                   <span className="text-xl sm:text-2xl text-muted-foreground line-through">
                     Rs. {formatNumber(product.originalPrice || product.price)}
@@ -181,6 +213,23 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                 <p className="text-2xl sm:text-3xl font-bold text-primary mb-4">
                   Rs. {formatNumber(product.price)}
                 </p>
+              )}
+
+              {isCombo && comboItemsData.length > 0 && (
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Package className="h-4 w-4 text-purple-600" />
+                    <h3 className="text-sm font-semibold text-purple-700">This Combo Includes</h3>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {comboItemsData.map((item) => (
+                      <li key={item.id} className="flex justify-between text-sm">
+                        <span className="text-purple-800">{item.name}</span>
+                        <span className="text-purple-600 font-medium">Rs. {formatNumber(item.price)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
 
               <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-6">
