@@ -75,7 +75,7 @@ export default function CartPage() {
   };
 
   const placeOrder = async () => {
-    if (!customerName || !customerPhone) return;
+    if (!customerName || !customerPhone || !customerAddress) return;
     setOrderError(""); setOrdering(true);
     try {
       const orderNum = generateOrderNumber();
@@ -298,7 +298,7 @@ export default function CartPage() {
                     <InputWithIcon icon={User} placeholder="Your Name *" value={customerName} onChange={setCustomerName} />
                     <InputWithIcon icon={Phone} placeholder="Your Phone *" value={customerPhone} onChange={(v) => setCustomerPhone(v.replace(/\D/g, "").slice(0, 10))} />
                     <div className="col-span-2">
-                      <InputWithIcon icon={Home} placeholder="Delivery Address (optional)" value={customerAddress} onChange={setCustomerAddress} />
+                      <InputWithIcon icon={Home} placeholder="Delivery Address *" value={customerAddress} onChange={setCustomerAddress} />
                     </div>
                   </div>
                 </div>
@@ -417,7 +417,7 @@ function CustomerDetailsSection({ customerName, setCustomerName, customerPhone, 
       <div className="space-y-3">
         <InputWithIcon icon={User} placeholder="Your Name *" value={customerName} onChange={setCustomerName} />
         <InputWithIcon icon={Phone} placeholder="Your Phone *" value={customerPhone} onChange={(v: string) => setCustomerPhone(v.replace(/\D/g, "").slice(0, 10))} />
-        <InputWithIcon icon={Home} placeholder="Delivery Address (optional)" value={customerAddress} onChange={setCustomerAddress} />
+        <InputWithIcon icon={Home} placeholder="Delivery Address *" value={customerAddress} onChange={setCustomerAddress} />
       </div>
     </div>
   );
@@ -447,7 +447,7 @@ function SummarySection({ totalAmount, discount, appliedCoupon, deliveryLocation
           <XCircle className="h-4 w-4 shrink-0" /> {orderError}
         </p>
       )}
-      <button onClick={placeOrder} disabled={!customerName || !customerPhone || ordering}
+      <button onClick={placeOrder} disabled={!customerName || !customerPhone || !customerAddress || ordering}
         className="w-full mt-1 py-3.5 bg-accent text-secondary font-bold rounded-xl hover:bg-accent/90 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-base shadow-sm hover:shadow-md"
       >
         {ordering ? (
