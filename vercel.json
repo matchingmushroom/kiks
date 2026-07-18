@@ -1,0 +1,8 @@
+{
+  "rootDirectory": "apps/public",
+  "framework": "nextjs",
+  "buildCommand": "npx next build",
+  "outputDirectory": ".next",
+  "installCommand": "npm ci",
+  "turbo": false
+}

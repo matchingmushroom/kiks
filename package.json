@@ -1,0 +1,20 @@
+{
+  "name": "panchakanya-collections",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/admin & npm run dev --workspace=apps/public",
+    "dev:admin": "npm run dev --workspace=apps/admin",
+    "dev:public": "npm run dev --workspace=apps/public",
+    "build": "npm run build --workspace=apps/admin && npm run build --workspace=apps/public",
+    "build:admin": "npm run build --workspace=apps/admin",
+    "build:public": "npm run build --workspace=apps/public",
+    "lint": "npm run lint --workspace=apps/admin && npm run lint --workspace=apps/public"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  }
+}

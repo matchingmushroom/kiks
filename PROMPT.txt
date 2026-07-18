@@ -1,0 +1,140 @@
+Issues and Requirements List
+
+Product Sync and Updates
+
+* From the provided Flipkart link, extract product images, specific product details, and descriptions for artificial jewellery sets, and use this data to dynamically update the products in the database.
+
+Links: https://www.flipkart.com/search?q=artificial%20jewellery&otracker=search&otracker1=search&marketplace=FLIPKART&as-show=on&as=off
+
+This info to be captured  and option to upload /update in product page
+A. General Info
+1.	Brand : [Free Text]
+2.	Model Number : [Free Text]
+3.	Base Material: [Drop Down to be Provided]
+4.	Plating Type : [Drop Down to be Provided]
+5.	Color : [Drop Down to be Provided]
+6.	Type : [Drop Down to be Provided]
+7.	Ideal For : [Drop Down to be Provided]
+8.	Net Quantity : [Drop Down to be Provided – Number 1-10]
+9.	Brand Color : [Drop Down to be Provided or free text]
+10.	Product Details : [Free Text]
+
+
+hide "In Stock (20)" display from public homepage
+
+dummy product data showed jewellery image, but today showing random image. refer yesterday code used to fetch image for dummay data and use same images.
+
+
+while seeding dummy data, it should create products of all categories and type.
+
+Default value in "Category" field's dropdown option list in 'Add Product' section is currently "Jewel Sets", but it should be  default to 'Select' like in other field 'Material Type'
+
+Bug Fixes
+
+* Fix the bug where coupons incorrectly display an Expired error message when applied.
+* Fix the issue where the WhatsApp redirect feature fails to work on mobile devices.
+* Resolve the failure preventing custom messages with coupon codes from working or sending correctly.
+
+Order and Sales Management
+
+* When a user clicks the Sale from Order button within the order details screen, all available information from that order must automatically populate the new sale form.
+* Provide users with the native option to amend existing orders.
+* Automatically generate an invoice based on the unique Sales ID immediately after a sale is saved.
+* When a sale is completed, arrange the workflow to automatically remove the corresponding orders from the order tab.
+
+Coupon Integration
+
+* Add a new column in the Record Sale section that allows users to either assign or automatically generate a personalized coupon valid for 1 month. This coupon must be mentioned on the generated invoice, and the system must simultaneously create this coupon in the main Coupons section.
+
+Search and UI Navigation
+
+* Add a search bar with a slicer-style filter to the Sales tab. Clicking an item in the resulting search box or table should open that specific sales detail page in View-Only mode.
+* Clicking on a client name on the Home page should open a view filtered strictly to that specific customer's details.
+* In the Invoices tab, create sub-tabs to clearly segregate Invoices and Estimates.
+
+Suppliers and Customers Modules
+
+* Add a Suppliers module to list and record basic supplier details including Name, Location, Phone, Website, Key Contact Person Name, and their Mobile Number. This data should be used to populate dropdown menus wherever supplier information is required.
+* Create and integrate a Customer List module that functions in the same manner as the Suppliers module.
+
+Purchasing and Financials
+
+* Update the Payment Method selection in the Add Purchase form to include a Credit option.
+* Create a separate Creditor Module similar to the existing debtor module, and ensure this module is properly reflected within the Financial tab and its associated reports.
+
+Permissions and Access Control
+
+* Update permissions to allow Staff roles to generate invoices.
+* Remove access to the Setup and Settings tabs for the Manager role.
+* Restrict the Staff Dashboard view so staff members cannot see high-level data meant for Admin, Manager, or Accountant roles. It should only display charts and graphs based strictly on the sales recorded by that particular logged-in user.
+* Create an Access Control tab that lists every system module and function. The admin must be able to use this tab to grant or restrict access to specified users by defining which modules and functions are allowed when creating or updating a user role.
+
+-------------------------------------
+1. Allow all user who can acess below module to add following transaction and make necessary account adjustment for finance module.
+
+a. Purchase Return : Deduct purchase return from purchase amount from respective vendor and respective item returned.
+b. Sales Return: Deduct from sales of respective customer.
+
+2. When sales return occurs, customer is issued new product in exchange or replaced new, then while issuing bill deduct entire amount of sales return as "discount" in bill.
+
+---------------------------
+
+1. Introduce option to select , 'List View' or 'Card Grid View' in product, sales , purchase module.
+
+2. Add Defualt address of business in 'Invoice' and 'Estimate' Generated alsong with Amount in words.
+
+3. In New Invoice tab, ask user to choose "Payment Status " with option, "Full Payment", "Partial Payment". if Partial payment, add cash Received row after total amount, and Balance Due in row below amount received row. balance due= total bill amount - cash received
+
+---------------------------
+
+1. add items in purchase section, allow button to add new category of product/ individual product directly from there.
+
+2. add option to add Expense Head if not available in drop down
+
+3. All "qr PAYMENT" AND "Bank Transfer"  RECEIVED and paid FROM SALE, PURCHASE, EXPENSE ETC should automatically displayed in Finance Tab inside "cASH/bANK" TAB ALONG WITH MANUAL OPTION TO ADD CASH
+---------------------------
+
+1. in dashboard in "Recent Orders" or "Overdue Accounts", when user clicks on name, redirect to respective page and open details of selected customer. like wise in "Low Stock Items" card when clicked, show that respective items which is low in stock, when clicked "Active debtor" redirect to debtor list page
+
+2. sidebar nav menu to sticked/fixed and other remaining windows only to be scrolled
+
+---------------------------
+option to mark "Limited Stock", "Out of Stock", Price Dropped", "Offer"
+
+when PRODUCT IS MARKED AS "Price Dropped", then initial price to be crossed and new mark down price to shown.
+
+when PRODUCT IS MARKED AS "Offer", then initial price to be crossed and new mark down price to shown.
+
+
+
+
+Allow to assign "Coupon" to specific buyer too based on phone number
+
+
+When user click on "Order Via WhatsApp", redirect to WhatsApp to order with message to be send to "+9779849171833" with details of order INCLUDING PRODUCT id, Name of buyer, contact number, address.
+
+
+in update status section in order section, provide icon to add update to customer icon. when staff click on that button, it redirect to whatsapp with custom message like:
+
+1. When staff click or change status of order to confirmed, and click "button to update customer, it message as 
+"*Order ORD-250615-A3B2 — CONFIRMED*
+
+Hi Ram, your order status has been updated to confirmed.
+
+• Gold Ring x1 — Rs. 15000
+
+*Total: Rs. 15000*
+
+Thank you for choosing KIKS Collections!
+
+like   when item is shipped, status is changed to shipped and so on
+
+IN Order section, when user change status to delivered and send message, POPUP to type coupon/ select from drop down, then next popup should not appear rather pull what that promos offer from coupon details section.
+
+IN Order section, when user change status to delivered and send message, give option to choose coupons tagged as "For Confirmed Buyers" and when staffs send WhatsApp message, system should pull mobile number in which message was send and store to coupon applicable to only mobile number.
+
+WhatsApp message icon in order section only appears after staff changes the status, only WhatsApp icon to send message will appear to current status button only.
+
+
+when debtor is cleared, remove from debtor list automatically
+

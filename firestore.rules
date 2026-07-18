@@ -1,0 +1,201 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Users: only self or admin can modify ──
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null && (
+        request.auth.uid == uid ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
+      );
+      allow delete: if request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    // ── Sales: read public (for GAS backup) ──
+    match /sales/{saleId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+    }
+
+    // ── Products: read public, write authenticated ──
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Categories: read public, write authenticated ──
+    match /categories/{categoryId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Orders: create public (for cart checkout) ──
+    match /orders/{orderId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if request.auth != null;
+      allow delete: if false;
+    }
+
+    // ── Invoices: read public ──
+    match /invoices/{invoiceId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Coupons: read public (for GAS backup) ──
+    match /coupons/{couponId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Debtors: read public (for GAS backup) ──
+    match /debtors/{debtorId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Homepage sections: read public, write authenticated ──
+    match /homepage_sections/{sectionId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Settings: read public (shop name, etc.), write authenticated ──
+    match /shop_settings/{document} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Inventory logs: read public (for GAS backup) ──
+    match /inventory_logs/{logId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /inventoryLogs/{logId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── FIFO layers: read public (for GAS backup) ──
+    match /fifo_layers/{layerId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Rate limits ──
+    match /_rateLimits/{key} {
+      allow read, write: if request.auth != null;
+    }
+
+    // ── Testimonials: read public, write authenticated ──
+    match /testimonials/{testimonialId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Purchases: read public (for GAS backup) ──
+    match /purchases/{purchaseId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Expenses: read public (for GAS backup) ──
+    match /expenses/{expenseId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Recurring expenses: read public (for GAS backup) ──
+    match /recurring_expenses/{expenseId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Accounts: read public (for GAS backup) ──
+    match /accounts/{accountId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Account transactions: read public (for GAS backup) ──
+    match /account_transactions/{txnId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /accountTransactions/{txnId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Journal entries: read public (for GAS backup) ──
+    match /journalEntries/{entryId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Creditors: read public (for GAS backup) ──
+    match /creditors/{creditorId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Suppliers: read public (for GAS backup) ──
+    match /suppliers/{supplierId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Offers: read public, write authenticated ──
+    match /offers/{offerId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Counters: read public (for GAS backup) ──
+    match /counters/{counterId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Loyalty transactions: read public (for GAS backup) ──
+    match /loyalty_transactions/{txnId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Sections (homepage builder): read public, write authenticated ──
+    match /sections/{sectionId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Partner capitals: read public (for GAS backup) ──
+    match /partnerCapitals/{capitalId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Customers: read public (for loyalty & POS), write authenticated ──
+    match /customers/{customerId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Pending uploads (bill images via GAS): read public, write authenticated ──
+    match /pendingUploads/{uploadId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Catch-all: deny writes not explicitly allowed ──
+    match /{document=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
