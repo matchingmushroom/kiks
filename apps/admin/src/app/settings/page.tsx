@@ -198,7 +198,8 @@ export default function SettingsPage() {
       mapEmbedUrl: form.mapEmbedUrl,
     };
     import("qrcode").then((QRCode) => {
-      const connectUrl = `${window.location.origin}/connect`;
+      const baseUrl = (form.website || window.location.origin).replace(/\/$/, "");
+      const connectUrl = `${baseUrl}/connect`;
       QRCode.default.toDataURL(connectUrl, { width: 400, margin: 2, color: { dark: "#b8860b", light: "#ffffff" } }).then((url: string) => {
         if (!cancelled) setQrDataUrl(url);
       });
