@@ -14,14 +14,11 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
 
-    // ── Sales: prevent price manipulation ──
+    // ── Sales: read public (for GAS backup) ──
     match /sales/{saleId} {
       allow read: if true;
       allow create: if request.auth != null;
       allow update: if request.auth != null;
-      // Optional: validate finalAmount == totalAmount - discountAmount
-      // allow create, update: if request.auth != null
-      //   && request.resource.data.finalAmount == request.resource.data.totalAmount - request.resource.data.discountAmount;
     }
 
     // ── Products: read public, write authenticated ──
@@ -36,29 +33,29 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
 
-    // ── Orders: create public (for cart checkout), read/write authenticated ──
+    // ── Orders: create public (for cart checkout) ──
     match /orders/{orderId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow create: if true;
       allow update: if request.auth != null;
       allow delete: if false;
     }
 
-    // ── Invoices: read public (for public invoice view) ──
+    // ── Invoices: read public ──
     match /invoices/{invoiceId} {
       allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Coupons: read authenticated (used in checkout) ──
+    // ── Coupons: read public (for GAS backup) ──
     match /coupons/{couponId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Debtors: read authenticated, write authenticated ──
+    // ── Debtors: read public (for GAS backup) ──
     match /debtors/{debtorId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
@@ -74,15 +71,15 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
 
-    // ── Inventory logs ──
+    // ── Inventory logs: read public (for GAS backup) ──
     match /inventory_logs/{logId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── FIFO layers ──
+    // ── FIFO layers: read public (for GAS backup) ──
     match /fifo_layers/{layerId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
@@ -97,81 +94,94 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
 
-    // ── Purchases ──
+    // ── Purchases: read public (for GAS backup) ──
     match /purchases/{purchaseId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Expenses ──
+    // ── Expenses: read public (for GAS backup) ──
     match /expenses/{expenseId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Recurring expenses ──
+    // ── Recurring expenses: read public (for GAS backup) ──
     match /recurring_expenses/{expenseId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Accounts ──
+    // ── Accounts: read public (for GAS backup) ──
     match /accounts/{accountId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Account transactions ──
+    // ── Account transactions: read public (for GAS backup) ──
     match /account_transactions/{txnId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Journal entries ──
+    // ── Journal entries: read public (for GAS backup) ──
     match /journalEntries/{entryId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Creditors ──
+    // ── Creditors: read public (for GAS backup) ──
     match /creditors/{creditorId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Suppliers ──
+    // ── Suppliers: read public (for GAS backup) ──
     match /suppliers/{supplierId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Offers ──
+    // ── Offers: read public, write authenticated ──
     match /offers/{offerId} {
       allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Counters (auto-increment) ──
+    // ── Counters: read public (for GAS backup) ──
     match /counters/{counterId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Loyalty transactions ──
+    // ── Loyalty transactions: read public (for GAS backup) ──
     match /loyalty_transactions/{txnId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Sections (homepage builder) ──
+    // ── Sections (homepage builder): read public, write authenticated ──
     match /sections/{sectionId} {
       allow read: if true;
       allow write: if request.auth != null;
     }
 
-    // ── Catch-all: deny everything not explicitly allowed ──
+    // ── Partner capitals: read public (for GAS backup) ──
+    match /partnerCapitals/{capitalId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Customers: read public (for loyalty & POS), write authenticated ──
+    match /customers/{customerId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // ── Catch-all: deny writes not explicitly allowed ──
     match /{document=**} {
-      allow read, write: if false;
+      allow read: if true;
+      allow write: if false;
     }
   }
 }
