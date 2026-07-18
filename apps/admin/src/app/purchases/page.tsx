@@ -97,6 +97,7 @@ function PurchasesContent() {
   const [lastPurchaseForCsv, setLastPurchaseForCsv] = useState<{ id: string; items: { productId: string; productName: string; sku: string; quantity: number; unitCost: number; salesPrice: number; subtotal: number; serialNo?: string }[] } | null>(null);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const [printLabelsPurchase, setPrintLabelsPurchase] = useState<{ items: { productName: string; sku: string; barcodeId?: string; shortCode?: string; price: number; quantity: number }[] } | null>(null);
+  const [printAllLabels, setPrintAllLabels] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [returnModal, setReturnModal] = useState<Purchase | null>(null);
   const [returnItems, setReturnItems] = useState<{ productId: string; qty: number }[]>([]);
@@ -1156,6 +1157,11 @@ function PurchasesContent() {
             <Button onClick={() => setShowCsvModal(true)} variant="outline">
               <Upload className="h-4 w-4" /> Upload CSV
             </Button>
+            {filteredData.length > 0 && (
+              <Button onClick={() => setPrintAllLabels(true)} variant="outline">
+                <Printer className="h-4 w-4" /> Print Labels
+              </Button>
+            )}
             <Button onClick={() => { setShowForm(true); setForm({ ...emptyForm }); setEditingId(null); }} variant="accent">
               <Plus className="h-4 w-4" /> New Purchase
             </Button>
@@ -2401,6 +2407,21 @@ function PurchasesContent() {
         <PrintLabelsDialog
           items={printLabelsPurchase.items}
           onClose={() => setPrintLabelsPurchase(null)}
+        />
+      )}
+      {printAllLabels && (
+        <PrintLabelsDialog
+          items={filteredData.flatMap((p) =>
+            p.items.map((i) => ({
+              productName: i.productName,
+              sku: i.sku,
+              barcodeId: products.find((prod) => prod.id === i.productId)?.barcodeId,
+              shortCode: products.find((prod) => prod.id === i.productId)?.shortCode,
+              price: i.salesPrice,
+              quantity: i.quantity,
+            }))
+          )}
+          onClose={() => setPrintAllLabels(false)}
         />
       )}
     </>
