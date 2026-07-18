@@ -54,11 +54,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${playfair.variable} ${poppins.variable} ${jetbrainsMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
+      <html
+        lang="en"
+        className={`${playfair.variable} ${poppins.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      >
+        <head>
+          <meta
+            httpEquiv="Content-Security-Policy"
+            content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.firebaseio.com https://*.googleapis.com https://*.googlesyndication.com https://jsbarcode https://cdn.jsdelivr.net https://maps.googleapis.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleapis.com https://*.firebasestorage.app https://*.googleusercontent.com; font-src 'self' data:; connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://identitytoolkit.googleapis.com https://firestore.googleapis.com wss://*.firebaseio.com https://script.google.com; frame-src 'self' https://*.firebaseapp.com https://*.google.com; media-src 'self'"
+          />
+        </head>
+        <body className="min-h-full flex flex-col">
         <AuthProvider>
           <CartProvider>
             <ShopSettingsProvider>
