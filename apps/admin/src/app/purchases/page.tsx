@@ -11,7 +11,7 @@ import { generateId } from "@/lib/id-generator";
 import { generateBarcodeId, generateSku, generateModelNo, generateSkuV2, generateModelCode } from "@/lib/sku-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { createJournalEntry, buildPurchaseJournal, buildAdvanceSettlementJournal } from "@/lib/journal";
-import { createLayer, deleteFifoLayersForPurchase } from "@/lib/fifo";
+import { createLayer, deleteFifoLayersForPurchase, consumeFifo } from "@/lib/fifo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import {
