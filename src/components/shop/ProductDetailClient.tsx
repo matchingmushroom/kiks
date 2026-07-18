@@ -35,11 +35,12 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [comboItemsData, setComboItemsData] = useState<Product[]>([]);
-  const images = product.images?.map(imgUrl) || [];
   const displayName = product.websiteName || product.name;
   const isCombo = !!product.comboItems?.length;
   const comboOriginalTotal = isCombo ? comboItemsData.reduce((sum, item) => sum + item.price, 0) : 0;
   const displayPrice = isCombo ? (product.comboPrice || product.price) : product.price;
+  const comboItemImages = isCombo ? comboItemsData.flatMap((item) => item.images || []) : [];
+  const images = (product.images?.length ? product.images : comboItemImages).map(imgUrl) || [];
 
   useEffect(() => {
     if (!product.comboItems?.length) return;
