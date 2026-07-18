@@ -63,7 +63,7 @@ function PurchasesContent() {
     constraints: [orderBy("purchaseDate", "desc"), limit(200)],
     realtime: true,
   });
-  const { data: products, loading: productsLoading } = useFirestore<Product>("products", {
+  const { data: products, loading: productsLoading, error: productsError } = useFirestore<Product>("products", {
     constraints: [orderBy("name", "asc")],
     realtime: true,
   });
@@ -141,7 +141,8 @@ function PurchasesContent() {
 
   const parseCSV = (text: string) => {
     if (productsLoading) { alert("Products are still loading. Please wait and try again."); return; }
-    if (products.length === 0) { alert("No products found in database. Cannot match CSV rows."); return; }
+    if (productsError) { alert("Error loading products: " + productsError); return; }
+    if (products.length === 0) { alert("No products found in database. Go to Products page to add products first."); return; }
     const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
     if (lines.length < 2) { alert("CSV must have a header row and at least one data row."); return; }
     const delim = lines[0].includes("\t") ? "\t" : ",";
