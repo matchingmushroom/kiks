@@ -11,7 +11,7 @@ import { generateId } from "@/lib/id-generator";
 import { generateBarcodeId, generateSku, generateModelNo, generateSkuV2, generateModelCode } from "@/lib/sku-generator";
 import { resolveAccount } from "@/lib/accounts";
 import { createJournalEntry, buildPurchaseJournal, buildAdvanceSettlementJournal } from "@/lib/journal";
-import { createLayer, consumeFifo } from "@/lib/fifo";
+import { createLayer, deleteFifoLayersForPurchase } from "@/lib/fifo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useShopSettings } from "@/contexts/ShopSettingsContext";
 import {
@@ -880,6 +880,7 @@ function PurchasesContent() {
       await deleteDoc(doc(db, "purchases", id));
       return;
     }
+    await deleteFifoLayersForPurchase(id);
     for (const item of purchase.items) {
       const prodRef = doc(db, "products", item.productId);
       const prodSnap = await getDoc(prodRef);
@@ -887,7 +888,6 @@ function PurchasesContent() {
         const currentStock = prodSnap.data().quantityInStock || 0;
         await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - item.quantity) });
       }
-      await consumeFifo(item.productId, item.quantity);
       await addDoc(collection(db, "inventoryLogs"), {
         productId: item.productId,
         changeType: "purchase",

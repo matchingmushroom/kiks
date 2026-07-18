@@ -159,6 +159,16 @@ export async function syncLayersToPhysical(
   }
 }
 
+export async function deleteFifoLayersForPurchase(purchaseId: string): Promise<void> {
+  const q = query(collection(db, LAYERS_COLL), where("purchaseId", "==", purchaseId));
+  const snap = await getDocs(q);
+  const batch = writeBatch(db);
+  for (const d of snap.docs) {
+    batch.delete(doc(db, LAYERS_COLL, d.id));
+  }
+  await batch.commit();
+}
+
 export async function getStockValue(productId: string): Promise<number> {
   const layers = await getActiveLayers(productId);
   return layers.reduce((s, l) => s + l.remainingQty * l.unitCost, 0);
