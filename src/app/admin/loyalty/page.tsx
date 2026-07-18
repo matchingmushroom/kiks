@@ -199,6 +199,18 @@ export default function LoyaltyPage() {
         });
       }
 
+      // Ensure customer is registered in GAS
+      const { registerCustomer, lookupCustomer } = await import("@/lib/loyalty-gas");
+      const lookupRes = await lookupCustomer(sale.customerPhone);
+      if (!lookupRes.ok) {
+        const regRes = await registerCustomer(sale.customerPhone, sale.customerName);
+        if (!regRes.ok) {
+          setMessage(`GAS error: ${regRes.error}. Points saved in Firestore but not synced.`);
+          setAwardingId(null);
+          return;
+        }
+      }
+
       // Send to GAS
       const batchRes = await batchTransaction(sale.customerPhone, earned, 0, sale.id, "sale", "Manual award by " + (profile?.displayName || "admin"));
       if (batchRes.ok) {
@@ -256,6 +268,18 @@ export default function LoyaltyPage() {
       await updateDoc(doc(db, "sales", manualTarget.id), {
         customer: { name, phone },
       });
+
+      // Ensure customer is registered in GAS
+      const { registerCustomer, lookupCustomer } = await import("@/lib/loyalty-gas");
+      const lookupRes = await lookupCustomer(phone);
+      if (!lookupRes.ok) {
+        const regRes = await registerCustomer(phone, name);
+        if (!regRes.ok) {
+          setMessage(`GAS error: ${regRes.error}. Points saved in Firestore but not synced.`);
+          setAwardingId(null); setManualTarget(null); setManualPoints(0); setManualName(""); setManualPhone("");
+          return;
+        }
+      }
 
       const refId = manualTarget.id;
       const batchRes = await batchTransaction(phone, earned, 0, refId, "sale", "Walk-in award by " + (profile?.displayName || "admin"));
