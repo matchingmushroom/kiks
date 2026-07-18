@@ -175,7 +175,7 @@ function PurchasesContent() {
       let catShortCode = catIdx >= 0 ? cols[catIdx]?.toUpperCase() || "" : "";
       let catId = "";
       if (catShortCode) {
-        const cat = categories.find((c) => c.shortCode?.toUpperCase() === catShortCode);
+        const cat = categories.find((c) => c.shortCode?.toUpperCase() === catShortCode || c.name?.toUpperCase() === catShortCode);
         if (cat) catId = cat.id;
         else catShortCode = "";
       }
