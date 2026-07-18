@@ -23,7 +23,7 @@
 // If missing, it falls back to these placeholders (script will fail gracefully).
 
 var FIREBASE_CONFIG = {
-  projectId: PropertiesService.getScriptProperties().getProperty("FIREBASE_PROJECT_ID") || "YOUR_PROJECT_ID",
+  projectId: PropertiesService.getScriptProperties().getProperty("FIREBASE_PROJECT_ID") || "panchakanyacollections",
   apiKey: PropertiesService.getScriptProperties().getProperty("FIREBASE_API_KEY") || "YOUR_API_KEY",
 };
 
