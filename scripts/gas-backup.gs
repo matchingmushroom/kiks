@@ -898,11 +898,9 @@ function firestoreWrite(path, data, token) {
 
 function firestorePatch(path, data) {
   var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + path + "?key=" + FIREBASE_CONFIG.apiKey;
-  var token = ScriptApp.getOAuthToken();
   var payload = { fields: objToFields(data) };
   UrlFetchApp.fetch(url, {
     method: "PATCH",
-    headers: { Authorization: "Bearer " + token },
     payload: JSON.stringify(payload),
     contentType: "application/json",
     muteHttpExceptions: true,
@@ -911,10 +909,8 @@ function firestorePatch(path, data) {
 
 function firestoreDelete(path) {
   var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + path + "?key=" + FIREBASE_CONFIG.apiKey;
-  var token = ScriptApp.getOAuthToken();
   UrlFetchApp.fetch(url, {
     method: "DELETE",
-    headers: { Authorization: "Bearer " + token },
     muteHttpExceptions: true,
   });
 }
@@ -922,12 +918,8 @@ function firestoreDelete(path) {
 // ── FIRESTORE REST HELPERS ────────────────────────────
 
 function firestoreGet(path) {
-  var token = ScriptApp.getOAuthToken();
   var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + path + "?key=" + FIREBASE_CONFIG.apiKey;
-  var resp = UrlFetchApp.fetch(url, {
-    headers: { Authorization: "Bearer " + token },
-    muteHttpExceptions: true,
-  });
+  var resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
   if (resp.getResponseCode() !== 200) {
     console.log("firestoreGet(" + path + ") returned " + resp.getResponseCode() + ": " + resp.getContentText().slice(0, 300));
     return null;
@@ -937,17 +929,13 @@ function firestoreGet(path) {
 }
 
 function firestoreList(collection) {
-  var token = ScriptApp.getOAuthToken();
   var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents/" + collection + "?key=" + FIREBASE_CONFIG.apiKey;
   var allDocs = [];
   var pageToken = "";
 
   while (true) {
     var queryUrl = url + (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : "");
-    var resp = UrlFetchApp.fetch(queryUrl, {
-      headers: { Authorization: "Bearer " + token },
-      muteHttpExceptions: true,
-    });
+    var resp = UrlFetchApp.fetch(queryUrl, { muteHttpExceptions: true });
     if (resp.getResponseCode() !== 200) {
       console.log("firestoreList(" + collection + ") returned " + resp.getResponseCode() + ": " + resp.getContentText().slice(0, 300));
       break;
@@ -1013,7 +1001,6 @@ function firestoreListPlain(collection) {
 }
 
 function firestoreQuery(collection, whereClauses, orderByClause, limitVal) {
-  var token = ScriptApp.getOAuthToken();
   var url = "https://firestore.googleapis.com/v1/projects/" + FIREBASE_CONFIG.projectId + "/databases/(default)/documents:runQuery?key=" + FIREBASE_CONFIG.apiKey;
 
   var sq = { from: [{ collectionId: collection }] };
@@ -1050,7 +1037,6 @@ function firestoreQuery(collection, whereClauses, orderByClause, limitVal) {
 
   var resp = UrlFetchApp.fetch(url, {
     method: "POST",
-    headers: { Authorization: "Bearer " + token },
     contentType: "application/json",
     payload: JSON.stringify({ structuredQuery: sq }),
     muteHttpExceptions: true,
