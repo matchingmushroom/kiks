@@ -64,7 +64,7 @@ function PurchasesContent() {
     realtime: true,
   });
   const { data: products } = useFirestore<Product>("products", {
-    constraints: [orderBy("name", "asc"), limit(200)],
+    constraints: [orderBy("name", "asc")],
     realtime: true,
   });
   const { data: categories } = useFirestore<Category>("categories", {
