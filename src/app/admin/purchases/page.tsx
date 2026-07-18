@@ -200,8 +200,7 @@ function PurchasesContent() {
         (sku && (p.sku?.toLowerCase() === sku.toLowerCase() || p.shortCode?.toLowerCase() === sku.toLowerCase() || p.barcodeId?.toLowerCase() === sku.toLowerCase()))
       );
       if (!match) {
-        const errMsg = catId ? "New product (will be created)" : "Product not found — add category column to create new";
-        parsed.push({ productName: name || sku, quantity: qty, unitCost: cost, salesPrice: price, categoryShortCode: catShortCode, categoryId: catId, match: null, error: errMsg, productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive, serialNo, websiteName, showOnWebsite });
+        parsed.push({ productName: name || sku, quantity: qty, unitCost: cost, salesPrice: price, categoryShortCode: catShortCode, categoryId: catId, match: null, error: "New product (will be created)", productType, baseMaterial, plating, color, description, warranty, isFeatured, isActive, serialNo, websiteName, showOnWebsite });
       } else {
         parsed.push({
           productName: match.name,
@@ -231,7 +230,7 @@ function PurchasesContent() {
 
   const handleCsvImport = async () => {
     console.log("handleCsvImport called, csvSupplier:", csvSupplier, "csvRows:", csvRows.length, "blocked rows:", csvRows.filter((r) => !r.match && !r.categoryId).length);
-    if (!csvSupplier || csvRows.length === 0 || csvRows.some((r) => !r.match && !r.categoryId)) return;
+    if (!csvSupplier || csvRows.length === 0) return;
     setCsvImporting(true);
     console.log("CSV import starting, rows:", csvRows.length);
     try {
@@ -246,19 +245,20 @@ function PurchasesContent() {
         try {
           let prodId = r.match?.id || "";
           let prodSku = r.match?.sku || "";
-          if (!r.match && r.categoryId) {
+          if (!r.match) {
             const prodId_ = await generateId("PROD");
-            const cat = categories.find((c) => c.id === r.categoryId);
+            const cat = r.categoryId ? categories.find((c) => c.id === r.categoryId) : categories[0];
+            const catId = cat?.id || r.categoryId || "";
             const supplier = allSuppliers.find((s) => s.name === (csvSupplier || form.supplierName));
             const supCode = supplier?.shortCode || "XX";
             const cp = r.unitCost || 0;
             const qty = r.quantity || 1;
             const shortCode = await generateSkuV2();
-            const barcodeId = await generateBarcodeId(cat?.shortCode || "XX");
+            const barcodeId = await generateBarcodeId(cat?.shortCode || "GEN");
             const sku = generateSku(barcodeId, cp, supCode, qty);
-            const modelCode = await generateModelCode(cat?.shortCode || "XX");
+            const modelCode = await generateModelCode(cat?.shortCode || "GEN");
             await setDoc(doc(db, "products", prodId_), {
-              name: r.productName, websiteName: r.websiteName || "", description: r.description || "", design: "", categoryId: r.categoryId,
+              name: r.productName, websiteName: r.websiteName || "", description: r.description || "", design: "", categoryId: catId,
               images: [], videoUrl: "", price: r.salesPrice, costPrice: r.unitCost,
               weight: 0, metalType: "", stoneType: "None", stoneWeight: 0, makingCharge: 0,
               warranty: r.warranty || "", sku, shortCode, barcodeId, modelCode, quantityInStock: 0,
@@ -2377,7 +2377,7 @@ function PurchasesContent() {
               </div>
               <Button onClick={() => setShowCsvModal(false)} variant="outline" disabled={csvImporting}>Cancel</Button>
               <Button onClick={handleCsvImport}
-                disabled={csvImporting || !csvSupplier || csvRows.length === 0 || csvRows.some((r) => !r.match && !r.categoryId)}
+                disabled={csvImporting || !csvSupplier || csvRows.length === 0}
                 variant="accent">
                 {csvImporting ? (<span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> {csvProgress || "Importing..."}</span>) : (<span className="flex items-center gap-2"><Upload className="h-4 w-4" /> Import Purchase</span>)}
               </Button>
