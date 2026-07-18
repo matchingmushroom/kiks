@@ -418,8 +418,16 @@ function ComboSection({ products }: { products: ProductType[] }) {
           {combos.slice(0, 4).map((product) => (
             <Link key={product.id} href={`/product-viewer?id=${product.id}`} className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all block">
               <div className="aspect-square bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden flex items-center justify-center">
-                {product.images?.[0] ? (
+                {(product.images?.[0]) ? (
                   <img src={imgUrl(product.images[0])} alt={product.websiteName || product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                ) : (product.comboItems || []).map((id) => products.find((p) => p.id === id)).filter(Boolean).slice(0, 4).length > 0 ? (
+                  <div className="grid grid-cols-2 w-full h-full">
+                    {(product.comboItems || []).map((id) => products.find((p) => p.id === id)).filter(Boolean).slice(0, 4).map((item, i) => (
+                      <div key={item!.id} className={`overflow-hidden ${i < 2 ? "" : ""}`}>
+                        <img src={imgUrl(item!.images?.[0] || "")} alt={item!.websiteName || item!.name} className="w-full h-full object-cover" />
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <span className="text-muted-foreground text-sm">Combo Set</span>
                 )}
