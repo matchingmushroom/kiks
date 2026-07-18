@@ -230,11 +230,15 @@ function PurchasesContent() {
   const handleCsvImport = async () => {
     if (!csvSupplier || csvRows.length === 0 || csvRows.some((r) => !r.match && !r.categoryId)) return;
     setCsvImporting(true);
+    console.log("CSV import starting, rows:", csvRows.length);
     try {
       const csvPurchaseId = await generateId("PURC");
       const items: PurchaseItemType[] = [];
       const errors: string[] = [];
+      let processed = 0;
       for (const r of csvRows) {
+        processed++;
+        console.log(`Processing row ${processed}/${csvRows.length}:`, r.productName);
         try {
           let prodId = r.match?.id || "";
           let prodSku = r.match?.sku || "";
@@ -303,6 +307,7 @@ function PurchasesContent() {
           errors.push(`${r.productName}: ${e.message}`);
         }
       }
+      console.log("CSV import done. Items:", items.length, "Errors:", errors.length, errors);
       if (errors.length > 0) {
         setPurchaseError(errors.join(" | "));
         setTimeout(() => setPurchaseError(null), 10000);
