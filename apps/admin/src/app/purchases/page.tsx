@@ -872,36 +872,40 @@ function PurchasesContent() {
   };
 
   const handleDelete = async (id: string) => {
-    const snap = await getDoc(doc(db, "purchases", id));
-    if (!snap.exists()) return;
-    const purchase = snap.data() as Purchase;
-    if (purchase.returned) {
-      // Already returned — stock already decremented; skip restock
-      await deleteDoc(doc(db, "purchases", id));
-      return;
-    }
-    for (const item of purchase.items) {
-      const prodRef = doc(db, "products", item.productId);
-      const prodSnap = await getDoc(prodRef);
-      if (prodSnap.exists()) {
-        const currentStock = prodSnap.data().quantityInStock || 0;
-        await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - item.quantity) });
+    if (!confirm("Are you sure you want to delete this purchase? This will adjust inventory and cannot be undone.")) return;
+    try {
+      const snap = await getDoc(doc(db, "purchases", id));
+      if (!snap.exists()) return;
+      const purchase = snap.data() as Purchase;
+      if (purchase.returned) {
+        await deleteDoc(doc(db, "purchases", id));
+        return;
       }
-      await consumeFifo(item.productId, item.quantity);
-      await addDoc(collection(db, "inventoryLogs"), {
-        productId: item.productId,
-        changeType: "purchase",
-        quantityChange: -item.quantity,
-        reason: `Purchase #${id} deleted`,
-        performedBy: user?.uid || "",
-        createdAt: Timestamp.fromDate(new Date()),
-      });
+      for (const item of purchase.items) {
+        const prodRef = doc(db, "products", item.productId);
+        const prodSnap = await getDoc(prodRef);
+        if (prodSnap.exists()) {
+          const currentStock = prodSnap.data().quantityInStock || 0;
+          await updateDoc(prodRef, { quantityInStock: Math.max(0, currentStock - item.quantity) });
+        }
+        await consumeFifo(item.productId, item.quantity);
+        await addDoc(collection(db, "inventoryLogs"), {
+          productId: item.productId,
+          changeType: "purchase",
+          quantityChange: -item.quantity,
+          reason: `Purchase #${id} deleted`,
+          performedBy: user?.uid || "",
+          createdAt: Timestamp.fromDate(new Date()),
+        });
+      }
+      const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "purchase"), where("referenceId", "==", id)));
+      for (const tx of txSnap.docs) {
+        await deleteDoc(doc(db, "accountTransactions", tx.id));
+      }
+      await deleteDoc(doc(db, "purchases", id));
+    } catch (e: any) {
+      alert("Failed to delete purchase: " + (e.message || "Unknown error"));
     }
-    const txSnap = await getDocs(query(collection(db, "accountTransactions"), where("referenceType", "==", "purchase"), where("referenceId", "==", id)));
-    for (const tx of txSnap.docs) {
-      await deleteDoc(doc(db, "accountTransactions", tx.id));
-    }
-    await deleteDoc(doc(db, "purchases", id));
   };
 
   // Upload bill copy to Drive via GAS webhook
