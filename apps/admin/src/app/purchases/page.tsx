@@ -346,6 +346,8 @@ function PurchasesContent() {
     } catch (e: any) {
       setPurchaseError(e?.message || "CSV import failed.");
       setTimeout(() => setPurchaseError(null), 6000);
+    } finally {
+      setCsvImporting(false);
     }
     setCsvImporting(false);
   };
@@ -2339,9 +2341,14 @@ function PurchasesContent() {
               )}
             </div>
             <div className="flex items-center justify-end gap-2 p-4 border-t border-border shrink-0">
-              <p className="text-xs text-muted-foreground flex-1">
-                {csvRows.filter((r) => !r.error || r.categoryId).length} of {csvRows.length} items ready
-              </p>
+              <div className="flex-1 text-xs">
+                <p className="text-muted-foreground">
+                  {csvRows.filter((r) => !r.error || r.categoryId).length} of {csvRows.length} items ready
+                </p>
+                {csvRows.some((r) => !r.match && !r.categoryId) && (
+                  <p className="text-red-500 font-medium">Fix red rows above (add category column or match product names) to enable import.</p>
+                )}
+              </div>
               <Button onClick={() => setShowCsvModal(false)} variant="outline" disabled={csvImporting}>Cancel</Button>
               <Button onClick={handleCsvImport}
                 disabled={csvImporting || !csvSupplier || csvRows.length === 0 || csvRows.some((r) => !r.match && !r.categoryId)}
