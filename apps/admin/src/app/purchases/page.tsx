@@ -2201,7 +2201,7 @@ function PurchasesContent() {
                 CSV columns: <code className="bg-muted px-1 rounded">SN</code>, <code className="bg-muted px-1 rounded">productName</code>, <code className="bg-muted px-1 rounded">websiteName</code>, <code className="bg-muted px-1 rounded">quantity</code>, <code className="bg-muted px-1 rounded">unitCost</code>, <code className="bg-muted px-1 rounded">salesPrice</code>, <code className="bg-muted px-1 rounded">category</code> (category shortCode), <code className="bg-muted px-1 rounded">subcategory</code>, <code className="bg-muted px-1 rounded">baseMaterial</code>, <code className="bg-muted px-1 rounded">plating</code>, <code className="bg-muted px-1 rounded">color</code>, <code className="bg-muted px-1 rounded">warranty</code>. Header row required. Supports comma or tab delimiters.
               </p>
               <button type="button" onClick={() => {
-                const sample = "SN,productName,websiteName,quantity,unitCost,salesPrice,category,subcategory,baseMaterial,plating,color,warranty\n001,Sample Ring,,10,500,1200,R,Gold,Gold,Gold,Yellow,1 year\n002,Sample Necklace,,5,1500,3500,HC,Necklace..Silver,Rhodium,Silver,0";
+                const sample = "SN,productName,websiteName,quantity,unitCost,salesPrice,category,subcategory,baseMaterial,plating,color,warranty\n001,Sample Ring,,10,500,1200,RG,Gold,Gold,Gold,Yellow,1 year\n002,Sample Necklace,,5,1500,3500,NC,Necklace,Silver,Rhodium,Silver,0";
                 downloadBlob(new Blob([sample], { type: "text/csv" }), "sample-import.csv");
               }} className="text-xs text-primary hover:underline inline-flex items-center gap-1">
                 <Download className="h-3 w-3" /> Download Sample CSV
@@ -2292,6 +2292,14 @@ function PurchasesContent() {
                   )}
                 </div>
               </div>
+              <details className="text-xs text-muted-foreground">
+                <summary className="cursor-pointer hover:text-foreground">Valid category codes</summary>
+                <div className="mt-1 grid grid-cols-3 sm:grid-cols-4 gap-x-3 gap-y-0.5">
+                  {categories.filter((c) => c.shortCode).map((c) => (
+                    <span key={c.id} className="font-mono">{c.shortCode} = {c.name}</span>
+                  ))}
+                </div>
+              </details>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Select CSV File</label>
                 <input type="file" accept=".csv" onChange={handleFileUpload}
