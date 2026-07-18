@@ -12,7 +12,9 @@ import { ShoppingBag, ChevronRight, Sparkles, ArrowRight, Star, X, Circle, Diamo
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
 import LoadingSpinner from "@/components/ui/LoadingSpinner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const heroSlides = [
   {
@@ -400,14 +402,42 @@ function imgUrl(url: string): string {
 
 function ComboSection({ products }: { products: ProductType[] }) {
   const combos = products.filter((p) => p.comboItems?.length);
+  const [comboChildData, setComboChildData] = useState<Record<string, ProductType[]>>({});
+  const allChildIds = [...new Set(combos.flatMap((c) => c.comboItems || []))];
+
+  useEffect(() => {
+    if (allChildIds.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const map: Record<string, ProductType> = {};
+      const existing = new Set(products.map((p) => p.id));
+      for (const id of allChildIds) {
+        if (existing.has(id)) {
+          const p = products.find((x) => x.id === id);
+          if (p) map[id] = p;
+        } else {
+          const snap = await getDoc(doc(db, "products", id));
+          if (!cancelled && snap.exists()) map[id] = { id: snap.id, ...snap.data() } as ProductType;
+        }
+      }
+      if (!cancelled) {
+        const result: Record<string, ProductType[]> = {};
+        for (const combo of combos) {
+          result[combo.id] = (combo.comboItems || []).map((id) => map[id]).filter(Boolean);
+        }
+        setComboChildData(result);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [combos, products, allChildIds.length]);
+
   if (combos.length === 0) return null;
 
   function computeOriginalTotal(combo: ProductType): number {
     if (!combo.comboItems?.length) return combo.price;
-    return combo.comboItems.reduce((sum, id) => {
-      const item = products.find((p) => p.id === id);
-      return sum + (item?.price || 0);
-    }, 0);
+    const children = comboChildData[combo.id];
+    if (!children) return 0;
+    return children.reduce((sum, item) => sum + item.price, 0);
   }
 
   return (
@@ -415,16 +445,19 @@ function ComboSection({ products }: { products: ProductType[] }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <SectionHeader title="Combo Deals" subtitle="Curated sets at special prices" />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-          {combos.slice(0, 4).map((product) => (
+          {combos.slice(0, 4).map((product) => {
+            const children = comboChildData[product.id] || [];
+            const total = children.reduce((sum, item) => sum + item.price, 0);
+            return (
             <Link key={product.id} href={`/product-viewer?id=${product.id}`} className="group bg-white rounded-xl border border-border overflow-hidden hover:shadow-md transition-all block">
               <div className="aspect-square bg-gradient-to-br from-purple-50 to-pink-50 relative overflow-hidden flex items-center justify-center">
                 {(product.images?.[0]) ? (
                   <img src={imgUrl(product.images[0])} alt={product.websiteName || product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                ) : (product.comboItems || []).map((id) => products.find((p) => p.id === id)).filter(Boolean).slice(0, 4).length > 0 ? (
+                ) : children.length > 0 ? (
                   <div className="grid grid-cols-2 w-full h-full">
-                    {(product.comboItems || []).map((id) => products.find((p) => p.id === id)).filter(Boolean).slice(0, 4).map((item, i) => (
-                      <div key={item!.id} className={`overflow-hidden ${i < 2 ? "" : ""}`}>
-                        <img src={imgUrl(item!.images?.[0] || "")} alt={item!.websiteName || item!.name} className="w-full h-full object-cover" />
+                    {children.slice(0, 4).map((item) => (
+                      <div key={item.id} className="overflow-hidden">
+                        <img src={imgUrl(item.images?.[0] || "")} alt={item.websiteName || item.name} className="w-full h-full object-cover" />
                       </div>
                     ))}
                   </div>
@@ -432,18 +465,19 @@ function ComboSection({ products }: { products: ProductType[] }) {
                   <span className="text-muted-foreground text-sm">Combo Set</span>
                 )}
                 <div className="absolute top-2 right-2 bg-purple-600 text-white text-xs px-2 py-1 rounded font-medium">
-                  Save {formatNumber(computeOriginalTotal(product) - (product.comboPrice || product.price))}
+                  Save {formatNumber(total - (product.comboPrice || product.price))}
                 </div>
               </div>
               <div className="p-4">
                 <h3 className="font-semibold text-secondary truncate">{product.websiteName || product.name}</h3>
                 <div className="flex items-center gap-2 mt-2">
-                  <p className="text-sm text-muted-foreground line-through">Rs. {formatNumber(computeOriginalTotal(product))}</p>
+                  <p className="text-sm text-muted-foreground line-through">Rs. {formatNumber(total)}</p>
                   <p className="text-primary font-bold text-lg">Rs. {formatNumber(product.comboPrice || product.price)}</p>
                 </div>
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
