@@ -194,7 +194,7 @@ function PurchasesContent() {
       const rawShowOnWebsite = showOnWebsiteIdx >= 0 ? cols[showOnWebsiteIdx]?.toLowerCase() : "";
       const showOnWebsite = showOnWebsiteIdx >= 0 ? (rawShowOnWebsite === "yes" || rawShowOnWebsite === "true" || rawShowOnWebsite === "1" || rawShowOnWebsite === "show") : undefined;
       const match = products.find((p) =>
-        (name && (p.name.toLowerCase() === name.toLowerCase() || p.name.toLowerCase().includes(name.toLowerCase()))) ||
+        (name && (p.name.toLowerCase() === name.toLowerCase() || p.name.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(p.name.toLowerCase()))) ||
         (sku && (p.sku?.toLowerCase() === sku.toLowerCase() || p.shortCode?.toLowerCase() === sku.toLowerCase() || p.barcodeId?.toLowerCase() === sku.toLowerCase()))
       );
       if (!match) {
