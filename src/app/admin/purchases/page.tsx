@@ -950,7 +950,7 @@ function PurchasesContent() {
       });
     } catch (e: any) {
       console.error("Bill upload failed", e);
-      alert("Bill upload failed. Try again.");
+      alert("Bill upload failed: " + (e.message || "Unknown error"));
       setUploadingBill(false);
     }
   };
@@ -988,7 +988,7 @@ function PurchasesContent() {
       });
     } catch (e: any) {
       console.error("CSV bill upload failed", e);
-      alert("Bill upload failed. Try again.");
+      alert("CSV bill upload failed: " + (e.message || "Unknown error"));
       setCsvUploadingBill(false);
     }
   };

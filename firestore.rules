@@ -178,6 +178,12 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
 
+    // ── Pending uploads (bill images via GAS): read public, write authenticated ──
+    match /pendingUploads/{uploadId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
     // ── Catch-all: deny writes not explicitly allowed ──
     match /{document=**} {
       allow read: if true;
