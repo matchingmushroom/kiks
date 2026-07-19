@@ -489,7 +489,7 @@ function CustomerDetailsSection({ customerName, setCustomerName, customerPhone, 
   );
 }
 
-function SummarySection({ totalAmount, discount, appliedCoupon, deliveryLocation, deliveryFee, finalTotal, orderError, ordering, placeOrder, customerName, customerPhone, customerAddress }: any) {
+function SummarySection({ totalAmount, discount, appliedCoupon, deliveryLocation, deliveryFee, finalTotal, orderError, ordering, placeOrder, customerName, customerPhone, customerAddress, loyaltyDiscount }: any) {
   return (
     <div className="bg-white rounded-xl border border-border p-4 sm:p-5 shadow-sm lg:sticky lg:top-28">
       <h2 className="font-bold text-secondary mb-4 flex items-center gap-2">
