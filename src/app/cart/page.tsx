@@ -54,7 +54,14 @@ export default function CartPage() {
   const deliveryFee = (settings.freeDeliveryThreshold && totalAmount >= settings.freeDeliveryThreshold) ? 0 : baseDeliveryFee;
 
   const finalTotal = Math.max(0, totalAmount - discount - loyaltyDiscount) + deliveryFee;
-  const hasCombo = items.some((i) => (i.comboItems?.length ?? 0) > 0);
+  const [comboIds, setComboIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const q = query(collection(db, "products"), where("comboItems", "!=", null));
+    getDocs(q).then((snap) => setComboIds(snap.docs.map((d) => d.id))).catch(() => {});
+  }, []);
+
+  const hasCombo = items.some((i) => (i.comboItems?.length ?? 0) > 0 || comboIds.includes(i.productId));
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) return;
