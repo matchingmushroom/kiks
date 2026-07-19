@@ -54,7 +54,7 @@ export default function CartPage() {
   const deliveryFee = (settings.freeDeliveryThreshold && totalAmount >= settings.freeDeliveryThreshold) ? 0 : baseDeliveryFee;
 
   const finalTotal = Math.max(0, totalAmount - discount - loyaltyDiscount) + deliveryFee;
-  const hasCombo = items.some((i) => i.comboItems?.length > 0);
+  const hasCombo = items.some((i) => (i.comboItems?.length ?? 0) > 0);
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) return;
