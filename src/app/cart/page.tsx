@@ -12,7 +12,7 @@ import { Coupon } from "@/types";
 import {
   Trash2, Minus, Plus, Tag, CheckCircle, XCircle, ExternalLink,
   ShoppingBag, ArrowLeft, MapPin, User, Phone, Home, Sparkles,
-  Package, ShieldCheck, Clock
+  Package, ShieldCheck, Clock, Award, Loader2, Gift
 } from "lucide-react";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ShopFooter from "@/components/shop/ShopFooter";
@@ -34,6 +34,11 @@ export default function CartPage() {
   const [waLink, setWaLink] = useState("");
   const [orderError, setOrderError] = useState("");
   const [deliveryLocation, setDeliveryLocation] = useState<"inside_valley" | "outside_valley" | null>(null);
+  const [loyaltyData, setLoyaltyData] = useState<{ name: string; points: number } | null>(null);
+  const [redeemAmount, setRedeemAmount] = useState(0);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
+  const [loyaltyError, setLoyaltyError] = useState("");
+  const [loyaltyDiscount, setLoyaltyDiscount] = useState(0);
 
   const discount = appliedCoupon
     ? appliedCoupon.discountType === "percentage"
@@ -48,7 +53,7 @@ export default function CartPage() {
       : 0;
   const deliveryFee = (settings.freeDeliveryThreshold && totalAmount >= settings.freeDeliveryThreshold) ? 0 : baseDeliveryFee;
 
-  const finalTotal = Math.max(0, totalAmount - discount) + deliveryFee;
+  const finalTotal = Math.max(0, totalAmount - discount - loyaltyDiscount) + deliveryFee;
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) return;
@@ -74,6 +79,39 @@ export default function CartPage() {
     setCouponLoading(false);
   };
 
+  const checkLoyalty = async () => {
+    if (!customerPhone) { setLoyaltyError("Enter your phone number first"); return; }
+    setLoyaltyLoading(true);
+    setLoyaltyError("");
+    setLoyaltyData(null);
+    try {
+      const { getBalance, setGasUrl } = await import("@/lib/loyalty-gas");
+      if (settings.gasLoyaltyUrl) setGasUrl(settings.gasLoyaltyUrl);
+      const res = await getBalance(customerPhone);
+      if (res.ok && res.data) {
+        setLoyaltyData({ name: res.data.name, points: res.data.currentPoints });
+      } else {
+        setLoyaltyError(res.error || "Phone not registered in loyalty program");
+      }
+    } catch {
+      setLoyaltyError("Failed to check loyalty. Try again.");
+    }
+    setLoyaltyLoading(false);
+  };
+
+  const applyLoyaltyRedeem = () => {
+    if (!loyaltyData || redeemAmount <= 0) return;
+    const maxRedeem = Math.min(redeemAmount, loyaltyData.points, Math.floor(totalAmount));
+    setLoyaltyDiscount(maxRedeem);
+    setRedeemAmount(maxRedeem);
+  };
+
+  const removeLoyalty = () => {
+    setLoyaltyDiscount(0);
+    setRedeemAmount(0);
+    setLoyaltyData(null);
+  };
+
   const placeOrder = async () => {
     if (!customerName || !customerPhone || !customerAddress) return;
     setOrderError(""); setOrdering(true);
@@ -91,6 +129,7 @@ export default function CartPage() {
         deliveryFee: deliveryFee > 0 ? deliveryFee : null,
         deliveryLocation, status: "pending", notes: "", processedBy: "",
         createdAt: Timestamp.fromDate(new Date()),
+        ...(loyaltyDiscount > 0 ? { loyaltyRedeemed: loyaltyDiscount, loyaltyPhone: customerPhone } : {}),
       };
       let orderRef;
       if (appliedCoupon) {
@@ -110,7 +149,8 @@ export default function CartPage() {
         orderRef = await addDoc(collection(db, "orders"), orderData);
       }
       setOrderNumber(orderNum);
-      const wLink = generateWhatsAppLink(settings.whatsappNumber || "977XXXXXXXXX", items, finalTotal, customerName, customerPhone, customerAddress, appliedCoupon?.code, discount, deliveryFee, deliveryLocation ?? undefined);
+      const totalDiscount = discount + loyaltyDiscount;
+      const wLink = generateWhatsAppLink(settings.whatsappNumber || "977XXXXXXXXX", items, finalTotal, customerName, customerPhone, customerAddress, appliedCoupon?.code, totalDiscount, deliveryFee, deliveryLocation ?? undefined);
       setWaLink(wLink); setOrderPlaced(true);
     } catch (err) {
       setOrderError("Failed to place order. Please try again.");
@@ -235,6 +275,19 @@ export default function CartPage() {
 
               <DeliverySection deliveryLocation={deliveryLocation} setDeliveryLocation={setDeliveryLocation} />
 
+              <LoyaltySection
+                customerPhone={customerPhone}
+                loyaltyData={loyaltyData}
+                loyaltyLoading={loyaltyLoading}
+                loyaltyError={loyaltyError}
+                redeemAmount={redeemAmount}
+                loyaltyDiscount={loyaltyDiscount}
+                setRedeemAmount={setRedeemAmount}
+                checkLoyalty={checkLoyalty}
+                applyLoyaltyRedeem={applyLoyaltyRedeem}
+                removeLoyalty={removeLoyalty}
+              />
+
               <CustomerDetailsSection
                 customerName={customerName} setCustomerName={setCustomerName}
                 customerPhone={customerPhone} setCustomerPhone={setCustomerPhone}
@@ -312,6 +365,19 @@ export default function CartPage() {
                 />
 
                 <DeliverySection deliveryLocation={deliveryLocation} setDeliveryLocation={setDeliveryLocation} />
+
+                <LoyaltySection
+                  customerPhone={customerPhone}
+                  loyaltyData={loyaltyData}
+                  loyaltyLoading={loyaltyLoading}
+                  loyaltyError={loyaltyError}
+                  redeemAmount={redeemAmount}
+                  loyaltyDiscount={loyaltyDiscount}
+                  setRedeemAmount={setRedeemAmount}
+                  checkLoyalty={checkLoyalty}
+                  applyLoyaltyRedeem={applyLoyaltyRedeem}
+                  removeLoyalty={removeLoyalty}
+                />
 
                 <SummarySection
                   totalAmount={totalAmount} discount={discount} appliedCoupon={appliedCoupon}
@@ -434,6 +500,9 @@ function SummarySection({ totalAmount, discount, appliedCoupon, deliveryLocation
         {appliedCoupon && (
           <SummaryRow label="Discount" value={`-Rs. ${formatNumber(discount)}`} valueClass="text-emerald-600" />
         )}
+        {loyaltyDiscount > 0 && (
+          <SummaryRow label="Loyalty Points" value={`-Rs. ${formatNumber(loyaltyDiscount)}`} valueClass="text-purple-600" />
+        )}
         {deliveryLocation && (
           <SummaryRow label="Delivery" value={deliveryFee === 0 ? "Free" : `Rs. ${formatNumber(deliveryFee)}`} valueClass={deliveryFee === 0 ? "text-emerald-600 font-medium" : ""} />
         )}
@@ -465,6 +534,62 @@ function SummaryRow({ label, value, valueClass }: { label: string; value: string
     <div className="flex justify-between">
       <span className="text-muted-foreground">{label}</span>
       <span className={`font-medium text-secondary ${valueClass || ""}`}>{value}</span>
+    </div>
+  );
+}
+
+function LoyaltySection({
+  customerPhone, loyaltyData, loyaltyLoading, loyaltyError,
+  redeemAmount, loyaltyDiscount,
+  setRedeemAmount, checkLoyalty, applyLoyaltyRedeem, removeLoyalty,
+}: any) {
+  return (
+    <div className="bg-white rounded-xl border border-border p-4 sm:p-5 shadow-sm">
+      <h2 className="font-semibold text-secondary mb-3 flex items-center gap-2 text-sm">
+        <Award className="h-4 w-4 text-accent" /> Redeem Points
+      </h2>
+      {loyaltyDiscount > 0 ? (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Gift className="h-5 w-5 text-purple-600" />
+              <div>
+                <p className="text-sm font-semibold text-purple-800">Points Redeemed</p>
+                <p className="text-xs text-purple-600">Rs. {formatNumber(loyaltyDiscount)} discount applied</p>
+              </div>
+            </div>
+            <button onClick={removeLoyalty} className="text-xs text-red-500 hover:underline">Remove</button>
+          </div>
+        </div>
+      ) : loyaltyData ? (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">Welcome, <span className="font-semibold text-secondary">{loyaltyData.name}</span></p>
+            <p className="text-sm font-bold text-purple-700">{loyaltyData.points} pts</p>
+          </div>
+          <div className="flex gap-2">
+            <input type="number" placeholder="Points to redeem" value={redeemAmount || ""}
+              onChange={(e) => setRedeemAmount(Math.min(Number(e.target.value) || 0, loyaltyData.points))}
+              max={loyaltyData.points}
+              className="flex-1 px-4 py-2.5 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent/40 text-sm" />
+            <button onClick={applyLoyaltyRedeem} disabled={!redeemAmount || redeemAmount <= 0}
+              className="px-5 py-2.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors disabled:opacity-50">
+              Apply
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">1 point = Rs. 1 discount. Max {loyaltyData.points} pts available.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">Check your loyalty points balance and redeem for discounts.</p>
+          <button onClick={checkLoyalty} disabled={loyaltyLoading || !customerPhone}
+            className="flex items-center gap-2 px-4 py-2.5 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium hover:bg-purple-100 transition-colors disabled:opacity-50 border border-purple-200">
+            {loyaltyLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Award className="h-4 w-4" />}
+            {loyaltyLoading ? "Checking..." : "Check My Points"}
+          </button>
+          {loyaltyError && <p className="flex items-center gap-1.5 text-xs text-red-500"><XCircle className="h-3.5 w-3.5 shrink-0" /> {loyaltyError}</p>}
+        </div>
+      )}
     </div>
   );
 }
