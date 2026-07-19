@@ -73,24 +73,26 @@ export default function LoyaltyPage() {
     const phone = searchPhone.trim();
     let foundLoyalty = false;
     try {
-      // Look up customer loyalty points from Firestore
-      const custQuery = query(collection(db, "customers"), where("phone", "==", phone));
-      const custSnap = await getDocs(custQuery);
-      if (custSnap.docs.length > 0) {
-        const c = custSnap.docs[0].data();
-        setLoyaltyInfo({ name: c.name || "", phone: c.phone || phone, points: c.loyaltyPoints || 0, lifetimePoints: c.lifetimePoints || 0 });
-        foundLoyalty = true;
-      } else {
-        // Try GAS lookup
-        try {
-          const { lookupCustomer, setGasUrl } = await import("@/lib/loyalty-gas");
-          if (settings.gasLoyaltyUrl) setGasUrl(settings.gasLoyaltyUrl);
-          const gasRes = await lookupCustomer(phone);
-          if (gasRes.ok && gasRes.data) {
-            setLoyaltyInfo({ name: gasRes.data.name || "", phone: gasRes.data.phone, points: gasRes.data.currentPoints || 0, lifetimePoints: gasRes.data.lifetimePoints || 0 });
-            foundLoyalty = true;
-          }
-        } catch { /* GAS lookup optional */ }
+      // Look up customer loyalty points from Google Sheet (GAS) first
+      try {
+        const { getBalance, setGasUrl } = await import("@/lib/loyalty-gas");
+        if (settings.gasLoyaltyUrl) setGasUrl(settings.gasLoyaltyUrl);
+        const balRes = await getBalance(phone);
+        if (balRes.ok && balRes.data) {
+          setLoyaltyInfo({ name: balRes.data.name, phone: balRes.data.phone, points: balRes.data.currentPoints, lifetimePoints: balRes.data.lifetimePoints });
+          foundLoyalty = true;
+        }
+      } catch { /* GAS lookup failed */ }
+
+      // Fallback to Firestore customers if GAS didn't find
+      if (!foundLoyalty) {
+        const custQuery = query(collection(db, "customers"), where("phone", "==", phone));
+        const custSnap = await getDocs(custQuery);
+        if (custSnap.docs.length > 0) {
+          const c = custSnap.docs[0].data();
+          setLoyaltyInfo({ name: c.name || "", phone: c.phone || phone, points: c.loyaltyPoints || 0, lifetimePoints: c.lifetimePoints || 0 });
+          foundLoyalty = true;
+        }
       }
 
       // Fetch sales for this phone (no orderBy to avoid composite index requirement)
