@@ -300,9 +300,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/" className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground/80 hover:text-primary hover:bg-muted rounded-xl transition-all duration-200 border border-border hover:border-primary/20">
+            <a href={settings?.website || "/"} target="_blank" rel="noopener noreferrer" className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-muted-foreground/80 hover:text-primary hover:bg-muted rounded-xl transition-all duration-200 border border-border hover:border-primary/20">
               <Home className="h-3.5 w-3.5" /> View Shop
-            </Link>
+            </a>
             <div className="relative">
               <button onClick={() => setProfileOpen(!profileOpen)}
                 className="sm:hidden p-2 hover:bg-muted rounded-xl transition-colors"
@@ -316,9 +316,9 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                     <p className="text-[11px] text-muted-foreground mt-0.5">{profile?.role}</p>
                   </div>
                   <div className="border-t border-border mx-2" />
-                  <Link href="/" className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded-xl transition-all" onClick={() => setProfileOpen(false)}>
+                  <a href={settings?.website || "/"} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded-xl transition-all" onClick={() => setProfileOpen(false)}>
                     <Home className="h-4 w-4" /> View Shop
-                  </Link>
+                  </a>
                   <button onClick={() => { setProfileOpen(false); logout(); }}
                     className="flex items-center gap-2.5 w-full px-3 py-2.5 text-sm text-danger/80 hover:text-danger hover:bg-red-50/80 rounded-xl transition-all"
                   >
