@@ -35,6 +35,7 @@ export default function LoyaltyPage() {
   const [manualPoints, setManualPoints] = useState(0);
   const [manualName, setManualName] = useState("");
   const [manualPhone, setManualPhone] = useState("");
+  const [loyaltyInfo, setLoyaltyInfo] = useState<{ name: string; phone: string; points: number; lifetimePoints: number } | null>(null);
 
   const fetchBySaleId = async () => {
     if (!searchId.trim()) return;
@@ -68,12 +69,34 @@ export default function LoyaltyPage() {
     if (!searchPhone.trim()) return;
     setLoading(true);
     setMessage(null);
+    setLoyaltyInfo(null);
+    const phone = searchPhone.trim();
+    let foundLoyalty = false;
     try {
+      // Look up customer loyalty points from Firestore
+      const custQuery = query(collection(db, "customers"), where("phone", "==", phone));
+      const custSnap = await getDocs(custQuery);
+      if (custSnap.docs.length > 0) {
+        const c = custSnap.docs[0].data();
+        setLoyaltyInfo({ name: c.name || "", phone: c.phone || phone, points: c.loyaltyPoints || 0, lifetimePoints: c.lifetimePoints || 0 });
+        foundLoyalty = true;
+      } else {
+        // Try GAS lookup
+        try {
+          const { lookupCustomer, setGasUrl } = await import("@/lib/loyalty-gas");
+          if (settings.gasLoyaltyUrl) setGasUrl(settings.gasLoyaltyUrl);
+          const gasRes = await lookupCustomer(phone);
+          if (gasRes.ok && gasRes.data) {
+            setLoyaltyInfo({ name: gasRes.data.name || "", phone: gasRes.data.phone, points: gasRes.data.currentPoints || 0, lifetimePoints: gasRes.data.lifetimePoints || 0 });
+            foundLoyalty = true;
+          }
+        } catch { /* GAS lookup optional */ }
+      }
+
+      // Fetch sales for this phone (no orderBy to avoid composite index requirement)
       const snap = await getDocs(query(
         collection(db, "sales"),
-        where("customer.phone", "==", searchPhone.trim()),
-        orderBy("createdAt", "desc"),
-        limit(20),
+        where("customer.phone", "==", phone),
       ));
       const list: SaleResult[] = [];
       snap.forEach((d) => {
@@ -89,8 +112,9 @@ export default function LoyaltyPage() {
           recordedByName: data.recordedByName || "",
         });
       });
-      setResults(list);
-      if (list.length === 0) setMessage("No sales found for this phone");
+      list.sort((a, b) => b.saleDate - a.saleDate);
+      setResults(list.slice(0, 20));
+      if (list.length === 0 && !foundLoyalty) setMessage("No sales or customer found for this phone");
     } catch {
       setMessage("Could not load sales data.");
     }
@@ -340,6 +364,24 @@ export default function LoyaltyPage() {
             )}
           </div>
         </div>
+
+        {/* Loyalty info card */}
+        {loyaltyInfo && (
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Customer</p>
+                <p className="font-semibold text-secondary">{loyaltyInfo.name || "Unknown"}</p>
+                <p className="text-xs text-muted-foreground">{loyaltyInfo.phone}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Loyalty Points</p>
+                <p className="text-2xl font-bold text-purple-700">{loyaltyInfo.points}</p>
+                <p className="text-xs text-muted-foreground">Lifetime: {loyaltyInfo.lifetimePoints}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Status message */}
         {message && (
