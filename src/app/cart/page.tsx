@@ -246,7 +246,7 @@ export default function CartPage() {
                 deliveryLocation={deliveryLocation} deliveryFee={deliveryFee}
                 finalTotal={finalTotal} orderError={orderError}
                 ordering={ordering} placeOrder={placeOrder}
-                customerName={customerName} customerPhone={customerPhone}
+                customerName={customerName} customerPhone={customerPhone} customerAddress={customerAddress}
               />
             </div>
 
@@ -318,7 +318,7 @@ export default function CartPage() {
                   deliveryLocation={deliveryLocation} deliveryFee={deliveryFee}
                   finalTotal={finalTotal} orderError={orderError}
                   ordering={ordering} placeOrder={placeOrder}
-                  customerName={customerName} customerPhone={customerPhone}
+                  customerName={customerName} customerPhone={customerPhone} customerAddress={customerAddress}
                 />
 
                 <div className="flex items-center gap-4 text-xs text-muted-foreground justify-center">
@@ -423,7 +423,7 @@ function CustomerDetailsSection({ customerName, setCustomerName, customerPhone, 
   );
 }
 
-function SummarySection({ totalAmount, discount, appliedCoupon, deliveryLocation, deliveryFee, finalTotal, orderError, ordering, placeOrder, customerName, customerPhone }: any) {
+function SummarySection({ totalAmount, discount, appliedCoupon, deliveryLocation, deliveryFee, finalTotal, orderError, ordering, placeOrder, customerName, customerPhone, customerAddress }: any) {
   return (
     <div className="bg-white rounded-xl border border-border p-4 sm:p-5 shadow-sm lg:sticky lg:top-28">
       <h2 className="font-bold text-secondary mb-4 flex items-center gap-2">
