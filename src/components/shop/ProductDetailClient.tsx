@@ -67,6 +67,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       weight: product.weight,
       makingCharge: product.makingCharge,
       quantity: 1,
+      ...(isCombo ? { comboItems: product.comboItems } : {}),
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);

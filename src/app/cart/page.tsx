@@ -54,9 +54,11 @@ export default function CartPage() {
   const deliveryFee = (settings.freeDeliveryThreshold && totalAmount >= settings.freeDeliveryThreshold) ? 0 : baseDeliveryFee;
 
   const finalTotal = Math.max(0, totalAmount - discount - loyaltyDiscount) + deliveryFee;
+  const hasCombo = items.some((i) => i.comboItems?.length > 0);
 
   const validateCoupon = async () => {
     if (!couponCode.trim()) return;
+    if (hasCombo) { setCouponError("Coupon codes cannot be used with combo deals"); return; }
     setCouponLoading(true);
     setCouponError("");
     setAppliedCoupon(null);
@@ -111,6 +113,14 @@ export default function CartPage() {
     setRedeemAmount(0);
     setLoyaltyData(null);
   };
+
+  useEffect(() => {
+    if (hasCombo && appliedCoupon) {
+      setAppliedCoupon(null);
+      setCouponCode("");
+      setCouponError("");
+    }
+  }, [hasCombo]);
 
   const placeOrder = async () => {
     if (!customerName || !customerPhone || !customerAddress) return;
@@ -267,13 +277,19 @@ export default function CartPage() {
                 </div>
               ))}
 
-              <CouponSection
-                couponCode={couponCode} setCouponCode={setCouponCode}
-                couponLoading={couponLoading} couponError={couponError}
-                appliedCoupon={appliedCoupon} validateCoupon={validateCoupon}
+              <CustomerDetailsSection
+                customerName={customerName} setCustomerName={setCustomerName}
+                customerPhone={customerPhone} setCustomerPhone={setCustomerPhone}
+                customerAddress={customerAddress} setCustomerAddress={setCustomerAddress}
               />
 
               <DeliverySection deliveryLocation={deliveryLocation} setDeliveryLocation={setDeliveryLocation} />
+
+              <CouponSection
+                couponCode={couponCode} setCouponCode={setCouponCode}
+                couponLoading={couponLoading} couponError={couponError}
+                appliedCoupon={appliedCoupon} validateCoupon={validateCoupon} hasCombo={hasCombo}
+              />
 
               <LoyaltySection
                 customerPhone={customerPhone}
@@ -286,12 +302,6 @@ export default function CartPage() {
                 checkLoyalty={checkLoyalty}
                 applyLoyaltyRedeem={applyLoyaltyRedeem}
                 removeLoyalty={removeLoyalty}
-              />
-
-              <CustomerDetailsSection
-                customerName={customerName} setCustomerName={setCustomerName}
-                customerPhone={customerPhone} setCustomerPhone={setCustomerPhone}
-                customerAddress={customerAddress} setCustomerAddress={setCustomerAddress}
               />
 
               <SummarySection
@@ -355,16 +365,15 @@ export default function CartPage() {
                     </div>
                   </div>
                 </div>
+                <DeliverySection deliveryLocation={deliveryLocation} setDeliveryLocation={setDeliveryLocation} />
               </div>
 
               <div className="col-span-5 space-y-5">
                 <CouponSection
                   couponCode={couponCode} setCouponCode={setCouponCode}
                   couponLoading={couponLoading} couponError={couponError}
-                  appliedCoupon={appliedCoupon} validateCoupon={validateCoupon}
+                  appliedCoupon={appliedCoupon} validateCoupon={validateCoupon} hasCombo={hasCombo}
                 />
-
-                <DeliverySection deliveryLocation={deliveryLocation} setDeliveryLocation={setDeliveryLocation} />
 
                 <LoyaltySection
                   customerPhone={customerPhone}
@@ -413,7 +422,7 @@ function InputWithIcon({ icon: Icon, placeholder, value, onChange }: { icon: any
   );
 }
 
-function CouponSection({ couponCode, setCouponCode, couponLoading, couponError, appliedCoupon, validateCoupon }: any) {
+function CouponSection({ couponCode, setCouponCode, couponLoading, couponError, appliedCoupon, validateCoupon, hasCombo }: any) {
   const [showInput, setShowInput] = useState(false);
   if (appliedCoupon && !showInput) {
     return (
@@ -427,6 +436,16 @@ function CouponSection({ couponCode, setCouponCode, couponLoading, couponError, 
             </div>
           </div>
           <button onClick={() => { setShowInput(true); setCouponCode(""); }} className="text-xs text-red-500 hover:underline">Remove</button>
+        </div>
+      </div>
+    );
+  }
+  if (hasCombo) {
+    return (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 shadow-sm">
+        <div className="flex items-center gap-2">
+          <Tag className="h-5 w-5 text-amber-600 shrink-0" />
+          <p className="text-sm text-amber-700">Coupon codes not applicable on combo deals. Use loyalty points instead.</p>
         </div>
       </div>
     );

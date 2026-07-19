@@ -81,6 +81,7 @@ export interface CartItem {
   purity?: string;
   makingCharge: number;
   quantity: number;
+  comboItems?: string[];
 }
 
 export interface OrderItem {
