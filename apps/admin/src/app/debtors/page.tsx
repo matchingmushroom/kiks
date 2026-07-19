@@ -557,6 +557,54 @@ export default function AdminDebtorsPage() {
                 )}
               </div>
 
+              {selectedDebtor.status === "active" && (
+                <div className="border-t border-border pt-4">
+                  {paymentForm && paymentForm.amount !== undefined ? (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium text-secondary">Record Payment</h4>
+                      <div className="flex flex-wrap gap-3">
+                        <div className="flex-1 min-w-[120px]">
+                          <label className="block text-xs text-muted-foreground mb-1">Amount (NPR)</label>
+                          <input type="number" value={paymentForm.amount}
+                            onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                            max={selectedDebtor.balanceDue} />
+                        </div>
+                        <div className="w-32">
+                          <label className="block text-xs text-muted-foreground mb-1">Method</label>
+                          <select value={paymentForm.method}
+                            onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                            <option value="qr">QR Payment</option>
+                          </select>
+                        </div>
+                        <div className="flex-1 min-w-[120px]">
+                          <label className="block text-xs text-muted-foreground mb-1">Notes</label>
+                          <input type="text" value={paymentForm.notes}
+                            onChange={(e) => setPaymentForm({ ...paymentForm, notes: e.target.value })}
+                            className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                        </div>
+                        <div className="flex items-end gap-2">
+                          <Button onClick={() => recordPayment(selectedDebtor)} disabled={saving || !paymentForm.amount || Number(paymentForm.amount) <= 0} variant="accent">
+                            <Save className="h-4 w-4" /> {saving ? "..." : "Record"}
+                          </Button>
+                          <button onClick={() => setPaymentForm(null)} className="p-2 text-muted-foreground hover:bg-muted rounded">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => startPayment(selectedDebtor.id)}
+                      className="flex items-center gap-1.5 text-sm text-primary font-medium hover:underline">
+                      <Plus className="h-4 w-4" /> Record Payment
+                    </button>
+                  )}
+                </div>
+              )}
+
               {selectedDebtor.orderIds && selectedDebtor.orderIds.length > 0 && (
                 <div>
                   <h3 className="text-xs font-medium text-muted-foreground mb-1 uppercase">Related Orders</h3>
