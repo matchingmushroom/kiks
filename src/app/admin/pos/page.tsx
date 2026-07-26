@@ -416,7 +416,7 @@ export default function POSPage() {
       try {
         if (effectiveReceived > 0) {
           await addDoc(collection(db, "accountTransactions"), {
-            accountId: "cash_in_hand", type: "credit", amount: effectiveReceived,
+            accountId: resolveAccount(paymentMode), type: "credit", amount: effectiveReceived,
             description: `POS sale to ${cName}`, date: Timestamp.fromDate(new Date()),
             referenceType: "sale", referenceId: saleId, recordedBy: user?.uid || "", createdAt: Timestamp.fromDate(new Date()),
           });
