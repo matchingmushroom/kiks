@@ -85,4 +85,3 @@ export function useFirestore<T>(
 }
 
 export { where, orderBy, limit, Timestamp };
-export { useDataCache } from "@/contexts/DataCacheContext";
