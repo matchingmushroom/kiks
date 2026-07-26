@@ -35,21 +35,26 @@ export default function SetupPage() {
     if (!confirm("Delete ALL products, sales, purchases, orders, and expenses? This cannot be undone.")) return;
     if (!confirm("Are you sure? This will permanently delete all data in the database.")) return;
     setDeletingAll(true);
-    try {
-      const collections = ["products", "sales", "purchases", "orders", "expenses", "invoices", "debtors", "creditors", "coupons"];
-      let total = 0;
-      for (const name of collections) {
+    const collections = ["products", "sales", "purchases", "orders", "expenses", "invoices", "debtors", "creditors", "coupons"];
+    let total = 0;
+    const errors: string[] = [];
+    for (const name of collections) {
+      try {
         const snap = await getDocs(collection(db, name));
         const ids = snap.docs.map((d) => d.id);
         for (let i = 0; i < ids.length; i += 50) {
           await Promise.all(ids.slice(i, i + 50).map((id) => deleteDoc(doc(db, name, id))));
         }
         total += ids.length;
+      } catch (e) {
+        errors.push(`${name}: ${e instanceof Error ? e.message : e}`);
+        console.error(`Delete failed for ${name}`, e);
       }
+    }
+    if (errors.length > 0) {
+      alert(`Deleted ${total} documents from ${collections.length - errors.length} collections. ${errors.length} collection(s) failed:\n${errors.join("\n")}`);
+    } else {
       alert(`Deleted ${total} documents from ${collections.length} collections.`);
-    } catch (e) {
-      alert("Delete all failed. Check console for details.");
-      console.error(e);
     }
     setDeletingAll(false);
   };
