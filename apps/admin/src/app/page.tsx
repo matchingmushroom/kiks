@@ -282,7 +282,7 @@ export default function AdminDashboardPage() {
         />
 
         {/* SKU Search */}
-        <AdminCard title="SKU Lookup" className="mb-6" action={<Search className="h-4 w-4 text-muted-foreground" />}>
+        {!settings?.liteMode && <AdminCard title="SKU Lookup" className="mb-6" action={<Search className="h-4 w-4 text-muted-foreground" />}>
           <div className="flex gap-2">
             <input type="text" placeholder="Enter SKU number..." value={skuSearch}
               onChange={(e) => setSkuSearch(e.target.value)}
@@ -321,7 +321,7 @@ export default function AdminDashboardPage() {
           {skuSearch && !skuResult && (
             <p className="mt-2 text-sm text-red-500">No product found with SKU "{skuSearch.trim()}"</p>
           )}
-        </AdminCard>
+        </AdminCard>}
 
         {!isStaff && (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
