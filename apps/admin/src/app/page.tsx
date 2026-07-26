@@ -139,12 +139,11 @@ export default function AdminDashboardPage() {
   const todayStr = now.toISOString().slice(0, 10);
   const todayStart = new Date(todayStr).getTime();
   const todayEnd = todayStart + 86400000;
-  const userSales = sales.filter((s) => s.recordedBy === profile?.uid);
-  const myTodaySales = userSales.filter((s) => {
+  const myTodaySales = mySales.filter((s) => {
     const d = new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).getTime();
     return d >= todayStart && d < todayEnd;
   });
-  const userTransactions = (transactions || []).filter((t) => t.recordedBy === profile?.uid);
+  const userTransactions = isStaff ? (transactions || []).filter((t) => t.recordedBy === profile?.uid) : (transactions || []);
   const todaySales = mySales.filter((s) => {
     const d = new Date((s.saleDate as any)?.seconds ? (s.saleDate as any).seconds * 1000 : (s.saleDate as number)).getTime();
     return d >= todayStart && d < todayEnd;
@@ -156,7 +155,6 @@ export default function AdminDashboardPage() {
   const todayCash = myTodaySales.filter((s) => s.payment?.method === "cash").reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0);
   const todayQrBank = myTodaySales.filter((s) => s.payment?.method === "qr" || s.payment?.method === "bank_transfer").reduce((s, x) => s + (x.payment?.receivedAmount || 0), 0);
   const todayDebtor = myTodaySales.filter((s) => s.saleType === "credit" || s.saleType === "partial").reduce((s, x) => s + (x.payment?.balanceDue || 0), 0);
-  const myTransactions = isStaff ? (transactions || []).filter((t) => t.recordedBy === profile?.uid) : (transactions || []);
   const todayFilter = (t: AccountTransaction) => {
     const d = new Date((t.date as any)?.seconds ? (t.date as any).seconds * 1000 : (t.date as number)).getTime();
     return d >= todayStart && d < todayEnd;
