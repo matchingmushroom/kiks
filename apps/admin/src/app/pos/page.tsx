@@ -854,11 +854,11 @@ export default function POSPage() {
               </button>
               {(mobilePaymentOpen || window.innerWidth >= 1024) && paymentMode === "partial" && (
                 <div className="flex items-center gap-1.5 mt-2">
-                  <label htmlFor="received-amount" className="text-xs lg:text-[11px] text-muted-foreground">Received:</label>
+                  <label htmlFor="received-amount" className="text-xs lg:text-[11px] text-muted-foreground shrink-0">Received:</label>
                   <input id="received-amount" type="number" value={receivedAmount || ""}
                     onChange={(e) => setReceivedAmount(Math.max(0, Number(e.target.value)))}
                     min={0} placeholder="0"
-                    className="flex-1 lg:w-20 px-3 py-2 lg:px-2 lg:py-1 border-2 border-border rounded text-sm lg:text-xs text-right focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                    className="flex-1 min-w-0 px-3 py-2 lg:px-2 lg:py-1 border-2 border-border rounded text-sm lg:text-xs text-right focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                 </div>
               )}
             </div>
