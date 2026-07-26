@@ -139,6 +139,7 @@ function BottomNav({ profile, pathname, settings }: { profile: any; pathname: st
         return { href: navItem.href!, label: navItem.label!, icon: bottomNavIconMap[href] || navItem.icon, permission: navItem.permission };
       })
       .filter(Boolean) as { href: string; label: string; icon: ReactNode; permission?: string }[];
+  }
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border flex justify-around items-center h-14 safe-area-bottom shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
