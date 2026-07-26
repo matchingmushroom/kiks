@@ -109,30 +109,54 @@ function loadBottomNavHrefs(): string[] {
   return defaultBottomNavHrefs;
 }
 
-function BottomNav({ profile, pathname }: { profile: any; pathname: string }) {
-  const [hrefs, setHrefs] = useState<string[]>(loadBottomNavHrefs);
+function BottomNav({ profile, pathname, settings }: { profile: any; pathname: string; settings?: any }) {
+  const isLite = settings?.liteMode;
+  const [hrefs, setHrefs] = useState<string[]>(isLite ? [] : loadBottomNavHrefs);
 
   useEffect(() => {
+    if (isLite) return;
     const handler = () => setHrefs(loadBottomNavHrefs());
     window.addEventListener("storage", handler);
     return () => window.removeEventListener("storage", handler);
-  }, []);
+  }, [isLite]);
 
-  const items = hrefs
-    .map((href) => {
-      const navItem = navItems.find((n) => n.href === href);
-      if (!navItem) return null;
-      if (navItem.permission && !hasPermission(profile?.role, navItem.permission as never, profile?.permissions)) return null;
-      return { href: navItem.href!, label: navItem.label!, icon: bottomNavIconMap[href] || navItem.icon, permission: navItem.permission };
-    })
-    .filter(Boolean) as { href: string; label: string; icon: ReactNode; permission?: string }[];
+  let items: { href?: string; label: string; icon: ReactNode; external?: boolean }[];
+
+  if (isLite) {
+    items = [
+      { href: settings?.website || "/", label: "Preview", icon: <Home className="h-5 w-5" />, external: true },
+      { href: "/admin/expenses", label: "Expenses", icon: bottomNavIconMap["/admin/expenses"] || <CreditCard className="h-5 w-5" /> },
+      { href: "/admin/pos", label: "POS", icon: bottomNavIconMap["/admin/pos"] || <Zap className="h-5 w-5" /> },
+      { href: "/admin", label: "Dashboard", icon: bottomNavIconMap["/admin"] || <LayoutDashboard className="h-5 w-5" /> },
+      { href: "/admin/debtors", label: "Debtors", icon: bottomNavIconMap["/admin/debtors"] || <Users className="h-5 w-5" /> },
+    ];
+  } else {
+    items = hrefs
+      .map((href) => {
+        const navItem = navItems.find((n) => n.href === href);
+        if (!navItem) return null;
+        if (navItem.permission && !hasPermission(profile?.role, navItem.permission as never, profile?.permissions)) return null;
+        return { href: navItem.href!, label: navItem.label!, icon: bottomNavIconMap[href] || navItem.icon, permission: navItem.permission };
+      })
+      .filter(Boolean) as { href: string; label: string; icon: ReactNode; permission?: string }[];
+  }
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border flex justify-around items-center h-14 safe-area-bottom shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
       {items.map((item) => {
-        const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+        const isActive = item.href && !item.external && (pathname === item.href || pathname.startsWith(item.href + "/"));
+        if (item.external) {
+          return (
+            <a key={item.label} href={item.href} target="_blank" rel="noopener noreferrer"
+              className="flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-lg transition-all duration-200 text-muted-foreground/60 hover:text-primary"
+            >
+              {item.icon}
+              <span className="text-[10px] font-medium">{item.label}</span>
+            </a>
+          );
+        }
         return (
-          <Link key={item.href} href={item.href}
+          <Link key={item.href} href={item.href!}
             className={`flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-lg transition-all duration-200 ${
               isActive ? "text-primary" : "text-muted-foreground/60 hover:text-primary"
             }`}
@@ -332,7 +356,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <main className="flex-1">{children}</main>
       </div>
 
-      <BottomNav profile={profile} pathname={pathname} />
+      <BottomNav profile={profile} pathname={pathname} settings={settings} />
       <div className="lg:hidden h-14" />
     </div>
     </DataCacheProvider>
