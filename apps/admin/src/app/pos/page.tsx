@@ -571,7 +571,7 @@ export default function POSPage() {
 
   return (
     <AdminLayout>
-      <div className="h-dvh flex flex-col overflow-y-auto pl-5 pb-[50px]">
+      <div className="h-dvh flex flex-col overflow-y-auto px-3 lg:px-4 pb-[60px]">
         {/* Screen reader live region */}
         <div ref={announceRef} tabIndex={-1} className="sr-only" aria-live="assertive" role="status">
           {success ? "Sale recorded successfully. Ready for next customer." : error ? `Error: ${error}` : ""}
@@ -743,7 +743,7 @@ export default function POSPage() {
 
         <div className="flex-1 flex flex-col lg:flex-row gap-3 px-4 pb-3 overflow-y-auto min-h-0">
           {/* Left: Cart items (scrollable) */}
-          <section aria-label="Cart items" ref={summaryRef} className="flex-1 flex flex-col min-w-0 min-h-[120px] lg:min-h-0 pb-20 lg:pb-0">
+          <section aria-label="Cart items" ref={summaryRef} className="flex-1 flex flex-col min-w-0 min-h-[120px] lg:min-h-0 pb-4 lg:pb-0">
             <div className="flex-1 bg-white border border-border rounded-xl p-3 shadow-sm flex flex-col min-h-0">
               <h2 className="text-xs font-semibold text-secondary mb-2 shrink-0">
                 Items ({items.length})
@@ -766,31 +766,31 @@ export default function POSPage() {
                         </button>
                       </div>
                       {/* Mobile: 2-column grid */}
-                      <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 lg:hidden">
-                        <span className="text-xs text-muted-foreground">Price (Rs.)</span>
+                      <div className="grid grid-cols-5 gap-y-1.5 gap-x-1 lg:hidden">
+                        <span className="text-[11px] text-muted-foreground col-span-2">Price (Rs.)</span>
                         <input type="number" value={item.unitPrice}
                           onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
                           min={0} step={10}
-                          className="w-full text-xs border border-border rounded py-1 px-2 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-right" />
-                        <span className="text-xs text-muted-foreground">Qty</span>
-                        <div className="flex items-center gap-1 justify-end">
+                          className="col-span-3 w-full text-xs border border-border rounded py-1 px-1.5 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none text-right" />
+                        <span className="text-[11px] text-muted-foreground col-span-2">Qty</span>
+                        <div className="col-span-3 flex items-center gap-0.5 justify-end">
                           <button onClick={() => updateItem(idx, "quantity", item.quantity - 1)}
                             aria-label={`Decrease qty of ${item.productName}`}
-                            className="p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                            className="p-0.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
                             <Minus className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
                           <input type="number" value={item.quantity}
                             onChange={(e) => updateItem(idx, "quantity", Math.max(1, Number(e.target.value)))}
                             min={1}
-                            className="w-12 text-center text-xs border border-border rounded py-1 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
+                            className="w-10 text-center text-xs border border-border rounded py-1 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none" />
                           <button onClick={() => updateItem(idx, "quantity", item.quantity + 1)}
                             aria-label={`Increase qty of ${item.productName}`}
-                            className="p-1 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
+                            className="p-0.5 rounded border border-border hover:bg-muted focus:ring-2 focus:ring-primary outline-none">
                             <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                           </button>
                         </div>
-                        <span className="text-xs text-muted-foreground">Subtotal</span>
-                        <p className="font-semibold text-secondary text-xs text-right">Rs. {formatNumber(item.subtotal)}</p>
+                        <span className="text-[11px] text-muted-foreground col-span-2">Subtotal</span>
+                        <p className="font-semibold text-secondary text-xs text-right col-span-3">Rs. {formatNumber(item.subtotal)}</p>
                       </div>
                       {/* Desktop: horizontal row */}
                       <div className="hidden lg:flex lg:items-center lg:gap-3">
@@ -832,7 +832,7 @@ export default function POSPage() {
           </section>
 
           {/* Right: Payment + Discount + Coupon + Summary (fixed column) */}
-          <section aria-label="Payment and discounts" className="w-full lg:w-80 shrink-0 flex flex-col gap-2 overflow-y-auto min-h-0 pb-16 lg:pb-0">
+          <section aria-label="Payment and discounts" className="w-full lg:w-80 shrink-0 flex flex-col gap-2 overflow-y-auto min-h-0 pb-4 lg:pb-0">
             {/* Payment */}
             <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
               <button onClick={() => setMobilePaymentOpen(!mobilePaymentOpen)}
@@ -842,7 +842,7 @@ export default function POSPage() {
                   {(["cash", "qr", "partial"] as PaymentMode[]).map((mode) => (
                     <button key={mode} role="radio" aria-checked={paymentMode === mode}
                       onClick={() => { setPaymentMode(mode); if (mode !== "partial") setReceivedAmount(0); }}
-                      className={`px-3 lg:px-2.5 py-1.5 lg:py-1 text-xs lg:text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
+                      className={`px-2.5 lg:px-2.5 py-1.5 lg:py-1 text-[11px] lg:text-[11px] rounded-full border font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-primary ${
                         paymentMode === mode
                           ? "bg-primary text-white border-primary"
                           : "bg-white text-secondary border-border hover:bg-muted"
@@ -1030,22 +1030,23 @@ export default function POSPage() {
         </div>
 
         {/* Mobile sticky bottom bar */}
-        <div className="lg:hidden fixed bottom-14 left-0 right-0 z-[60] bg-white border-t-2 border-border px-4 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
-          <div className="flex items-center justify-between mb-1.5">
-            <div className="text-xs text-muted-foreground">
-              <span>{items.length} item{items.length !== 1 ? "s" : ""}</span>
-              {discount > 0 && <span className="ml-2 text-green-700">−{formatNumber(discount)}</span>}
-            </div>
-            <span className="text-base font-bold text-secondary">Rs. {formatNumber(finalAmount)}</span>
-          </div>
-          <div className="flex gap-2">
+        <div className="lg:hidden fixed bottom-14 left-0 right-0 z-[60] bg-white border-t-2 border-border px-3 py-2 shadow-[0_-4px_12px_rgba(0,0,0,0.08)]">
+          <div className="flex items-center justify-between gap-1">
             <button onClick={clearForm} disabled={items.length === 0}
-              className="px-3 py-2.5 rounded-lg border border-border text-sm text-muted-foreground font-medium hover:bg-muted disabled:opacity-30 shrink-0">
-              <Trash2 className="h-5 w-5" aria-hidden="true" />
+              className="px-2 py-2 rounded-lg border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 shrink-0">
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
             </button>
+            <div className="flex-1 min-w-0 text-right">
+              <div className="text-[10px] text-muted-foreground leading-tight">
+                <span>{items.length} item{items.length !== 1 ? "s" : ""}</span>
+                {discount > 0 && <span className="ml-1.5 text-green-700">−{formatNumber(discount)}</span>}
+              </div>
+              <div className="text-sm font-bold text-secondary">Rs. {formatNumber(finalAmount)}</div>
+            </div>
             <Button onClick={handleSave} disabled={saving || items.length === 0} variant="accent"
-              className="flex-1 py-3 text-sm font-bold">
-              <CheckCircle className="h-5 w-5" aria-hidden="true" /> {saving ? "Recording..." : "Record Sale"}
+              className="px-4 py-2 text-sm font-bold whitespace-nowrap">
+              <CheckCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="ml-1">{saving ? "Saving..." : "Record"}</span>
             </Button>
           </div>
         </div>
