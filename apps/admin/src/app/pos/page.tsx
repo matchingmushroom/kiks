@@ -81,7 +81,7 @@ export default function POSPage() {
   const [issueDiscountType, setIssueDiscountType] = useState<"percentage" | "fixed">("percentage");
   const [issueDiscountValue, setIssueDiscountValue] = useState(0);
   const [showIssuePopup, setShowIssuePopup] = useState(false);
-  const [manualDiscountType, setManualDiscountType] = useState<"percentage" | "fixed">("percentage");
+  const [manualDiscountType, setManualDiscountType] = useState<"percentage" | "fixed">("fixed");
   const [manualDiscountValue, setManualDiscountValue] = useState(0);
   const [comboDiscount, setComboDiscount] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -264,7 +264,7 @@ export default function POSPage() {
     setReceivedAmount(0);
     setPaymentMode("cash");
     setManualDiscountValue(0);
-    setManualDiscountType("percentage");
+    setManualDiscountType("fixed");
     setComboDiscount(0);
     setCustomerName("");
     setCustomerPhone("");
@@ -865,9 +865,17 @@ export default function POSPage() {
 
             {/* Discount */}
             <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Percent className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
-                <span className="text-xs font-semibold text-secondary">Discount</span>
+              <button onClick={() => setMobileDiscountOpen(!mobileDiscountOpen)}
+                className="flex items-center justify-between w-full">
+                <div className="flex items-center gap-1.5">
+                  <Percent className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+                  <span className="text-xs font-semibold text-secondary">Discount</span>
+                  {manualDiscountValue > 0 && <span className="text-[11px] text-green-700 font-medium">(Rs. {formatNumber(manualDiscountType === "percentage" ? Math.min((totalAmount * manualDiscountValue) / 100, totalAmount) : Math.min(manualDiscountValue, totalAmount))})</span>}
+                </div>
+                <span className="text-[11px] text-muted-foreground">{mobileDiscountOpen ? "▲" : "▼"}</span>
+              </button>
+              {mobileDiscountOpen && (<>
+              <div className="flex items-center gap-1.5 mt-2">
                 <div className="flex gap-1 ml-auto" role="radiogroup" aria-label="Discount type">
                   <button role="radio" aria-checked={manualDiscountType === "percentage"}
                     onClick={() => setManualDiscountType("percentage")}
@@ -885,7 +893,7 @@ export default function POSPage() {
                     }`}>Rs.</button>
                 </div>
               </div>
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 mt-1.5">
                 <input id="manual-discount" type="number" value={manualDiscountValue || ""}
                   onChange={(e) => setManualDiscountValue(Math.max(0, Number(e.target.value)))}
                   min={0} placeholder="0"
@@ -898,6 +906,7 @@ export default function POSPage() {
                   </span>
                 )}
               </div>
+              </>)}
             </div>
 
             {/* Redeem Points */}
@@ -930,11 +939,12 @@ export default function POSPage() {
             {/* Coupon */}
             <div className="bg-white border border-border rounded-xl p-3 shadow-sm">
               <button onClick={() => setMobileCouponOpen(!mobileCouponOpen)}
-                className="flex items-center justify-between w-full lg:hidden mb-1">
+                className="flex items-center justify-between w-full">
                 <span className="text-xs font-semibold text-secondary">Coupon</span>
+                {appliedCoupon && <span className="text-[11px] text-green-700 font-medium ml-auto mr-1">{appliedCoupon.code}</span>}
                 <span className="text-[11px] text-muted-foreground">{mobileCouponOpen ? "▲" : "▼"}</span>
               </button>
-              {(mobileCouponOpen || true) && (<>
+              {mobileCouponOpen && (<>
               {appliedCoupon && (
                 <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 lg:px-2.5 py-2 lg:py-1.5 mb-1.5">
                   <span className="text-xs lg:text-[11px] font-semibold text-green-800 truncate">
