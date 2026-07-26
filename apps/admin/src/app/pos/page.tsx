@@ -571,7 +571,7 @@ export default function POSPage() {
 
   return (
     <AdminLayout>
-      <div className="h-dvh flex flex-col overflow-hidden pl-5 pb-[50px]">
+      <div className="h-dvh flex flex-col overflow-y-auto pl-5 pb-[50px]">
         {/* Screen reader live region */}
         <div ref={announceRef} tabIndex={-1} className="sr-only" aria-live="assertive" role="status">
           {success ? "Sale recorded successfully. Ready for next customer." : error ? `Error: ${error}` : ""}
@@ -741,7 +741,7 @@ export default function POSPage() {
           </div>
         )}
 
-        <div className="flex-1 flex flex-col lg:flex-row gap-3 px-4 pb-3 overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col lg:flex-row gap-3 px-4 pb-3 overflow-y-auto min-h-0">
           {/* Left: Cart items (scrollable) */}
           <section aria-label="Cart items" ref={summaryRef} className="flex-1 flex flex-col min-w-0 min-h-[120px] lg:min-h-0 pb-20 lg:pb-0">
             <div className="flex-1 bg-white border border-border rounded-xl p-3 shadow-sm flex flex-col min-h-0">
